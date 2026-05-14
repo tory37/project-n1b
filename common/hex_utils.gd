@@ -12,27 +12,27 @@ const DIRECTIONS: Array[Vector2i] = [
 
 ## Converts an axial hex coordinate to a pixel position. [param size] is the circumradius (center to corner).
 static func axial_to_pixel(q: int, r: int, size: float) -> Vector2:
-	var x = size * (sqrt(3) * q + sqrt(3) / 2 * r)
-	var y = size * (3.0 / 2 * r)
+	var x: float = size * (sqrt(3.0) * q + sqrt(3.0) / 2.0 * r)
+	var y: float = size * (1.5 * r)
 	return Vector2(x, y)
 
 ## Converts a pixel position back to the nearest axial hex coordinate.
 static func pixel_to_axial(x: float, y: float, size: float) -> Vector2i:
-	var q = (sqrt(3) / 3 * x - 1.0 / 3 * y) / size
-	var r = (2.0 / 3 * y) / size
+	var q: float = (sqrt(3.0) / 3.0 * x - 1.0 / 3.0 * y) / size
+	var r: float = (2.0 / 3.0 * y) / size
 	return axial_round(q, r)
 
 ## Rounds a float axial position to the nearest valid hex cell.
 ## Operates in cube space to preserve the q+r+s=0 constraint.
 static func axial_round(q: float, r: float) -> Vector2i:
-	var s := -q - r
-	var rq := round(q)
-	var rr := round(r)
-	var rs := round(s)
+	var s: float = -q - r
+	var rq: float = roundf(q)
+	var rr: float = roundf(r)
+	var rs: float = roundf(s)
 
-	var q_diff := abs(rq - q)
-	var r_diff := abs(rr - r)
-	var s_diff := abs(rs - s)
+	var q_diff: float = absf(rq - q)
+	var r_diff: float = absf(rr - r)
+	var s_diff: float = absf(rs - s)
 
 	if q_diff > r_diff and q_diff > s_diff:
 		rq = -rr - rs

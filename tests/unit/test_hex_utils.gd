@@ -52,8 +52,9 @@ func test_axial_round_integer_coords_unchanged() -> void:
 	assert_eq(HexUtils.axial_round(0.0, 0.0), Vector2i(0, 0))
 
 func test_axial_round_snaps_to_correct_hex_when_q_has_largest_error() -> void:
-	# q=0.6, r=-0.3, s=-0.3 — q has the biggest rounding error, so q is recomputed.
-	var result := HexUtils.axial_round(0.6, -0.3)
+	# q=0.4, r=0.3, s=-0.7 — naive rounds give (0,0,-1), which is invalid (sum=-1).
+	# q_diff=0.4 is largest, so q is recomputed: rq = -0 - (-1) = 1. Result: (1, 0).
+	var result := HexUtils.axial_round(0.4, 0.3)
 	assert_eq(result, Vector2i(1, 0))
 
 func test_axial_round_snaps_to_correct_hex_when_r_has_largest_error() -> void:
