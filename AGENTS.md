@@ -3,6 +3,23 @@
 ## Core Philosophy
 We have moved away from "vibe coding." Every architectural decision and code implementation must be research-backed, documented with evidence, and fully understood by the user before execution.
 
+## Strict Review & Authorization
+
+**MANDATE:** The agent MUST NOT modify any files (write_file, replace) or execute system-altering commands (pip install, etc.) without first presenting the specific intended change to the user and awaiting explicit approval.
+
+1. **Proposed Changes:** Present the exact code diff or file content in a clear Markdown block.
+2. **Approval Gate:** Use a distinct "Awaiting approval to proceed with these changes..." message.
+3. **No Batch Commit/Push:** Never combine implementation, linting, and committing into a single autonomous sequence. Each stage requires a fresh review.
+
+## Handling Interjectory Requests
+
+When the user makes a request that is outside the scope of the current feature or story (an "interjectory request"):
+
+1. **Identify Scope:** Explicitly ask yourself: "Is this part of the current feature, or is it an 'oh this would be nice' addition?"
+2. **Isolate Changes:** If it is out-of-scope, do NOT implement it on the current feature branch.
+3. **Branch Off Master:** Create a new branch specifically for this request, starting from `master` (or the project's default branch).
+4. **Switch Back:** Once the interjectory task is reviewed/completed, switch back to the original feature branch to continue the primary work.
+
 ## The Workflow
 
 ### Phase 1 — Story Definition (skip if starting from an existing Trello card)
