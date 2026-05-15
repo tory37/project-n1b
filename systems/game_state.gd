@@ -1,82 +1,95 @@
 extends Node
-
 ## Global Game State Manager (Autoload)
 ## Manages the Tug-of-War economy and player resources.
+##
+## Networking seam: request_* functions are public entrypoints (future @rpc("any_peer")).
+## _apply_* functions are authority-only state mutators (future @rpc("authority")).
+## Locally, request_* calls _apply_* directly — zero behavior change, zero networking needed now.
 
-enum Player { ONE, TWO }
+const PLAYER_ONE: int = 0
+const PLAYER_TWO: int = 1
 
 @export var max_marker_value: float = 5.0
 @export var base_income: int = 2
 
-var active_player: Player = Player.ONE
-var marker_position: float = 0.0 # Positive for Player 2, Negative for Player 1 (Tug of War)
-var player_resources = {
-	Player.ONE: {"ap": 1, "currency": 0},
-	Player.TWO: {"ap": 0, "currency": 0}
+var active_player: int = PLAYER_ONE
+var marker_position: float = 0.0
+var player_resources: Dictionary = {
+	PLAYER_ONE: { "ap": 1, "currency": 0 },
+	PLAYER_TWO: { "ap": 0, "currency": 0 },
 }
 
-func _ready():
-	# Initial setup as per MVP plan
+
+func _ready() -> void:
 	pass
 
-## Move the marker towards the opponent's side.
-func spend_ap(amount: int):
+
+func reset() -> void:
+	active_player = PLAYER_ONE
+	marker_position = 0.0
+	player_resources = {
+		PLAYER_ONE: { "ap": 1, "currency": 0 },
+		PLAYER_TWO: { "ap": 0, "currency": 0 },
+	}
+
+
+func request_spend_ap(amount: int) -> void:
+	_apply_spend_ap(amount)
+
+
+func _apply_spend_ap(amount: int) -> void:
 	player_resources[active_player]["ap"] -= amount
 
-	# Moving marker: Player 1 moves it towards positive (Player 2 side)
-	# Player 2 moves it towards negative (Player 1 side)
-	var move_direction = 1.0 if active_player == Player.ONE else -1.0
+	# DESIGN TODO: marker direction is a 2-player mechanic — revisit if N-player is ever designed
+	var move_direction: float = 1.0 if active_player == PLAYER_ONE else -1.0
 	marker_position += (amount * move_direction)
 
 	SignalBus.marker_moved.emit(marker_position)
 	SignalBus.resources_updated.emit(
 		active_player,
 		player_resources[active_player]["ap"],
-		player_resources[active_player]["currency"]
+		player_resources[active_player]["currency"],
 	)
 
 	if abs(marker_position) >= max_marker_value:
-		switch_turn()
+		_apply_switch_turn()
 
-func add_currency(player: Player, amount: int):
+
+func request_add_currency(player: int, amount: int) -> void:
+	_apply_add_currency(player, amount)
+
+
+func _apply_add_currency(player: int, amount: int) -> void:
 	player_resources[player]["currency"] += amount
 	SignalBus.resources_updated.emit(
 		player,
 		player_resources[player]["ap"],
-		player_resources[player]["currency"]
+		player_resources[player]["currency"],
 	)
 
-func switch_turn():
-	# Restock merchant would happen here (emitted via signal or called directly)
 
-	active_player = Player.TWO if active_player == Player.ONE else Player.ONE
+func request_switch_turn() -> void:
+	_apply_switch_turn()
 
-	# Income phase
-	add_currency(active_player, base_income)
 
-	# Marker bonus/reset logic as per design
-	# "The opponent then receives those points plus a base amount."
-	# For MVP: We convert the marker position into starting AP for the new player.
-	var starting_ap = abs(marker_position)
-	player_resources[active_player]["ap"] = int(starting_ap)
+func _apply_switch_turn() -> void:
+	active_player = (active_player + 1) % 2
 
-	# Reset marker for the new turn perspective?
-	# Or keep it as a continuous track?
-	# Design says "A track shared by both players."
-	# If Player 1 pushed it to +6, it starts at +6 for Player 2.
+	_apply_add_currency(active_player, base_income)
+
+	# Convert marker distance into starting AP for the incoming player
+	player_resources[active_player]["ap"] = int(abs(marker_position))
 
 	SignalBus.player_switched.emit(active_player)
 	SignalBus.resources_updated.emit(
 		active_player,
 		player_resources[active_player]["ap"],
-		player_resources[active_player]["currency"]
+		player_resources[active_player]["currency"],
 	)
 
-func end_turn_manual():
-	# Can only end if marker is on opponent's side
-	var is_p1_valid = (active_player == Player.ONE and marker_position > 0)
-	var is_p2_valid = (active_player == Player.TWO and marker_position < 0)
-	var on_opponent_side = is_p1_valid or is_p2_valid
 
-	if on_opponent_side:
-		switch_turn()
+func request_end_turn_manual() -> void:
+	var is_p1_valid: bool = (active_player == PLAYER_ONE and marker_position > 0)
+	var is_p2_valid: bool = (active_player == PLAYER_TWO and marker_position < 0)
+	if is_p1_valid or is_p2_valid:
+		_apply_switch_turn()
