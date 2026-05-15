@@ -3,45 +3,45 @@ extends GutTest
 const SIZE := 32.0
 
 
-# --- axial_to_pixel ---
+# --- axial_to_pixel_pointy_top ---
 
 func test_axial_to_pixel_origin_is_zero() -> void:
-	var result := HexUtils.axial_to_pixel(0, 0, SIZE)
+	var result := HexUtils.axial_to_pixel_pointy_top(0, 0, SIZE)
 	assert_eq(result, Vector2.ZERO)
 
 func test_axial_to_pixel_q_axis_moves_right() -> void:
-	var result := HexUtils.axial_to_pixel(1, 0, SIZE)
+	var result := HexUtils.axial_to_pixel_pointy_top(1, 0, SIZE)
 	assert_almost_eq(result.x, SIZE * sqrt(3.0), 0.001)
 	assert_almost_eq(result.y, 0.0, 0.001)
 
 func test_axial_to_pixel_r_axis_moves_down_and_right() -> void:
-	var result := HexUtils.axial_to_pixel(0, 1, SIZE)
+	var result := HexUtils.axial_to_pixel_pointy_top(0, 1, SIZE)
 	assert_almost_eq(result.x, SIZE * sqrt(3.0) / 2.0, 0.001)
 	assert_almost_eq(result.y, SIZE * 1.5, 0.001)
 
 func test_axial_to_pixel_scales_with_size() -> void:
-	var small := HexUtils.axial_to_pixel(1, 0, 16.0)
-	var large := HexUtils.axial_to_pixel(1, 0, 32.0)
+	var small := HexUtils.axial_to_pixel_pointy_top(1, 0, 16.0)
+	var large := HexUtils.axial_to_pixel_pointy_top(1, 0, 32.0)
 	assert_almost_eq(large.x, small.x * 2.0, 0.001)
 
 
-# --- pixel_to_axial ---
+# --- pixel_to_axial_pointy_top ---
 
 func test_pixel_to_axial_origin_is_zero() -> void:
-	var result := HexUtils.pixel_to_axial(0.0, 0.0, SIZE)
+	var result := HexUtils.pixel_to_axial_pointy_top(0.0, 0.0, SIZE)
 	assert_eq(result, Vector2i.ZERO)
 
 func test_pixel_to_axial_round_trips_with_axial_to_pixel() -> void:
 	var coords := [Vector2i(2, -1), Vector2i(-3, 2), Vector2i(0, 4), Vector2i(1, 1)]
 	for axial in coords:
-		var pixel := HexUtils.axial_to_pixel(axial.x, axial.y, SIZE)
-		var back := HexUtils.pixel_to_axial(pixel.x, pixel.y, SIZE)
+		var pixel := HexUtils.axial_to_pixel_pointy_top(axial.x, axial.y, SIZE)
+		var back := HexUtils.pixel_to_axial_pointy_top(pixel.x, pixel.y, SIZE)
 		assert_eq(back, axial, "Round trip failed for %s" % str(axial))
 
 func test_pixel_to_axial_snaps_nearby_pixel_to_nearest_hex() -> void:
 	# A pixel just slightly off-center of hex (1,0) should still resolve to (1,0).
-	var center := HexUtils.axial_to_pixel(1, 0, SIZE)
-	var result := HexUtils.pixel_to_axial(center.x + 2.0, center.y + 2.0, SIZE)
+	var center := HexUtils.axial_to_pixel_pointy_top(1, 0, SIZE)
+	var result := HexUtils.pixel_to_axial_pointy_top(center.x + 2.0, center.y + 2.0, SIZE)
 	assert_eq(result, Vector2i(1, 0))
 
 

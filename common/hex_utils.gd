@@ -15,8 +15,8 @@ const DIRECTIONS: Array[Vector2i] = [
 
 const Q_BASIS_POINTY_TOP: Vector2 = Vector2(sqrt(3), 0)
 const R_BASIS_POINTY_TOP: Vector2 = Vector2(sqrt(3) / 2.0, 3.0 / 2.0)
-const Q_INV_BASIS_POINTY_TOP: Vector2 = Vector2(sqrt(3) / 3.0, 0.0)
-const R_INV_BASIS_POINTY_TOP: Vector2 = Vector2(-1.0 / 3.0, 2.0 / 3.0)
+const Q_INV_BASIS_POINTY_TOP: Vector2 = Vector2(sqrt(3) / 3.0, -1.0 / 3.0)
+const R_INV_BASIS_POINTY_TOP: Vector2 = Vector2(0.0, 2.0 / 3.0)
 
 
 ## Converts a pointy-top axial hex coordinate to a pixel position. [param size] is

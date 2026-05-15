@@ -22,7 +22,7 @@ The grid uses **pointy-top** hex orientation. The hexes point up and down, and c
 
 ### API
 
-#### `axial_to_pixel(q, r, size) -> Vector2`
+#### `axial_to_pixel_pointy_top(q, r, size) -> Vector2`
 
 Converts an axial hex coordinate to a pixel position in world space.
 
@@ -35,9 +35,9 @@ x = size * (√3·q  +  √3/2·r)
 y = size * (         3/2 ·r)
 ```
 
-#### `pixel_to_axial(x, y, size) -> Vector2i`
+#### `pixel_to_axial_pointy_top(x, y, size) -> Vector2i`
 
-Inverse of `axial_to_pixel`. Finds which hex cell contains a given pixel position.
+Inverse of `axial_to_pixel_pointy_top`. Finds which hex cell contains a given pixel position.
 
 Applies the inverse matrix, then calls `axial_round` to snap the result to a valid hex center.
 
@@ -64,8 +64,8 @@ Uses the cube distance formula `(|Δq| + |Δr| + |Δs|) / 2`, with `s` reconstru
 All methods are `static` — call them directly on the class, no instantiation needed:
 
 ```gdscript
-var pixel_pos: Vector2 = HexUtils.axial_to_pixel(2, -1, 32.0)
-var hex_coord: Vector2i = HexUtils.pixel_to_axial(mouse_pos.x, mouse_pos.y, 32.0)
+var pixel_pos: Vector2 = HexUtils.axial_to_pixel_pointy_top(2, -1, 32.0)
+var hex_coord: Vector2i = HexUtils.pixel_to_axial_pointy_top(mouse_pos.x, mouse_pos.y, 32.0)
 var neighbors: Array[Vector2i] = HexUtils.get_neighbors(0, 0)
 var dist: int = HexUtils.get_distance(0, 0, 3, -1)
 ```
