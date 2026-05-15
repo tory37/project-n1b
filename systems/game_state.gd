@@ -11,8 +11,8 @@ enum Player { ONE, TWO }
 var active_player: Player = Player.ONE
 var marker_position: float = 0.0 # Positive for Player 2, Negative for Player 1 (Tug of War)
 var player_resources = {
-	Player.ONE: {"ap": 1, "coins": 0},
-	Player.TWO: {"ap": 0, "coins": 0}
+	Player.ONE: {"ap": 1, "currency": 0},
+	Player.TWO: {"ap": 0, "currency": 0}
 }
 
 func _ready():
@@ -32,18 +32,18 @@ func spend_ap(amount: int):
 	SignalBus.resources_updated.emit(
 		active_player,
 		player_resources[active_player]["ap"],
-		player_resources[active_player]["coins"]
+		player_resources[active_player]["currency"]
 	)
 
 	if abs(marker_position) >= max_marker_value:
 		switch_turn()
 
-func add_coins(player: Player, amount: int):
-	player_resources[player]["coins"] += amount
+func add_currency(player: Player, amount: int):
+	player_resources[player]["currency"] += amount
 	SignalBus.resources_updated.emit(
 		player,
 		player_resources[player]["ap"],
-		player_resources[player]["coins"]
+		player_resources[player]["currency"]
 	)
 
 func switch_turn():
@@ -52,7 +52,7 @@ func switch_turn():
 	active_player = Player.TWO if active_player == Player.ONE else Player.ONE
 
 	# Income phase
-	add_coins(active_player, base_income)
+	add_currency(active_player, base_income)
 
 	# Marker bonus/reset logic as per design
 	# "The opponent then receives those points plus a base amount."
@@ -69,7 +69,7 @@ func switch_turn():
 	SignalBus.resources_updated.emit(
 		active_player,
 		player_resources[active_player]["ap"],
-		player_resources[active_player]["coins"]
+		player_resources[active_player]["currency"]
 	)
 
 func end_turn_manual():

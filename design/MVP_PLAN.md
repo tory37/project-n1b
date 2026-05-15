@@ -5,7 +5,7 @@ This plan outlines the requirements for a functional prototype to test the core 
 ## 1. Core Objectives
 
 - Validate the **Marker/AP** turn-switching loop.
-- Test the friction between **AP** (tactical) and **Coins** (strategic).
+- Test the friction between **AP** (tactical) and **Currency** (strategic).
 - Verify the "living board" feel of placing hex tiles.
 
 ## 2. Technical Stack
@@ -20,7 +20,7 @@ This plan outlines the requirements for a functional prototype to test the core 
 
 - **Hex Grid:** A simple coordinate system (Axial or Offset) for tile placement.
 - **The Marker UI:** A horizontal slider representing the Tug-of-War track.
-- **Turn Logic:** A system to track Active Player, AP, and Coins.
+- **Turn Logic:** A system to track Active Player, AP, and Currency.
 
 ### Phase 2: Action Economy
 
@@ -34,8 +34,8 @@ This plan outlines the requirements for a functional prototype to test the core 
 ### Phase 3: The Merchant & Items
 
 - **Market Row:** A UI panel showing 3 random "Item" buttons.
-- **Currency:** Players gain `[Value: 2]` coins at start of turn.
-- **Equipping:** Clicking a Merchant item deducts coins and adds a stat buff (e.g., +1 Attack) to a selected entity.
+- **Currency:** Players gain `[Value: 2]` currency at start of turn.
+- **Equipping:** Clicking a Merchant item deducts currency and adds a stat buff (e.g., +1 Attack) to a selected entity.
 
 ### Phase 4: Basic Combat
 
@@ -47,7 +47,7 @@ This plan outlines the requirements for a functional prototype to test the core 
 ```mermaid
 graph TD
     subgraph "Turn Start"
-        Start[New Turn] --> Income[+2 Coins]
+        Start[New Turn] --> Income[+2 Currency]
         Income --> MarkerCheck[Marker Reset/Adjust]
     end
 
@@ -55,8 +55,8 @@ graph TD
         MarkerCheck --> PlayerAction{Player Action}
         PlayerAction -- Play Card --> MarkerRight[Move Marker Right]
         PlayerAction -- Move/Attack --> MarkerRight
-        PlayerAction -- Buy Item --> CoinSpend[Spend Coins]
-        CoinSpend --> PlayerAction
+        PlayerAction -- Buy Item --> CurrencySpend[Spend Currency]
+        CurrencySpend --> PlayerAction
         MarkerRight --> Threshold{Marker > 5?}
     end
 
@@ -72,5 +72,5 @@ graph TD
 ## 5. Success Criteria
 
 - Can a player place 3 tiles and an entity before the turn switches?
-- Does saving coins for a Merchant item feel like a meaningful choice compared to spending AP?
+- Does saving currency for a Merchant item feel like a meaningful choice compared to spending AP?
 - Is the Tug-of-War visual intuitive for tracking "whose turn is it?"

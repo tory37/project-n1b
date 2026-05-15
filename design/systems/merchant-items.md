@@ -4,8 +4,8 @@
 The Merchant provides a selection of `[Value: 3]` items available for purchase at any time during a player's turn.
 
 ### Acquisition
-- **Cost:** Each item has a Coin cost of `[Value: X]`.
-- **Method:** Purchasing an item does not cost AP; it only costs Coins.
+- **Cost:** Each item has a Currency cost of `[Value: X]`.
+- **Method:** Purchasing an item does not cost AP; it only costs Currency.
 - **Usage:** Purchased items are placed into the player's **Inventory** or immediately equipped to an entity on the field.
 
 ## Item Types

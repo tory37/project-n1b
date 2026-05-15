@@ -6,8 +6,8 @@ This document serves as the "source of truth" for definitions used throughout Bl
 
 - **Action Points (AP):** The primary resource used for almost all game interactions (Playing cards, movement, combat).
 - **The Marker:** A shared track that determines whose turn it is and the current pool of AP available.
-- **Income (Coins):** A secondary resource gained at the start of each turn. Primarily used for the Merchant.
-- **Merchant:** A shared "market row" of items or upgrades available for purchase using Coins.
+- **Income (Currency):** A secondary resource gained at the start of each turn. Primarily used for the Merchant.
+- **Merchant:** A shared "market row" of items or upgrades available for purchase using Currency.
 
 ## Entities & Cards
 
