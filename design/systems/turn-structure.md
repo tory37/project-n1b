@@ -13,11 +13,12 @@
 
 Instead of a fixed action count, the turn economy is a dynamic balance managed by **The AP Tracker**.
 
-- **The AP Tracker:** A track shared by both players.
-- **Switching Turns:**
-  - If the AP Tracker moves on or past `[Value: 5]` on the opponent's side, the turn switches.
-  - The opponent then receives those points plus a base amount.
-  - **Manual End:** A player can end their turn early if the AP Tracker is on the opponent's side.
+- **The AP Tracker:** A shared counter starting at 0. Increases when AP is gained, decreases when AP is spent.
+- **Turn Switching:**
+  - During a player's turn, they spend AP (reducing the tracker) or gain AP from effects (increasing the tracker).
+  - When the AP Tracker passes 0 (goes negative) AND all effects have resolved, the turn immediately switches to the opponent.
+  - The opponent takes over with whatever AP value remains on the tracker.
+  - **Manual End:** A player can end their turn early by choosing to pass.
 
 ## Actions
 
