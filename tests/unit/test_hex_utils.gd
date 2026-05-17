@@ -1,48 +1,71 @@
 extends GutTest
 
-const SIZE := 32.0
+const SIZE := 1.0
 
 
-# --- axial_to_pixel_pointy_top ---
+# --- axial_to_world_pointy_top ---
 
-func test_axial_to_pixel_origin_is_zero() -> void:
-	var result := HexUtils.axial_to_pixel_pointy_top(0, 0, SIZE)
-	assert_eq(result, Vector2.ZERO)
+func test_axial_to_world_pointy_top_origin_is_zero() -> void:
+	assert_eq(HexUtils.axial_to_world_pointy_top(0, 0, SIZE), Vector3.ZERO)
 
-func test_axial_to_pixel_q_axis_moves_right() -> void:
-	var result := HexUtils.axial_to_pixel_pointy_top(1, 0, SIZE)
-	assert_almost_eq(result.x, SIZE * sqrt(3.0), 0.001)
-	assert_almost_eq(result.y, 0.0, 0.001)
+func test_axial_to_world_pointy_top_q_axis() -> void:
+	var result: Vector3 = HexUtils.axial_to_world_pointy_top(1, 0, SIZE)
+	assert_almost_eq(result.x, sqrt(3.0), 0.001)
+	assert_eq(result.y, 0.0)
+	assert_almost_eq(result.z, 0.0, 0.001)
 
-func test_axial_to_pixel_r_axis_moves_down_and_right() -> void:
-	var result := HexUtils.axial_to_pixel_pointy_top(0, 1, SIZE)
-	assert_almost_eq(result.x, SIZE * sqrt(3.0) / 2.0, 0.001)
-	assert_almost_eq(result.y, SIZE * 1.5, 0.001)
+func test_axial_to_world_pointy_top_r_axis() -> void:
+	var result: Vector3 = HexUtils.axial_to_world_pointy_top(0, 1, SIZE)
+	assert_almost_eq(result.x, sqrt(3.0) / 2.0, 0.001)
+	assert_eq(result.y, 0.0)
+	assert_almost_eq(result.z, 1.5, 0.001)
 
-func test_axial_to_pixel_scales_with_size() -> void:
-	var small := HexUtils.axial_to_pixel_pointy_top(1, 0, 16.0)
-	var large := HexUtils.axial_to_pixel_pointy_top(1, 0, 32.0)
-	assert_almost_eq(large.x, small.x * 2.0, 0.001)
+func test_axial_to_world_pointy_top_round_trip() -> void:
+	for coord: Vector2i in [Vector2i(2, -1), Vector2i(-3, 2), Vector2i(0, 4), Vector2i(1, 1)]:
+		var world: Vector3 = HexUtils.axial_to_world_pointy_top(coord.x, coord.y, SIZE)
+		var back: Vector2i = HexUtils.world_to_axial_pointy_top(world, SIZE)
+		assert_eq(back, coord, "Round trip failed for %s" % str(coord))
 
 
-# --- pixel_to_axial_pointy_top ---
+# --- axial_to_world_flat_top ---
 
-func test_pixel_to_axial_origin_is_zero() -> void:
-	var result := HexUtils.pixel_to_axial_pointy_top(0.0, 0.0, SIZE)
-	assert_eq(result, Vector2i.ZERO)
+func test_axial_to_world_flat_top_origin_is_zero() -> void:
+	assert_eq(HexUtils.axial_to_world_flat_top(0, 0, SIZE), Vector3.ZERO)
 
-func test_pixel_to_axial_round_trips_with_axial_to_pixel() -> void:
-	var coords := [Vector2i(2, -1), Vector2i(-3, 2), Vector2i(0, 4), Vector2i(1, 1)]
-	for axial in coords:
-		var pixel := HexUtils.axial_to_pixel_pointy_top(axial.x, axial.y, SIZE)
-		var back := HexUtils.pixel_to_axial_pointy_top(pixel.x, pixel.y, SIZE)
-		assert_eq(back, axial, "Round trip failed for %s" % str(axial))
+func test_axial_to_world_flat_top_q_axis() -> void:
+	var result: Vector3 = HexUtils.axial_to_world_flat_top(1, 0, SIZE)
+	assert_almost_eq(result.x, 1.5, 0.001)
+	assert_eq(result.y, 0.0)
+	assert_almost_eq(result.z, sqrt(3.0) / 2.0, 0.001)
 
-func test_pixel_to_axial_snaps_nearby_pixel_to_nearest_hex() -> void:
-	# A pixel just slightly off-center of hex (1,0) should still resolve to (1,0).
-	var center := HexUtils.axial_to_pixel_pointy_top(1, 0, SIZE)
-	var result := HexUtils.pixel_to_axial_pointy_top(center.x + 2.0, center.y + 2.0, SIZE)
-	assert_eq(result, Vector2i(1, 0))
+func test_axial_to_world_flat_top_r_axis() -> void:
+	var result: Vector3 = HexUtils.axial_to_world_flat_top(0, 1, SIZE)
+	assert_almost_eq(result.x, 0.0, 0.001)
+	assert_eq(result.y, 0.0)
+	assert_almost_eq(result.z, sqrt(3.0), 0.001)
+
+func test_axial_to_world_flat_top_round_trip() -> void:
+	for coord: Vector2i in [Vector2i(2, -1), Vector2i(-3, 2), Vector2i(0, 4), Vector2i(1, 1)]:
+		var world: Vector3 = HexUtils.axial_to_world_flat_top(coord.x, coord.y, SIZE)
+		var back: Vector2i = HexUtils.world_to_axial_flat_top(world, SIZE)
+		assert_eq(back, coord, "Round trip failed for %s" % str(coord))
+
+
+# --- dispatcher ---
+
+func test_axial_to_world_dispatcher_pointy_top() -> void:
+	var coord := Vector2i(2, -1)
+	assert_eq(
+		HexUtils.axial_to_world(coord.x, coord.y, SIZE, HexUtils.HexOrientation.POINTY_TOP),
+		HexUtils.axial_to_world_pointy_top(coord.x, coord.y, SIZE)
+	)
+
+func test_axial_to_world_dispatcher_flat_top() -> void:
+	var coord := Vector2i(2, -1)
+	assert_eq(
+		HexUtils.axial_to_world(coord.x, coord.y, SIZE, HexUtils.HexOrientation.FLAT_TOP),
+		HexUtils.axial_to_world_flat_top(coord.x, coord.y, SIZE)
+	)
 
 
 # --- axial_round ---
@@ -74,11 +97,11 @@ func test_get_neighbors_origin_contains_expected_cells() -> void:
 		Vector2i(1, 0), Vector2i(1, -1), Vector2i(0, -1),
 		Vector2i(-1, 0), Vector2i(-1, 1), Vector2i(0, 1)
 	]
-	for cell in expected:
+	for cell: Vector2i in expected:
 		assert_true(neighbors.has(cell), "Missing neighbor %s" % str(cell))
 
 func test_get_neighbors_are_all_distance_one_from_origin() -> void:
-	for neighbor in HexUtils.get_neighbors(0, 0):
+	for neighbor: Vector2i in HexUtils.get_neighbors(0, 0):
 		var dist := HexUtils.get_distance(0, 0, neighbor.x, neighbor.y)
 		assert_eq(dist, 1, "Neighbor %s is not distance 1" % str(neighbor))
 

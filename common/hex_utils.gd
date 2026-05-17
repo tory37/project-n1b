@@ -1,7 +1,9 @@
 class_name HexUtils
 extends Node
-## Static utility for axial hex grid math (pointy-top orientation).
+## Static utility for axial hex grid math.
 ## See common/README.md for coordinate system overview and usage examples.
+
+enum HexOrientation { POINTY_TOP, FLAT_TOP }
 
 ## Clockwise neighbor offsets in axial (q, r) space, starting from the right.
 const DIRECTIONS: Array[Vector2i] = [
@@ -13,29 +15,49 @@ const DIRECTIONS: Array[Vector2i] = [
 	Vector2i(0, 1),
 ]
 
-const Q_BASIS_POINTY_TOP: Vector2 = Vector2(sqrt(3), 0)
-const R_BASIS_POINTY_TOP: Vector2 = Vector2(sqrt(3) / 2.0, 3.0 / 2.0)
-const Q_INV_BASIS_POINTY_TOP: Vector2 = Vector2(sqrt(3) / 3.0, -1.0 / 3.0)
-const R_INV_BASIS_POINTY_TOP: Vector2 = Vector2(0.0, 2.0 / 3.0)
 
-
-## Converts a pointy-top axial hex coordinate to a pixel position. [param size] is
-##  the circumradius (center to corner).
+## Converts a pointy-top axial hex coordinate to a 3D world position (XZ plane).
 ## https://www.redblobgames.com/grids/hexagons/#hex-to-pixel
-static func axial_to_pixel_pointy_top(q: int, r: int, size: float) -> Vector2:
-	var x: float = size * (q * Q_BASIS_POINTY_TOP.x + r * R_BASIS_POINTY_TOP.x)
-	var y: float = size * (r * R_BASIS_POINTY_TOP.y)
-	return Vector2(x, y)
+static func axial_to_world_pointy_top(q: int, r: int, size: float) -> Vector3:
+	var x: float = size * (sqrt(3.0) * q + sqrt(3.0) / 2.0 * r)
+	var z: float = size * (3.0 / 2.0 * r)
+	return Vector3(x, 0.0, z)
 
 
-## Converts a pointy-top pixel position back to the nearest axial hex coordinate.
+## Converts a flat-top axial hex coordinate to a 3D world position (XZ plane).
+static func axial_to_world_flat_top(q: int, r: int, size: float) -> Vector3:
+	var x: float = size * (3.0 / 2.0 * q)
+	var z: float = size * (sqrt(3.0) / 2.0 * q + sqrt(3.0) * r)
+	return Vector3(x, 0.0, z)
+
+
+## Dispatches to the named variant based on orientation.
+static func axial_to_world(q: int, r: int, size: float, orientation: HexOrientation) -> Vector3:
+	if orientation == HexOrientation.FLAT_TOP:
+		return axial_to_world_flat_top(q, r, size)
+	return axial_to_world_pointy_top(q, r, size)
+
+
+## Converts a 3D world position back to the nearest pointy-top axial hex coordinate.
 ## https://www.redblobgames.com/grids/hexagons/#pixel-to-hex
-static func pixel_to_axial_pointy_top(point_x: float, point_y: float, size: float) -> Vector2i:
-	var x: float = point_x / size
-	var y: float = point_y / size
-	var q: float = x * Q_INV_BASIS_POINTY_TOP.x + y * Q_INV_BASIS_POINTY_TOP.y
-	var r: float = x * R_INV_BASIS_POINTY_TOP.x + y * R_INV_BASIS_POINTY_TOP.y
+static func world_to_axial_pointy_top(point: Vector3, size: float) -> Vector2i:
+	var q: float = (sqrt(3.0) / 3.0 * point.x - 1.0 / 3.0 * point.z) / size
+	var r: float = (2.0 / 3.0 * point.z) / size
 	return axial_round(q, r)
+
+
+## Converts a 3D world position back to the nearest flat-top axial hex coordinate.
+static func world_to_axial_flat_top(point: Vector3, size: float) -> Vector2i:
+	var q: float = (2.0 / 3.0 * point.x) / size
+	var r: float = (-1.0 / 3.0 * point.x + sqrt(3.0) / 3.0 * point.z) / size
+	return axial_round(q, r)
+
+
+## Dispatches to the named variant based on orientation.
+static func world_to_axial(point: Vector3, size: float, orientation: HexOrientation) -> Vector2i:
+	if orientation == HexOrientation.FLAT_TOP:
+		return world_to_axial_flat_top(point, size)
+	return world_to_axial_pointy_top(point, size)
 
 
 ## Rounds a float axial position to the nearest valid hex cell.
