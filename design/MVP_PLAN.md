@@ -4,7 +4,7 @@ This plan outlines the requirements for a functional prototype to test the core 
 
 ## 1. Core Objectives
 
-- Validate the **Marker/AP** turn-switching loop.
+- Validate the **AP Tracker** turn-switching loop.
 - Test the friction between **AP** (tactical) and **Currency** (strategic).
 - Verify the "living board" feel of placing hex tiles.
 
@@ -19,7 +19,7 @@ This plan outlines the requirements for a functional prototype to test the core 
 ### Phase 1: The Foundation
 
 - **Hex Grid:** A simple coordinate system (Axial or Offset) for tile placement.
-- **The Marker UI:** A horizontal slider representing the Tug-of-War track.
+- **The AP Tracker UI:** A horizontal slider representing the Tug-of-War track.
 - **Turn Logic:** A system to track Active Player, AP, and Currency.
 
 ### Phase 2: Action Economy
@@ -28,8 +28,8 @@ This plan outlines the requirements for a functional prototype to test the core 
   - `Move`: Click entity -> Click adjacent hex (-1 AP).
   - `Play Tile`: Select tile card -> Click empty adjacent slot (-X AP).
 - **The Turn Switch:**
-  - Automatic switch when Marker reaches `[Value: 5]`.
-  - Manual "End Turn" button (only active if Marker is on opponent's side).
+  - Automatic switch when AP Tracker reaches `[Value: 5]`.
+  - Manual "End Turn" button (only active if AP Tracker is on opponent's side).
 
 ### Phase 3: The Merchant & Items
 
@@ -48,22 +48,22 @@ This plan outlines the requirements for a functional prototype to test the core 
 graph TD
     subgraph "Turn Start"
         Start[New Turn] --> Income[+2 Currency]
-        Income --> MarkerCheck[Marker Reset/Adjust]
+        Income --> APTrackerCheck[AP Tracker Reset/Adjust]
     end
 
     subgraph "Active Phase (Spend AP)"
-        MarkerCheck --> PlayerAction{Player Action}
-        PlayerAction -- Play Card --> MarkerRight[Move Marker Right]
-        PlayerAction -- Move/Attack --> MarkerRight
+        APTrackerCheck --> PlayerAction{Player Action}
+        PlayerAction -- Play Card --> APTrackerRight[Move AP Tracker Right]
+        PlayerAction -- Move/Attack --> APTrackerRight
         PlayerAction -- Buy Item --> CurrencySpend[Spend Currency]
         CurrencySpend --> PlayerAction
-        MarkerRight --> Threshold{Marker > 5?}
+        APTrackerRight --> Threshold{AP Tracker > 5?}
     end
 
     subgraph "Turn End"
         Threshold -- Yes --> Switch[Switch Active Player]
         Threshold -- No --> PlayerAction
-        ManualEnd[Manual End Turn] -- Only if Marker > 0 --> Switch
+        ManualEnd[Manual End Turn] -- Only if APTracker > 0 --> Switch
         Switch --> Restock[Restock Merchant]
         Restock --> Start
     end

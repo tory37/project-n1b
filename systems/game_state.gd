@@ -9,14 +9,15 @@ extends Node
 const PLAYER_ONE: int = 0
 const PLAYER_TWO: int = 1
 
-@export var max_marker_value: float = 5.0
+@export var max_ap_tracker_value: float = 10.0
 @export var base_income: int = 2
+@export var pass_turn_starting_ap: int = 3
 
 var active_player: int = PLAYER_ONE
-var marker_position: float = 0.0
+var ap_tracker: float = 0.0
 var player_resources: Dictionary = {
-	PLAYER_ONE: { "ap": 1, "currency": 0 },
-	PLAYER_TWO: { "ap": 0, "currency": 0 },
+	PLAYER_ONE: { "currency": 0 },
+	PLAYER_TWO: { "currency": 0 },
 }
 
 
@@ -26,32 +27,61 @@ func _ready() -> void:
 
 func reset() -> void:
 	active_player = PLAYER_ONE
-	marker_position = 0.0
+	ap_tracker = 0.0
 	player_resources = {
-		PLAYER_ONE: { "ap": 1, "currency": 0 },
-		PLAYER_TWO: { "ap": 0, "currency": 0 },
+		PLAYER_ONE: { "currency": 0 },
+		PLAYER_TWO: { "currency": 0 },
 	}
 
 
+func _is_player_1() -> bool:
+	return active_player == PLAYER_ONE
+
+
+func request_add_ap(amount: int) -> void:
+	_apply_add_ap(amount)
+
+
+func _apply_add_ap(amount: int) -> void:
+	if _is_player_1():
+		ap_tracker = clamp(ap_tracker + amount, -max_ap_tracker_value, max_ap_tracker_value)
+	else:
+		ap_tracker = clamp(ap_tracker - amount, -max_ap_tracker_value, max_ap_tracker_value)
+	SignalBus.ap_tracker_moved.emit(ap_tracker)
+
+
+func can_spend_ap(amount: int) -> bool:
+	if _is_player_1():
+		return amount <= ap_tracker + max_ap_tracker_value
+
+	return amount <= abs(ap_tracker) + max_ap_tracker_value
+
+
 func request_spend_ap(amount: int) -> void:
+	if not can_spend_ap(amount):
+		SignalBus.ap_spend_failed.emit(active_player)
+		return
 	_apply_spend_ap(amount)
 
 
 func _apply_spend_ap(amount: int) -> void:
-	player_resources[active_player]["ap"] -= amount
+	# DESIGN TODO: ap tracker direction is a 2-player mechanic
+	#   revisit if N-player is ever designed
+	if _is_player_1():
+		ap_tracker = clamp(ap_tracker - amount, -max_ap_tracker_value, max_ap_tracker_value)
+	else:
+		ap_tracker = clamp(ap_tracker + amount, -max_ap_tracker_value, max_ap_tracker_value)
 
-	# DESIGN TODO: marker direction is a 2-player mechanic — revisit if N-player is ever designed
-	var move_direction: float = 1.0 if active_player == PLAYER_ONE else -1.0
-	marker_position += (amount * move_direction)
-
-	SignalBus.marker_moved.emit(marker_position)
+	SignalBus.ap_tracker_moved.emit(ap_tracker)
 	SignalBus.resources_updated.emit(
 		active_player,
-		player_resources[active_player]["ap"],
 		player_resources[active_player]["currency"],
 	)
 
-	if abs(marker_position) >= max_marker_value:
+	if _is_player_1():
+		if ap_tracker < 0:
+			_apply_switch_turn()
+	elif ap_tracker > 0:
 		_apply_switch_turn()
 
 
@@ -63,7 +93,6 @@ func _apply_add_currency(player: int, amount: int) -> void:
 	player_resources[player]["currency"] += amount
 	SignalBus.resources_updated.emit(
 		player,
-		player_resources[player]["ap"],
 		player_resources[player]["currency"],
 	)
 
@@ -74,22 +103,17 @@ func request_switch_turn() -> void:
 
 func _apply_switch_turn() -> void:
 	active_player = (active_player + 1) % 2
-
+	SignalBus.player_switched.emit(active_player)
 	_apply_add_currency(active_player, base_income)
 
-	# Convert marker distance into starting AP for the incoming player
-	player_resources[active_player]["ap"] = int(abs(marker_position))
 
-	SignalBus.player_switched.emit(active_player)
-	SignalBus.resources_updated.emit(
-		active_player,
-		player_resources[active_player]["ap"],
-		player_resources[active_player]["currency"],
-	)
+func request_pass_turn() -> void:
+	_apply_pass_turn()
 
-
-func request_end_turn_manual() -> void:
-	var is_p1_valid: bool = (active_player == PLAYER_ONE and marker_position > 0)
-	var is_p2_valid: bool = (active_player == PLAYER_TWO and marker_position < 0)
-	if is_p1_valid or is_p2_valid:
-		_apply_switch_turn()
+func _apply_pass_turn() -> void:
+	if _is_player_1():
+		ap_tracker = -pass_turn_starting_ap
+	else:
+		ap_tracker = pass_turn_starting_ap
+	SignalBus.ap_tracker_moved.emit(ap_tracker)
+	_apply_switch_turn()

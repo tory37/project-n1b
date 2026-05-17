@@ -8,6 +8,3 @@ design/TECHNICAL_RATIONALE_*.md
 
 # Godot editor cache — generated, never commit
 .godot/
-
-# GUT test plugin — install via Godot Asset Library (search "GUT - Godot Unit Testing")
-addons/gut/

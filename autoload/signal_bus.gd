@@ -4,6 +4,10 @@ extends Node
 @warning_ignore("unused_signal")
 signal player_switched(new_player_index: int)
 @warning_ignore("unused_signal")
-signal marker_moved(new_value: float)
+signal ap_tracker_moved(new_value: float)
 @warning_ignore("unused_signal")
-signal resources_updated(player_index: int, ap: int, currency: int)
+signal resources_updated(player_index: int, currency: int)
+
+# Errors
+@warning_ignore("unused_signal")
+signal ap_spend_failed(player_index: int)
