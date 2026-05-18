@@ -138,6 +138,31 @@ func test_world_to_axial_flat_top_snaps_nearby_to_nearest_hex() -> void:
 	assert_eq(result, Vector2i(1, 0))
 
 
+# --- get_apothem_from_size ---
+
+func test_get_apothem_from_size_unit_hex() -> void:
+	assert_almost_eq(HexUtils.get_apothem_from_size(1.0), sqrt(3.0) / 2.0, 0.001)
+
+func test_get_apothem_from_size_scales_linearly() -> void:
+	assert_almost_eq(HexUtils.get_apothem_from_size(2.0), sqrt(3.0), 0.001)
+
+
+# --- axial_to_world with offset ---
+
+func test_axial_to_world_offset_is_applied() -> void:
+	var offset := Vector3(1.0, 0.0, 2.0)
+	var no_offset: Vector3 = HexUtils.axial_to_world(2, -1, SIZE, HexOrientation.POINTY_TOP)
+	var with_offset: Vector3 = HexUtils.axial_to_world(
+		2, 
+		-1, 
+		SIZE, 
+		HexOrientation.POINTY_TOP, 
+		offset
+	)
+	assert_almost_eq(with_offset.x, no_offset.x + 1.0, 0.001)
+	assert_almost_eq(with_offset.z, no_offset.z + 2.0, 0.001)
+
+
 # --- world_to_axial dispatcher ---
 
 func test_world_to_axial_dispatcher_pointy_top() -> void:

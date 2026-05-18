@@ -22,7 +22,14 @@ func _ready() -> void:
 func generate() -> void:
 	_tiles.clear()
 	for col in range(-board_width_radius, board_width_radius + 1):
-		for row in range(-board_height_radius, board_height_radius + 1):
+		# In evenr (pointy-top), odd columns sit a half-hex lower, leaving the bottom
+		# edge ragged. Extend by one row and drop odd-column slots to square it up.
+		var row_start: int = -board_height_radius
+		if orientation == HexOrientation.POINTY_TOP:
+			row_start = -board_height_radius - 1
+		for row in range(row_start, board_height_radius + 1):
+			if orientation == HexOrientation.POINTY_TOP and row == row_start and col % 2 != 0:
+				continue
 			_spawn_tile(col, row)
 
 
@@ -39,9 +46,14 @@ func _spawn_tile(col: int, row: int) -> void:
 	else:
 		axial = HexUtils.evenq_to_axial(col, row)
 
-	var q = axial.x
-	var r = axial.y
-	var world_pos: Vector3 = HexUtils.axial_to_world(q, r, hex_size, orientation)
+	var q: int = axial.x
+	var r: int = axial.y
+	var offset: Vector3
+	if orientation == HexOrientation.POINTY_TOP:
+		offset = Vector3(0, 0, hex_size)  # circumradius (center-to-vertex)
+	else:
+		offset = Vector3(0, 0, HexUtils.get_apothem_from_size(hex_size))  # inradius (center-to-edge)
+	var world_pos: Vector3 = HexUtils.axial_to_world(q, r, hex_size, orientation, offset)
 	tile.position = world_pos
 
 	if orientation == HexOrientation.FLAT_TOP:

@@ -8,12 +8,13 @@
 script = ExtResource("1_8fxcl")
 
 [node name="Camera3D" type="Camera3D" parent="." unique_id=710749813]
-transform = Transform3D(1, 0, 0, 0, 0.615661, 0.788011, 0, -0.788011, 0.615661, 0, 9, 7)
+transform = Transform3D(1, 0, 0, 0, 0.615661, 0.788011, 0, -0.788011, 0.615661, 0, 9, 10)
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=1915651790]
 transform = Transform3D(0.707107, 0.5, -0.5, 0, 0.707107, 0.707107, 0.707107, -0.5, 0.5, 0, 0, 0)
 shadow_enabled = true
 
 [node name="HexBoard" parent="." unique_id=198911480 instance=ExtResource("2_hexboard")]
+orientation = 0
 
 [node name="Table" parent="." unique_id=1465079705 instance=ExtResource("4_table")]

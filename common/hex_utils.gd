@@ -13,6 +13,11 @@ const DIRECTIONS: Array[Vector2i] = [
 	Vector2i(0, 1),
 ]
 
+const APOTHEM_MODIFIER: float = sqrt(3.0) / 2.0
+
+static func get_apothem_from_size(size: float) -> float:
+	return size * APOTHEM_MODIFIER
+
 
 ## https://www.redblobgames.com/grids/hexagons/#conversions-offset
 ## Pointy Top - oddr
@@ -96,10 +101,11 @@ static func axial_to_world(
 		r: int,
 		size: float,
 		orientation: HexOrientation.Type,
+		offset: Vector3 = Vector3.ZERO,
 ) -> Vector3:
 	if orientation == HexOrientation.FLAT_TOP:
-		return axial_to_world_flat_top(q, r, size)
-	return axial_to_world_pointy_top(q, r, size)
+		return axial_to_world_flat_top(q, r, size) + offset
+	return axial_to_world_pointy_top(q, r, size) + offset
 
 
 ## Converts a 3D world position back to the nearest pointy-top axial hex coordinate.
