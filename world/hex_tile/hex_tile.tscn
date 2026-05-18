@@ -1,0 +1,20 @@
+[gd_scene load_steps=4 format=3 uid="uid://cpr6j4wqjhpt8"]
+
+[ext_resource type="Script" path="res://world/hex_tile/hex_tile.gd"]
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_sxi5q"]
+radial_segments = 6
+height = 0.2
+
+[sub_resource type="CylinderShape3D" id="CylinderShape3D_m0lj5"]
+height = 0.2
+radius = 1.0
+
+[node name="HexTile" type="StaticBody3D"]
+script = ExtResource("1")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+mesh = SubResource("CylinderMesh_sxi5q")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+shape = SubResource("CylinderShape3D_m0lj5")
