@@ -3,6 +3,7 @@ extends Node3D
 class_name HexBoard
 
 @export var hex_size: float = 1.0
+## TODO: Handle having matching sides.  We need to use odd number width and heights, and force it
 @export var board_width_radius: int = 5
 @export var board_height_radius: int = 3
 @export var orientation: HexOrientation.Type = HexOrientation.POINTY_TOP
@@ -38,7 +39,7 @@ func _spawn_tile(x: int, y: int) -> void:
 	if orientation == HexOrientation.POINTY_TOP:
 		axial_coord = HexUtils.evenr_to_axial(x, y)
 	else:
-		axial_coord = HexUtils.oddr_to_axial(x, y)
+		axial_coord = HexUtils.oddq_to_axial(x, y)
 
 	var q = axial_coord.x
 	var r = axial_coord.y
