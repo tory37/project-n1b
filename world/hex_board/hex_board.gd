@@ -1,14 +1,13 @@
+class_name HexBoard
 extends Node3D
 
-class_name HexBoard
+const FLAT_TOP_ROTATION: Vector3 = deg_to_rad(30) * Vector3(0, 1, 0)
 
 @export var hex_size: float = 1.0
 @export var board_width_radius: int = 5
 @export var board_height_radius: int = 3
 @export var orientation: HexOrientation.Type = HexOrientation.POINTY_TOP
 @export var hex_tile_scene: PackedScene
-
-const FLAT_TOP_ROTATION: Vector3 = deg_to_rad(30) * Vector3(0, 1, 0)
 
 var _tiles: Dictionary = { }
 

@@ -1,8 +1,8 @@
 class_name HexOrientation
 
-enum Type { 
-    POINTY_TOP, 
-    FLAT_TOP 
+enum Type {
+	POINTY_TOP,
+	FLAT_TOP
 }
 
 const POINTY_TOP = Type.POINTY_TOP

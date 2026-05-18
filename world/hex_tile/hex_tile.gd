@@ -1,9 +1,9 @@
 extends StaticBody3D
 
-@export var axial_coord: Vector2i = Vector2i.ZERO
-
 signal tile_hovered(axial: Vector2i)
 signal tile_unhovered(axial: Vector2i)
+
+@export var axial_coord: Vector2i = Vector2i.ZERO
 
 var _default_material: StandardMaterial3D
 var _hovered_material: StandardMaterial3D
