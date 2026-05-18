@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://cpr6j4wqjhpt8"]
 
-[ext_resource type="Script" uid="uid://cf715qs85gkew" path="res://world/hex_tile/hex_tile.gd" id="1"]
+[ext_resource type="Script" uid="uid://cf715qs85gkew" path="res://src/world/hex_tile/hex_tile.gd" id="1"]
 
 [sub_resource type="CylinderMesh" id="CylinderMesh_sxi5q"]
 top_radius = 1.0

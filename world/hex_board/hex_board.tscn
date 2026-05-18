@@ -1,9 +1,0 @@
-[gd_scene format=3 uid="uid://dnm1lkkfq5gx"]
-
-[ext_resource type="Script" uid="uid://bim4caws2u283" path="res://world/hex_board/hex_board.gd" id="1"]
-[ext_resource type="PackedScene" uid="uid://cpr6j4wqjhpt8" path="res://world/hex_tile/hex_tile.tscn" id="2_388vy"]
-
-[node name="HexBoard" type="Node3D" unique_id=1040679664]
-script = ExtResource("1")
-orientation = 1
-hex_tile_scene = ExtResource("2_388vy")
