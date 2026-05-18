@@ -41,12 +41,13 @@ When the user makes a request that is outside the scope of the current feature o
 
 ### Phase 3 — Implementation
 
-1. Write the code.
-2. Write GUT unit tests alongside the code (see Testing Standards below).
-3. If the feature includes a utility or library, write a `<filename>.md` companion doc next to the code.
-4. Present all changes with explanation. **Do NOT commit.**
-5. Ask the user to run the tests and report results back.
-6. Iterate until tests pass and the user is satisfied.
+1. **Scene Setup Guide:** Before creating or modifying a Godot scene (`.tscn`), the agent MUST write a step-by-step guide to `design/scenes/<scene_name>.md`. This guide must explain how to perform the setup within the Godot Editor (node types, hierarchy, Inspector properties, and signal connections). The goal is for the user to perform the editor-side work manually to build their proficiency. Present this guide to the user before proceeding.
+2. Write the code.
+3. Write GUT unit tests alongside the code (see Testing Standards below).
+4. If the feature includes a utility or library, write a `<filename>.md` companion doc next to the code.
+5. Present all changes with explanation. **Do NOT commit.**
+6. Ask the user to run the tests and report results back.
+7. Iterate until tests pass and the user is satisfied.
 
 ### Phase 4 — Completion
 
@@ -57,6 +58,7 @@ When the user makes a request that is outside the scope of the current feature o
 
 - `design/stories/` — (optional: if using a local-only tracking method)
 - `design/TECHNICAL_RATIONALE_*.md` — deleted after user sign-off
+- `.agents/output/` — contains temporary guides and session snapshots
 
 ---
 

@@ -1,4 +1,5 @@
 extends Node3D
+
 class_name HexBoard
 
 @export var hex_size: float = 1.0
@@ -6,7 +7,7 @@ class_name HexBoard
 @export var orientation: HexUtils.HexOrientation = HexUtils.HexOrientation.POINTY_TOP
 @export var hex_tile_scene: PackedScene
 
-var _tiles: Dictionary = {}
+var _tiles: Dictionary = { }
 
 
 func _ready() -> void:
@@ -19,7 +20,10 @@ func _ready() -> void:
 func generate() -> void:
 	_tiles.clear()
 	for q in range(-board_radius, board_radius + 1):
-		for r in range(max(-board_radius, -q - board_radius), min(board_radius, -q + board_radius) + 1):
+		for r in range(
+			max(-board_radius, -q - board_radius), 
+			min(board_radius, -q + board_radius) + 1
+		):
 			_spawn_tile(q, r)
 
 
