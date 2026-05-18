@@ -68,6 +68,51 @@ func test_axial_to_world_dispatcher_flat_top() -> void:
 	)
 
 
+# --- world_to_axial_pointy_top ---
+
+func test_world_to_axial_pointy_top_origin_is_zero() -> void:
+	assert_eq(HexUtils.world_to_axial_pointy_top(Vector3.ZERO, SIZE), Vector2i(0, 0))
+
+func test_world_to_axial_pointy_top_snaps_nearby_to_nearest_hex() -> void:
+	# Position very close to (1, 0) hex center
+	var world_pos: Vector3 = HexUtils.axial_to_world_pointy_top(1, 0, SIZE)
+	# Slightly offset from exact position
+	var perturbed: Vector3 = world_pos + Vector3(0.1, 0.0, 0.1)
+	var result: Vector2i = HexUtils.world_to_axial_pointy_top(perturbed, SIZE)
+	assert_eq(result, Vector2i(1, 0))
+
+
+# --- world_to_axial_flat_top ---
+
+func test_world_to_axial_flat_top_origin_is_zero() -> void:
+	assert_eq(HexUtils.world_to_axial_flat_top(Vector3.ZERO, SIZE), Vector2i(0, 0))
+
+func test_world_to_axial_flat_top_snaps_nearby_to_nearest_hex() -> void:
+	# Position very close to (1, 0) hex center
+	var world_pos: Vector3 = HexUtils.axial_to_world_flat_top(1, 0, SIZE)
+	# Slightly offset from exact position
+	var perturbed: Vector3 = world_pos + Vector3(0.1, 0.0, 0.1)
+	var result: Vector2i = HexUtils.world_to_axial_flat_top(perturbed, SIZE)
+	assert_eq(result, Vector2i(1, 0))
+
+
+# --- world_to_axial dispatcher ---
+
+func test_world_to_axial_dispatcher_pointy_top() -> void:
+	var point := Vector3(2.0, 0.0, 1.0)
+	assert_eq(
+		HexUtils.world_to_axial(point, SIZE, HexUtils.HexOrientation.POINTY_TOP),
+		HexUtils.world_to_axial_pointy_top(point, SIZE)
+	)
+
+func test_world_to_axial_dispatcher_flat_top() -> void:
+	var point := Vector3(2.0, 0.0, 1.0)
+	assert_eq(
+		HexUtils.world_to_axial(point, SIZE, HexUtils.HexOrientation.FLAT_TOP),
+		HexUtils.world_to_axial_flat_top(point, SIZE)
+	)
+
+
 # --- axial_round ---
 
 func test_axial_round_integer_coords_unchanged() -> void:
