@@ -18,7 +18,11 @@ config/icon="res://icon.svg"
 [autoload]
 
 SignalBus="*res://autoload/signal_bus.gd"
-GameState="*res://src/game_manager/game_state.gd"
+GameState="*res://src/game_manager/game_manager.gd"
+
+[gdscript]
+
+warnings/unused_signal=0
 
 [dotnet]
 

@@ -1,5 +1,5 @@
 extends Node
-## Global Game State Manager (Autoload)
+## GameManager
 ## Manages the Tug-of-War economy and player resources.
 ##
 ## Networking seam: request_* functions are public entrypoints (future @rpc("any_peer")).
@@ -13,7 +13,7 @@ const PLAYER_TWO: int = 1
 @export var base_income: int = 2
 @export var pass_turn_starting_ap: int = 3
 
-# Testing
+# TODO: Remove - Test data
 @export var test_deck: DeckData = DeckData.new()
 
 var local_player_id = PLAYER_ONE
@@ -23,14 +23,17 @@ var player_game_state: Dictionary[int, PlayerGameState] = {
 	PLAYER_ONE: PlayerGameState.new(),
 	PLAYER_TWO: PlayerGameState.new(),
 }
-var player_turn_fsm: FiniteStateMachine = FiniteStateMachine.new()
+var turn_phase_fsm: FiniteStateMachine = FiniteStateMachine.new()
 
 
 func _ready() -> void:
-	reset()
+	print("[Flow] GameManager ready")
+	_reset()
+	_subscribe_to_game_signals()
+	_start_turn_fsm()
 
 
-func reset() -> void:
+func _reset() -> void:
 	active_player = PLAYER_ONE
 	ap_tracker = 0.0
 	player_game_state = {
@@ -41,12 +44,40 @@ func reset() -> void:
 	player_game_state[PLAYER_ONE].deck = test_deck.cards.duplicate()
 	player_game_state[PLAYER_TWO].deck = test_deck.cards.duplicate()
 
-	player_turn_fsm = FiniteStateMachine.new()
-	player_turn_fsm.change_state(PhaseADrawCard.new())
+
+func _subscribe_to_game_signals() -> void:
+	print("[Flow] GameManager subscribing to signals")
+	SignalBus.card_draw_requested.connect(_on_card_draw_requested)
+	SignalBus.spend_ap_requested.connect(request_spend_ap)
+	SignalBus.add_currency_requested.connect(request_add_currency)
+	SignalBus.switch_turn_requested.connect(request_switch_turn)
+	SignalBus.pass_turn_requested.connect(request_pass_turn)
+
+	# TODO: Remove - Debug
+	SignalBus.print_players_hands_requested.connect(_print_players_hands)
+
+
+func _start_turn_fsm() -> void:
+	print("[Flow] GameManager starting turn FSM")
+	turn_phase_fsm = FiniteStateMachine.new()
+	turn_phase_fsm.change_state(TurnPhaseDrawCard.new(turn_phase_fsm))
 
 
 func _is_player_1() -> bool:
 	return active_player == PLAYER_ONE
+
+
+func _on_card_draw_requested() -> void:
+	print("[Flow] Card draw requested by player")
+	_apply_card_draw(active_player)
+
+
+func _apply_card_draw(player_id: int) -> void:
+	if not player_game_state.has(player_id):
+		return
+
+	player_game_state[player_id].deck_to_hand()
+	SignalBus.card_draw_animation_complete.emit()
 
 
 func request_add_ap(amount: int) -> void:
@@ -115,12 +146,13 @@ func request_switch_turn() -> void:
 func _apply_switch_turn() -> void:
 	active_player = (active_player + 1) % 2
 	SignalBus.player_switched.emit(active_player)
-	player_turn_fsm.change_state(PhaseADrawCard.new())
+	turn_phase_fsm.change_state(TurnPhaseDrawCard.new(turn_phase_fsm))
 	_apply_add_currency(active_player, base_income)
 
 
 func request_pass_turn() -> void:
 	_apply_pass_turn()
+
 
 func _apply_pass_turn() -> void:
 	if _is_player_1():
@@ -129,3 +161,18 @@ func _apply_pass_turn() -> void:
 		ap_tracker = pass_turn_starting_ap
 	SignalBus.ap_tracker_moved.emit(ap_tracker)
 	_apply_switch_turn()
+
+
+
+# Debug
+func on_print_players_hands_requested() -> void:
+	_print_players_hands()
+
+func _print_players_hands() -> void:
+	print("Player 1 hand:")
+	for card in player_game_state[PLAYER_ONE].hand:
+		print("- %s" % card.name)
+
+	print("Player 2 hand:")
+	for card in player_game_state[PLAYER_TWO].hand:
+		print("- %s" % card.name)

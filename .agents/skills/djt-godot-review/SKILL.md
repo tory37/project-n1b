@@ -147,6 +147,38 @@ Flag any `get_parent()` call used to invoke a method (upward coupling violation)
 
 ---
 
+#### L — File Layout & Code Ordering
+
+Every `.gd` file must follow the official Godot 4 declaration order. Flag any file where sections appear out of sequence.
+
+**Required order:**
+1. `@tool` / `@icon` annotations (only if needed)
+2. `class_name`
+3. `extends`
+4. `##` doc comment
+5. Signals
+6. Enums
+7. Constants
+8. Static variables
+9. `@export` variables
+10. Public variables (no underscore prefix)
+11. Private variables (`_` prefix)
+12. `@onready` variables (`_` prefix — always last among variables)
+13. Static methods / `_static_init()`
+14. Built-in virtual methods in lifecycle order: `_init` → `_enter_tree` → `_ready` → `_process` → `_physics_process` → remaining virtuals
+15. Signal callbacks (`_on_*`)
+16. Public methods
+17. Private methods (`_` prefix)
+18. Inner classes
+
+**Public/private method separation**: Public methods must be grouped together as a contiguous block. Private methods must follow as their own contiguous block. Interleaving public and private methods in the same region is a violation.
+
+**`@onready` placement**: `@onready` variables must appear after all other variable declarations. They resolve at runtime (after `_ready()`), so placing them before regular variables is misleading about initialization order.
+
+**Signal callbacks as a distinct group**: `_on_*` callbacks must be placed between virtual lifecycle methods and the public methods block — not scattered among private methods.
+
+---
+
 ### 3. Generate Report
 
 Write a detailed review report to `.agents/output/reviews/<target-name>-<timestamp>.md`.
