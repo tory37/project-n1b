@@ -1,0 +1,2 @@
+trigger: When the user types /djt-godot-review, asks for a Godot best-practices review, or provides a .gd file or branch diff to review against Godot standards, always execute the following workflow exactly:
+notes: This review enforces Godot 4 official best practices (lifecycle, scene organization, node alternatives, data structures, resource loading) AND project-specific mandates (request_*/apply_* seam, static typing, component composition, GUT testing). Check all categories A–K before writing the report.
