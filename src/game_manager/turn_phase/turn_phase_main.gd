@@ -3,3 +3,6 @@ extends FiniteState
 
 func enter() -> void:
 	print("Entering TurnPhaseMain")
+
+func exit() -> void:
+	print("Exiting TurnPhaseMain")

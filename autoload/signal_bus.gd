@@ -1,6 +1,7 @@
 extends Node
 
 # Game State
+signal game_start_requested()
 signal game_state_initialized(
 		active_player: int,
 		ap_tracker: int,
@@ -15,6 +16,7 @@ signal switch_turn_requested()
 signal pass_turn_requested()
 
 # Action Points
+signal add_ap_requested(player_index: int, amount: int)
 signal spend_ap_requested(player_index: int, amount: int)
 signal ap_tracker_moved(new_value: float)
 
