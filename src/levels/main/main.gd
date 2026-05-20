@@ -4,4 +4,7 @@ extends Node3D
 
 func _ready() -> void:
 	print("Main scene loaded - 3D world ready")
-	game_manager.start()
+	if game_manager:
+		game_manager.start()
+	else:
+		push_error("Main scene: GameManager not assigned")

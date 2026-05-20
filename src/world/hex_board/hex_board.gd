@@ -9,7 +9,7 @@ const FLAT_TOP_ROTATION: Vector3 = deg_to_rad(30) * Vector3(0, 1, 0)
 @export var orientation: HexOrientation.Type = HexOrientation.POINTY_TOP
 @export var hex_tile_scene: PackedScene
 
-var _tiles: Dictionary = { }
+var _tiles: Dictionary[Vector2i, Node] = { }
 
 
 func _ready() -> void:
@@ -24,8 +24,7 @@ func _ready() -> void:
 func generate() -> void:
 	_tiles.clear()
 	for col in range(-board_width_radius, board_width_radius + 1):
-		var row_start: int = -board_height_radius
-		row_start = -board_height_radius - 1
+		var row_start: int = -board_height_radius - 1
 		for row in range(row_start, board_height_radius + 1):
 			if orientation == HexOrientation.FLAT_TOP and row == row_start and col % 2 != 0:
 				continue

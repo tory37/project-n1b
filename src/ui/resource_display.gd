@@ -1,9 +1,9 @@
 extends MarginContainer
 ## UI component to display AP and Currency for the active player.
 
-@onready var ap_label: Label = $VBoxContainer/APLabel
-@onready var currency_label: Label = $VBoxContainer/CurrencyLabel
-@onready var player_label: Label = $VBoxContainer/PlayerLabel
+@onready var _ap_label: Label = $VBoxContainer/APLabel
+@onready var _currency_label: Label = $VBoxContainer/CurrencyLabel
+@onready var _player_label: Label = $VBoxContainer/PlayerLabel
 
 
 func _ready() -> void:
@@ -21,13 +21,13 @@ func _on_player_game_state_initialized(player_game_state: PlayerGameState) -> vo
 	_on_update_currency_label(player_game_state.currency)
 
 
-func _on_update_player_label(player: int):
-	player_label.text = "Player: " + ("1" if player == 0 else "2")
+func _on_update_player_label(player: int) -> void:
+	_player_label.text = "Player: " + ("1" if player == 0 else "2")
 
 
-func _on_update_ap_label(ap: int):
-	ap_label.text = "AP: " + str(ap)
+func _on_update_ap_label(ap: int) -> void:
+	_ap_label.text = "AP: " + str(ap)
 
 
-func _on_update_currency_label(currency: int):
-	currency_label.text = "Currency: " + str(currency)
+func _on_update_currency_label(currency: int) -> void:
+	_currency_label.text = "Currency: " + str(currency)

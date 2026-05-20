@@ -26,14 +26,6 @@ var game_phase_fsm: FiniteStateMachine = null
 var turn_phase_fsm: FiniteStateMachine = null
 
 
-func start() -> void:
-	print("[Flow] GameManager starting turn FSM")
-	SignalBus.game_state_initialized.emit(active_player, ap_tracker)
-	SignalBus.player_game_state_initialized.emit(player_game_state)
-	turn_phase_fsm = FiniteStateMachine.new()
-	turn_phase_fsm.change_state(TurnPhaseDrawCard.new(turn_phase_fsm))
-
-
 func can_spend_ap(amount: int) -> bool:
 	if _is_player_1():
 		return amount <= ap_tracker + max_ap_tracker_value
@@ -52,18 +44,35 @@ func _init() -> void:
 	player_game_state[PlayerSeat.PLAYER_ONE].currency = 0
 	player_game_state[PlayerSeat.PLAYER_TWO].currency = 0
 
-	player_game_state[PlayerSeat.PLAYER_ONE].deck = test_deck.cards.duplicate()
-	player_game_state[PlayerSeat.PLAYER_TWO].deck = test_deck.cards.duplicate()
-
 
 func _ready() -> void:
 	print("[Flow] GameManager ready")
+
+	player_game_state[PlayerSeat.PLAYER_ONE].deck = test_deck.cards.duplicate()
+	player_game_state[PlayerSeat.PLAYER_TWO].deck = test_deck.cards.duplicate()
+
 	_subscribe_to_game_signals()
+
+
+func _on_start_game_requested() -> void:
+	print("[Flow] GameManager starting turn FSM")
+	SignalBus.game_state_initialized.emit(active_player, ap_tracker)
+	SignalBus.game_state_updated.emit(active_player, ap_tracker)
+	turn_phase_fsm = FiniteStateMachine.new()
+	turn_phase_fsm.change_state(TurnPhaseDrawCard.new(turn_phase_fsm))
+
+
+func _apply_start_game() -> void:
+	print("[Flow] GameManager applying start game")
+	SignalBus.player_game_state_initialized.emit(active_player)
+
+
 
 
 func _subscribe_to_game_signals() -> void:
 	print("[Flow] GameManager subscribing to signals")
-	SignalBus.card_draw_requested.connect(_on_card_draw_requested)
+	SignalBus.card_draw_requested.connect(_on_request_card_draw)
+	SignalBus.add_ap_requested.connect(_on_request_add_ap)
 	SignalBus.spend_ap_requested.connect(_on_request_spend_ap)
 	SignalBus.add_currency_requested.connect(_on_request_add_currency)
 	SignalBus.switch_turn_requested.connect(_on_request_switch_turn)
@@ -77,7 +86,7 @@ func _is_player_1() -> bool:
 	return active_player == PlayerSeat.PLAYER_ONE
 
 
-func _on_card_draw_requested() -> void:
+func _on_request_card_draw() -> void:
 	print("[Flow] Card draw requested by player")
 	_apply_card_draw(active_player)
 
@@ -105,7 +114,7 @@ func _apply_add_ap(amount: int) -> void:
 	SignalBus.ap_tracker_moved.emit(ap_tracker)
 
 
-func _on_request_spend_ap(amount: int) -> void:
+func _on_request_spend_ap(amount: int, _player_id: int, ) -> void:
 	if not can_spend_ap(amount):
 		SignalBus.ap_spend_failed.emit(active_player)
 		return

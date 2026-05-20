@@ -15,7 +15,7 @@ signal switch_turn_requested()
 signal pass_turn_requested()
 
 # Action Points
-signal spend_ap_requested(player_index: int, amount: int, is_opp: bool)
+signal spend_ap_requested(player_index: int, amount: int)
 signal ap_tracker_moved(new_value: float)
 
 # Currency
