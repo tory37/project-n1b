@@ -3,7 +3,7 @@ extends StaticBody3D
 signal hovered()
 signal unhovered()
 
-@export var _owner_player_id: int = GameState.PLAYER_ONE
+@export var _owner_player_id: int = LocalSession.local_player_id
 
 var _default_material: StandardMaterial3D
 var _hovered_material: StandardMaterial3D

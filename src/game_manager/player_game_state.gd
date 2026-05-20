@@ -6,6 +6,7 @@ var deck: Array[CardData] = []
 var hand: Array[CardData] = []
 var discard: Array[CardData] = []
 
+
 func deck_to_hand() -> void:
     if deck.size() == 0:
         return

@@ -6,9 +6,6 @@ extends Node
 ## _apply_* functions are authority-only state mutators (future @rpc("authority")).
 ## Locally, request_* calls _apply_* directly — zero behavior change, zero networking needed now.
 
-const PLAYER_ONE: int = 0
-const PLAYER_TWO: int = 1
-
 @export var max_ap_tracker_value: float = 10.0
 @export var base_income: int = 2
 @export var pass_turn_starting_ap: int = 3
@@ -16,12 +13,12 @@ const PLAYER_TWO: int = 1
 # TODO: Remove - Test data
 @export var test_deck: DeckData = DeckData.new()
 
-var local_player_id = PLAYER_ONE
-var active_player: int = PLAYER_ONE
+var local_player_id = PlayerSeat.PLAYER_ONE
+var active_player: int = PlayerSeat.PLAYER_ONE
 var ap_tracker: float = 0.0
 var player_game_state: Dictionary[int, PlayerGameState] = {
-	PLAYER_ONE: PlayerGameState.new(),
-	PLAYER_TWO: PlayerGameState.new(),
+	PlayerSeat.PLAYER_ONE: PlayerGameState.new(),
+	PlayerSeat.PLAYER_TWO: PlayerGameState.new(),
 }
 var turn_phase_fsm: FiniteStateMachine = FiniteStateMachine.new()
 
@@ -33,16 +30,20 @@ func _ready() -> void:
 	_start_turn_fsm()
 
 
+
 func _reset() -> void:
-	active_player = PLAYER_ONE
+	active_player = PlayerSeat.PLAYER_ONE
 	ap_tracker = 0.0
 	player_game_state = {
-		PLAYER_ONE: PlayerGameState.new(),
-		PLAYER_TWO: PlayerGameState.new(),
+		PlayerSeat.PLAYER_ONE: PlayerGameState.new(),
+		PlayerSeat.PLAYER_TWO: PlayerGameState.new(),
 	}
 
-	player_game_state[PLAYER_ONE].deck = test_deck.cards.duplicate()
-	player_game_state[PLAYER_TWO].deck = test_deck.cards.duplicate()
+	player_game_state[PlayerSeat.PLAYER_ONE].currency = 0
+	player_game_state[PlayerSeat.PLAYER_TWO].currency = 0
+
+	player_game_state[PlayerSeat.PLAYER_ONE].deck = test_deck.cards.duplicate()
+	player_game_state[PlayerSeat.PLAYER_TWO].deck = test_deck.cards.duplicate()
 
 
 func _subscribe_to_game_signals() -> void:
@@ -64,7 +65,7 @@ func _start_turn_fsm() -> void:
 
 
 func _is_player_1() -> bool:
-	return active_player == PLAYER_ONE
+	return active_player == PlayerSeat.PLAYER_ONE
 
 
 func _on_card_draw_requested() -> void:
@@ -74,10 +75,13 @@ func _on_card_draw_requested() -> void:
 
 func _apply_card_draw(player_id: int) -> void:
 	if not player_game_state.has(player_id):
+		print("[Error] Invalid player ID for card draw: %d" % player_id)
 		return
 
+	print("[Flow] Applying card draw for player %d" % player_id)
 	player_game_state[player_id].deck_to_hand()
-	SignalBus.card_draw_animation_complete.emit()
+	print("[Flow] Player %d hand after draw: %s" % [player_id, player_game_state[player_id].hand])
+	SignalBus.card_draw_animation_complete.emit.call_deferred()
 
 
 func request_add_ap(amount: int) -> void:
@@ -170,9 +174,9 @@ func on_print_players_hands_requested() -> void:
 
 func _print_players_hands() -> void:
 	print("Player 1 hand:")
-	for card in player_game_state[PLAYER_ONE].hand:
+	for card in player_game_state[PlayerSeat.PLAYER_ONE].hand:
 		print("- %s" % card.name)
 
 	print("Player 2 hand:")
-	for card in player_game_state[PLAYER_TWO].hand:
+	for card in player_game_state[PlayerSeat.PLAYER_TWO].hand:
 		print("- %s" % card.name)

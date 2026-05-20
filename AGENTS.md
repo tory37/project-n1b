@@ -121,7 +121,7 @@ We prioritize **Composition over Inheritance**.
 
 In the local prototype, `request_*` calls `_apply_*` directly. **Zero networking is added now.** The seam exists so that wiring up Godot 4 multiplayer later requires decorating existing functions — not rewriting game logic.
 
-**This applies to:** `GameState` and any future Autoload that owns mutable game state.
+**This applies to:** `GameManager` and any future Autoload that owns mutable game state.
 
 **Never write a state-mutating Autoload function that does not follow this pattern.**
 
