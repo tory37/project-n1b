@@ -14,7 +14,7 @@ extends Node
 # TODO: Remove - Test data
 @export var test_deck: DeckData = DeckData.new()
 
-var local_player_id = PlayerSeat.PLAYER_ONE
+var local_player_id: int = PlayerSeat.PLAYER_ONE
 var active_player: int = PlayerSeat.PLAYER_ONE
 var ap_tracker: float = 0.0
 var player_game_state: Dictionary[int, PlayerGameState] = {
@@ -22,8 +22,8 @@ var player_game_state: Dictionary[int, PlayerGameState] = {
 	PlayerSeat.PLAYER_TWO: PlayerGameState.new(),
 }
 
-var game_phase_fsm: FiniteStateMachine = FiniteStateMachine.new()
-var turn_phase_fsm: FiniteStateMachine = FiniteStateMachine.new()
+var game_phase_fsm: FiniteStateMachine = null
+var turn_phase_fsm: FiniteStateMachine = null
 
 
 func start() -> void:
@@ -32,6 +32,13 @@ func start() -> void:
 	SignalBus.player_game_state_initialized.emit(player_game_state)
 	turn_phase_fsm = FiniteStateMachine.new()
 	turn_phase_fsm.change_state(TurnPhaseDrawCard.new(turn_phase_fsm))
+
+
+func can_spend_ap(amount: int) -> bool:
+	if _is_player_1():
+		return amount <= ap_tracker + max_ap_tracker_value
+
+	return amount <= abs(ap_tracker) + max_ap_tracker_value
 
 
 func _init() -> void:
@@ -57,13 +64,13 @@ func _ready() -> void:
 func _subscribe_to_game_signals() -> void:
 	print("[Flow] GameManager subscribing to signals")
 	SignalBus.card_draw_requested.connect(_on_card_draw_requested)
-	SignalBus.spend_ap_requested.connect(request_spend_ap)
-	SignalBus.add_currency_requested.connect(request_add_currency)
-	SignalBus.switch_turn_requested.connect(request_switch_turn)
-	SignalBus.pass_turn_requested.connect(request_pass_turn)
+	SignalBus.spend_ap_requested.connect(_on_request_spend_ap)
+	SignalBus.add_currency_requested.connect(_on_request_add_currency)
+	SignalBus.switch_turn_requested.connect(_on_request_switch_turn)
+	SignalBus.pass_turn_requested.connect(_on_request_pass_turn)
 
 	# TODO: Remove - Debug
-	SignalBus.print_players_hands_requested.connect(_print_players_hands)
+	SignalBus.print_players_hands_requested.connect(_on_print_players_hands_requested)
 
 
 func _is_player_1() -> bool:
@@ -86,7 +93,7 @@ func _apply_card_draw(player_id: int) -> void:
 	SignalBus.card_draw_animation_complete.emit.call_deferred()
 
 
-func request_add_ap(amount: int) -> void:
+func _on_request_add_ap(amount: int) -> void:
 	_apply_add_ap(amount)
 
 
@@ -98,14 +105,7 @@ func _apply_add_ap(amount: int) -> void:
 	SignalBus.ap_tracker_moved.emit(ap_tracker)
 
 
-func can_spend_ap(amount: int) -> bool:
-	if _is_player_1():
-		return amount <= ap_tracker + max_ap_tracker_value
-
-	return amount <= abs(ap_tracker) + max_ap_tracker_value
-
-
-func request_spend_ap(amount: int) -> void:
+func _on_request_spend_ap(amount: int) -> void:
 	if not can_spend_ap(amount):
 		SignalBus.ap_spend_failed.emit(active_player)
 		return
@@ -129,7 +129,7 @@ func _apply_spend_ap(amount: int) -> void:
 		_apply_switch_turn()
 
 
-func request_add_currency(player: int, amount: int) -> void:
+func _on_request_add_currency(player: int, amount: int) -> void:
 	_apply_add_currency(player, amount)
 
 
@@ -141,7 +141,7 @@ func _apply_add_currency(player: int, amount: int) -> void:
 	)
 
 
-func request_switch_turn() -> void:
+func _on_request_switch_turn() -> void:
 	_apply_switch_turn()
 
 
@@ -152,7 +152,7 @@ func _apply_switch_turn() -> void:
 	_apply_add_currency(active_player, base_income)
 
 
-func request_pass_turn() -> void:
+func _on_request_pass_turn() -> void:
 	_apply_pass_turn()
 
 
@@ -166,7 +166,7 @@ func _apply_pass_turn() -> void:
 
 
 # Debug
-func on_print_players_hands_requested() -> void:
+func _on_print_players_hands_requested() -> void:
 	_print_players_hands()
 
 

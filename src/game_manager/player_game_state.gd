@@ -11,7 +11,7 @@ func deck_to_hand() -> void:
     if deck.size() == 0:
         return
 
-    var card = deck.pop_back()
+    var card: CardData = deck.pop_back()
     hand.append(card)
 
 func use_card_from_hand(card: CardData) -> void:

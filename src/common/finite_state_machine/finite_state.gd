@@ -1,4 +1,5 @@
 class_name FiniteState
+extends RefCounted
 
 var _fsm: FiniteStateMachine
 

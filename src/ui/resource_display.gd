@@ -1,9 +1,9 @@
 extends MarginContainer
 ## UI component to display AP and Currency for the active player.
 
-@onready var ap_label = $VBoxContainer/APLabel
-@onready var currency_label = $VBoxContainer/CurrencyLabel
-@onready var player_label = $VBoxContainer/PlayerLabel
+@onready var ap_label: Label = $VBoxContainer/APLabel
+@onready var currency_label: Label = $VBoxContainer/CurrencyLabel
+@onready var player_label: Label = $VBoxContainer/PlayerLabel
 
 
 func _ready() -> void:

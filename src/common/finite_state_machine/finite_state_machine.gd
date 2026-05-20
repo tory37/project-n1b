@@ -1,4 +1,5 @@
 class_name FiniteStateMachine
+extends RefCounted
 
 var current_state: FiniteState = null
 
