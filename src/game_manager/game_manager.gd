@@ -1,3 +1,4 @@
+class_name GameManager
 extends Node
 ## GameManager
 ## Manages the Tug-of-War economy and player resources.
@@ -20,18 +21,20 @@ var player_game_state: Dictionary[int, PlayerGameState] = {
 	PlayerSeat.PLAYER_ONE: PlayerGameState.new(),
 	PlayerSeat.PLAYER_TWO: PlayerGameState.new(),
 }
+
+var game_phase_fsm: FiniteStateMachine = FiniteStateMachine.new()
 var turn_phase_fsm: FiniteStateMachine = FiniteStateMachine.new()
 
 
-func _ready() -> void:
-	print("[Flow] GameManager ready")
-	_reset()
-	_subscribe_to_game_signals()
-	_start_turn_fsm()
+func start() -> void:
+	print("[Flow] GameManager starting turn FSM")
+	SignalBus.game_state_initialized.emit(active_player, ap_tracker)
+	SignalBus.player_game_state_initialized.emit(player_game_state)
+	turn_phase_fsm = FiniteStateMachine.new()
+	turn_phase_fsm.change_state(TurnPhaseDrawCard.new(turn_phase_fsm))
 
 
-
-func _reset() -> void:
+func _init() -> void:
 	active_player = PlayerSeat.PLAYER_ONE
 	ap_tracker = 0.0
 	player_game_state = {
@@ -46,6 +49,11 @@ func _reset() -> void:
 	player_game_state[PlayerSeat.PLAYER_TWO].deck = test_deck.cards.duplicate()
 
 
+func _ready() -> void:
+	print("[Flow] GameManager ready")
+	_subscribe_to_game_signals()
+
+
 func _subscribe_to_game_signals() -> void:
 	print("[Flow] GameManager subscribing to signals")
 	SignalBus.card_draw_requested.connect(_on_card_draw_requested)
@@ -56,12 +64,6 @@ func _subscribe_to_game_signals() -> void:
 
 	# TODO: Remove - Debug
 	SignalBus.print_players_hands_requested.connect(_print_players_hands)
-
-
-func _start_turn_fsm() -> void:
-	print("[Flow] GameManager starting turn FSM")
-	turn_phase_fsm = FiniteStateMachine.new()
-	turn_phase_fsm.change_state(TurnPhaseDrawCard.new(turn_phase_fsm))
 
 
 func _is_player_1() -> bool:
@@ -119,10 +121,6 @@ func _apply_spend_ap(amount: int) -> void:
 		ap_tracker = clamp(ap_tracker + amount, -max_ap_tracker_value, max_ap_tracker_value)
 
 	SignalBus.ap_tracker_moved.emit(ap_tracker)
-	SignalBus.resources_updated.emit(
-		active_player,
-		player_game_state[active_player].currency,
-	)
 
 	if _is_player_1():
 		if ap_tracker < 0:
@@ -137,7 +135,7 @@ func request_add_currency(player: int, amount: int) -> void:
 
 func _apply_add_currency(player: int, amount: int) -> void:
 	player_game_state[player].currency += amount
-	SignalBus.resources_updated.emit(
+	SignalBus.player_currency_updated.emit(
 		player,
 		player_game_state[player].currency,
 	)
@@ -167,10 +165,10 @@ func _apply_pass_turn() -> void:
 	_apply_switch_turn()
 
 
-
 # Debug
 func on_print_players_hands_requested() -> void:
 	_print_players_hands()
+
 
 func _print_players_hands() -> void:
 	print("Player 1 hand:")

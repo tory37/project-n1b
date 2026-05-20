@@ -19,7 +19,8 @@ func _ready() -> void:
 	generate()
 
 
-## TODO: Pointy top does not generate a perfectly symmetric board because of the way the hexes are staggered. 
+## TODO: Pointy top does not generate a perfectly symmetric board because
+##   of the way the hexes are staggered.
 func generate() -> void:
 	_tiles.clear()
 	for col in range(-board_width_radius, board_width_radius + 1):
@@ -48,9 +49,9 @@ func _spawn_tile(col: int, row: int) -> void:
 	var r: int = axial.y
 	var offset: Vector3
 	if orientation == HexOrientation.POINTY_TOP:
-		offset = Vector3(0, 0, hex_size)  # circumradius (center-to-vertex)
+		offset = Vector3(0, 0, hex_size) # circumradius (center-to-vertex)
 	else:
-		offset = Vector3(0, 0, HexUtils.get_apothem_from_size(hex_size))  # inradius (center-to-edge)
+		offset = Vector3(0, 0, HexUtils.get_apothem_from_size(hex_size)) # inradius (center-to-edge)
 	var world_pos: Vector3 = HexUtils.axial_to_world(q, r, hex_size, orientation, offset)
 	tile.position = world_pos
 
