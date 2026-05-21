@@ -8,7 +8,7 @@ func _init(fsm: FiniteStateMachine) -> void:
 func enter() -> void:
 	print("[Flow] Entering TurnPhaseDrawCard")
 	SignalBus.card_draw_animation_complete.connect(_on_card_draw_animation_complete)
-	SignalBus.card_draw_requested.emit()
+	SignalBus.draw_card_requested.emit()
 
 
 func exit() -> void:

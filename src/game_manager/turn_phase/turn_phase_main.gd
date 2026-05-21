@@ -2,7 +2,7 @@ class_name TurnPhaseMain
 extends FiniteState
 
 func enter() -> void:
-	print("Entering TurnPhaseMain")
+	print("[Flow] Entering TurnPhaseMain")
 
 func exit() -> void:
-	print("Exiting TurnPhaseMain")
+	print("[Flow] Exiting TurnPhaseMain")

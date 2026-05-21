@@ -3,15 +3,14 @@ extends StaticBody3D
 signal hovered()
 signal unhovered()
 
-@export var owner_player_id: int = LocalSession.local_player_id
+@export var owner_player_id: PlayerSeat.Type = PlayerSeat.PLAYER_ONE
+@onready var _mesh_instance: MeshInstance3D = $MeshInstance3D
 
 var _default_material: StandardMaterial3D
 var _hovered_material: StandardMaterial3D
-var _mesh_instance: MeshInstance3D
 
 
 func _ready() -> void:
-	_mesh_instance = $MeshInstance3D
 	_default_material = StandardMaterial3D.new()
 	_default_material.albedo_color = Color.GRAY
 	_hovered_material = StandardMaterial3D.new()

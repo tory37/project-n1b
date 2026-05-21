@@ -3,6 +3,6 @@
 [ext_resource type="Script" uid="uid://dlu6kkywvipxy" path="res://src/game_manager/game_manager.gd" id="1_ssjaa"]
 [ext_resource type="Resource" uid="uid://0o8qgwtpnu2f" path="res://resources/decks/test_deck.tres" id="2_7l87a"]
 
-[node name="GameManager" type="Node3D" unique_id=1829168578]
+[node name="GameManager" type="Node" unique_id=1910352311]
 script = ExtResource("1_ssjaa")
 test_deck = ExtResource("2_7l87a")

@@ -7,7 +7,7 @@ extends Node
 ## _apply_* functions are authority-only state mutators (future @rpc("authority")).
 ## Locally, request_* calls _apply_* directly — zero behavior change, zero networking needed now.
 
-@export var max_ap_tracker_value: float = 10.0
+@export var max_ap_tracker_value: int = 10
 @export var base_income: int = 2
 @export var pass_turn_starting_ap: int = 3
 
@@ -18,26 +18,14 @@ extends Node
 var active_player: PlayerSeat.Type = PlayerSeat.PLAYER_ONE
 ## The seat this client controls; fixed after lobby assignment.
 var local_player_id: PlayerSeat.Type = PlayerSeat.PLAYER_ONE
-var ap_tracker: float = 0.0
-var player_game_state: Dictionary[int, PlayerGameState] = {
+var ap_tracker: int = 0
+var player_game_state: Dictionary[PlayerSeat.Type, PlayerGameState] = {
 	PlayerSeat.PLAYER_ONE: PlayerGameState.new(),
 	PlayerSeat.PLAYER_TWO: PlayerGameState.new(),
 }
 
 var game_phase_fsm: FiniteStateMachine = null
 var turn_phase_fsm: FiniteStateMachine = null
-
-
-func _init() -> void:
-	active_player = PlayerSeat.PLAYER_ONE
-	ap_tracker = 0.0
-	player_game_state = {
-		PlayerSeat.PLAYER_ONE: PlayerGameState.new(),
-		PlayerSeat.PLAYER_TWO: PlayerGameState.new(),
-	}
-
-	player_game_state[PlayerSeat.PLAYER_ONE].currency = 0
-	player_game_state[PlayerSeat.PLAYER_TWO].currency = 0
 
 
 func _ready() -> void:
@@ -54,12 +42,12 @@ func _on_start_game_requested() -> void:
 	_apply_start_game()
 
 
-func _on_request_card_draw() -> void:
+func _on_draw_card_requested() -> void:
 	print("[Flow] Card draw requested by player")
 	_apply_card_draw(active_player)
 
 
-func _on_add_ap_requested(_player_id: int, amount: int) -> void:
+func _on_add_ap_requested(amount: int) -> void:
 	_apply_add_ap(amount)
 
 
@@ -97,7 +85,7 @@ func can_spend_ap(amount: int) -> bool:
 func _subscribe_to_game_signals() -> void:
 	print("[Flow] GameManager subscribing to signals")
 	SignalBus.game_start_requested.connect(_on_start_game_requested)
-	SignalBus.card_draw_requested.connect(_on_request_card_draw)
+	SignalBus.draw_card_requested.connect(_on_draw_card_requested)
 	SignalBus.add_ap_requested.connect(_on_add_ap_requested)
 	SignalBus.spend_ap_requested.connect(_on_spend_ap_requested)
 	SignalBus.add_currency_requested.connect(_on_add_currency_requested)

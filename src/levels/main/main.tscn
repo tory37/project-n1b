@@ -27,4 +27,4 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 0, 10)
 
 [node name="Player2Deck" parent="." unique_id=1746932960 instance=ExtResource("4_0it5o")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 0, -10)
-_owner_player_id = 1
+owner_player_id = 1

@@ -16,7 +16,7 @@ signal switch_turn_requested()
 signal pass_turn_requested()
 
 # Action Points
-signal add_ap_requested(player_index: int, amount: int)
+signal add_ap_requested(amount: int)
 signal spend_ap_requested(player_index: int, amount: int)
 signal ap_tracker_moved(new_value: float)
 
@@ -29,7 +29,7 @@ signal tile_clicked(axial: Vector2i)
 
 # Cards
 signal deck_clicked(owner_player_id: int)
-signal card_draw_requested()
+signal draw_card_requested()
 signal card_draw_animation_complete()
 
 # Errors

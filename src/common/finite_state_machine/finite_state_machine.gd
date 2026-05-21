@@ -1,12 +1,12 @@
 class_name FiniteStateMachine
 extends RefCounted
 
-var current_state: FiniteState = null
+var _current_state: FiniteState = null
 
 
 func change_state(next: FiniteState) -> void:
-	if current_state:
-		current_state.exit()
+	if _current_state:
+		_current_state.exit()
 
-	current_state = next
-	current_state.enter()
+	_current_state = next
+	_current_state.enter()
