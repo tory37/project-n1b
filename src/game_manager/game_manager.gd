@@ -49,25 +49,49 @@ func _ready() -> void:
 	_subscribe_to_game_signals()
 
 
+func _on_start_game_requested() -> void:
+	print("[Flow] GameManager starting turn FSM")
+	_apply_start_game()
+
+
+func _on_request_card_draw() -> void:
+	print("[Flow] Card draw requested by player")
+	_apply_card_draw(active_player)
+
+
+func _on_add_ap_requested(_player_id: int, amount: int) -> void:
+	_apply_add_ap(amount)
+
+
+func _on_spend_ap_requested(_player_id: int, amount: int) -> void:
+	if not can_spend_ap(amount):
+		SignalBus.ap_spend_failed.emit(active_player)
+		return
+	_apply_spend_ap(amount)
+
+
+func _on_add_currency_requested(player: int, amount: int) -> void:
+	_apply_add_currency(player, amount)
+
+
+func _on_switch_turn_requested() -> void:
+	_apply_switch_turn()
+
+
+func _on_pass_turn_requested() -> void:
+	_apply_pass_turn()
+
+
+# Debug
+func _on_print_players_hands_requested() -> void:
+	_print_players_hands()
+
+
 func can_spend_ap(amount: int) -> bool:
 	if _is_player_1():
 		return amount <= ap_tracker + max_ap_tracker_value
 
 	return amount <= abs(ap_tracker) + max_ap_tracker_value
-
-
-func _on_start_game_requested() -> void:
-	print("[Flow] GameManager starting turn FSM")
-	_apply_start_game()
-	
-
-
-func _apply_start_game() -> void:
-	print("[Flow] GameManager applying start game")
-	SignalBus.game_state_initialized.emit(active_player, ap_tracker)
-	SignalBus.player_game_state_initialized.emit(player_game_state[active_player])
-	turn_phase_fsm = FiniteStateMachine.new()
-	turn_phase_fsm.change_state(TurnPhaseDrawCard.new(turn_phase_fsm))
 
 
 func _subscribe_to_game_signals() -> void:
@@ -88,9 +112,12 @@ func _is_player_1() -> bool:
 	return active_player == PlayerSeat.PLAYER_ONE
 
 
-func _on_request_card_draw() -> void:
-	print("[Flow] Card draw requested by player")
-	_apply_card_draw(active_player)
+func _apply_start_game() -> void:
+	print("[Flow] GameManager applying start game")
+	SignalBus.game_state_initialized.emit(active_player, ap_tracker)
+	SignalBus.player_game_state_initialized.emit(player_game_state[active_player])
+	turn_phase_fsm = FiniteStateMachine.new()
+	turn_phase_fsm.change_state(TurnPhaseDrawCard.new(turn_phase_fsm))
 
 
 func _apply_card_draw(player_id: int) -> void:
@@ -104,23 +131,12 @@ func _apply_card_draw(player_id: int) -> void:
 	SignalBus.card_draw_animation_complete.emit.call_deferred()
 
 
-func _on_add_ap_requested(_player_id: int, amount: int) -> void:
-	_apply_add_ap(amount)
-
-
 func _apply_add_ap(amount: int) -> void:
 	if _is_player_1():
 		ap_tracker = clamp(ap_tracker + amount, -max_ap_tracker_value, max_ap_tracker_value)
 	else:
 		ap_tracker = clamp(ap_tracker - amount, -max_ap_tracker_value, max_ap_tracker_value)
 	SignalBus.ap_tracker_moved.emit(ap_tracker)
-
-
-func _on_spend_ap_requested(_player_id: int, amount: int) -> void:
-	if not can_spend_ap(amount):
-		SignalBus.ap_spend_failed.emit(active_player)
-		return
-	_apply_spend_ap(amount)
 
 
 func _apply_spend_ap(amount: int) -> void:
@@ -140,20 +156,12 @@ func _apply_spend_ap(amount: int) -> void:
 		_apply_switch_turn()
 
 
-func _on_add_currency_requested(player: int, amount: int) -> void:
-	_apply_add_currency(player, amount)
-
-
 func _apply_add_currency(player: int, amount: int) -> void:
 	player_game_state[player].currency += amount
 	SignalBus.player_currency_updated.emit(
 		player,
 		player_game_state[player].currency,
 	)
-
-
-func _on_switch_turn_requested() -> void:
-	_apply_switch_turn()
 
 
 func _apply_switch_turn() -> void:
@@ -163,10 +171,6 @@ func _apply_switch_turn() -> void:
 	_apply_add_currency(active_player, base_income)
 
 
-func _on_pass_turn_requested() -> void:
-	_apply_pass_turn()
-
-
 func _apply_pass_turn() -> void:
 	if _is_player_1():
 		ap_tracker = -pass_turn_starting_ap
@@ -174,11 +178,6 @@ func _apply_pass_turn() -> void:
 		ap_tracker = pass_turn_starting_ap
 	SignalBus.ap_tracker_moved.emit(ap_tracker)
 	_apply_switch_turn()
-
-
-# Debug
-func _on_print_players_hands_requested() -> void:
-	_print_players_hands()
 
 
 func _print_players_hands() -> void:
