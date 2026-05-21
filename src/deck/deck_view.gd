@@ -4,10 +4,11 @@ signal hovered()
 signal unhovered()
 
 @export var owner_player_id: PlayerSeat.Type = PlayerSeat.PLAYER_ONE
-@onready var _mesh_instance: MeshInstance3D = $MeshInstance3D
 
 var _default_material: StandardMaterial3D
 var _hovered_material: StandardMaterial3D
+
+@onready var _mesh_instance: MeshInstance3D = $MeshInstance3D
 
 
 func _ready() -> void:
