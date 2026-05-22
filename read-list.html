@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reading List</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
+      padding: 48px 24px;
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #f8fafc;
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      color: #64748b;
+      font-size: 0.95rem;
+      margin-bottom: 48px;
+    }
+
+    h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #478adb;
+      margin-bottom: 24px;
+    }
+
+    .list {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      margin-bottom: 40px;
+    }
+
+    .item {
+      display: flex;
+      gap: 20px;
+      background: #1a1f2e;
+      border: 1px solid #2d3748;
+      border-radius: 10px;
+      padding: 20px 24px;
+      transition: border-color 0.15s;
+    }
+
+    .item:hover {
+      border-color: #478adb;
+    }
+
+    .step {
+      flex-shrink: 0;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: #478adb22;
+      border: 1px solid #478adb55;
+      color: #478adb;
+      font-weight: 700;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 2px;
+    }
+
+    .content {
+      flex: 1;
+    }
+
+    .content a {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #f8fafc;
+      text-decoration: none;
+    }
+
+    .content a:hover {
+      color: #478adb;
+    }
+
+    .source {
+      font-size: 0.78rem;
+      color: #64748b;
+      margin-top: 2px;
+      margin-bottom: 8px;
+    }
+
+    .content p {
+      font-size: 0.9rem;
+      color: #94a3b8;
+    }
+
+    .note {
+      background: #1a2030;
+      border-left: 3px solid #f59e0b;
+      border-radius: 0 8px 8px 0;
+      padding: 16px 20px;
+    }
+
+    .note strong {
+      color: #f59e0b;
+      display: block;
+      margin-bottom: 6px;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .note p {
+      font-size: 0.9rem;
+      color: #94a3b8;
+    }
+
+    .note code {
+      background: #2d3748;
+      color: #e2e8f0;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-family: "JetBrains Mono", "Fira Code", monospace;
+      font-size: 0.85em;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Reading List</h1>
+    <p class="subtitle">Resources to read before implementing networking.</p>
+
+    <h2>Godot 4 Networking</h2>
+
+    <div class="list">
+      <div class="item">
+        <div class="step">1</div>
+        <div class="content">
+          <a href="https://docs.godotengine.org/en/stable/tutorials/networking/high_level_multiplayer.html" target="_blank">
+            High-level multiplayer — Godot Engine docs
+          </a>
+          <div class="source">docs.godotengine.org</div>
+          <p>Establishes core vocabulary: peers, peer_id, server/host, authority. Read slowly — everything else builds on this.</p>
+        </div>
+      </div>
+
+      <div class="item">
+        <div class="step">2</div>
+        <div class="content">
+          <a href="https://www.strayspark.studio/blog/godot-4-multiplayer-networking-authoritative-server" target="_blank">
+            Building an Authoritative Server from Scratch — StraySpark
+          </a>
+          <div class="source">strayspark.studio</div>
+          <p>Shows authority, ENet peers, and RPCs wired together. Explains who the authority is and why it matters.</p>
+        </div>
+      </div>
+
+      <div class="item">
+        <div class="step">3</div>
+        <div class="content">
+          <a href="https://forum.godotengine.org/t/understanding-rpc-implementation-in-a-turn-based-multiplayer-game/45563" target="_blank">
+            RPC in a turn-based multiplayer game — Godot Forum
+          </a>
+          <div class="source">forum.godotengine.org</div>
+          <p>Directly relevant to this project's architecture: discrete events, not continuous state.</p>
+        </div>
+      </div>
+
+      <div class="item">
+        <div class="step">4</div>
+        <div class="content">
+          <a href="https://godotengine.org/article/multiplayer-changes-godot-4-0-report-2/" target="_blank">
+            Multiplayer in Godot 4.0: RPC syntax — Godot Engine blog
+          </a>
+          <div class="source">godotengine.org</div>
+          <p>Reference for <code>@rpc("any_peer")</code> and <code>@rpc("authority")</code> annotation options. Bookmark and refer back.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="note">
+      <strong>Note</strong>
+      <p>For a turn-based card game, <code>MultiplayerSynchronizer</code> and <code>MultiplayerSpawner</code> are not needed — those are for continuously syncing real-time state like player position. This project only needs ENet + RPCs.</p>
+    </div>
+  </div>
+</body>
+</html>

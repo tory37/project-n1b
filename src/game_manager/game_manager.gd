@@ -24,8 +24,7 @@ var player_game_state: Dictionary[PlayerSeat.Type, PlayerGameState] = {
 	PlayerSeat.PLAYER_TWO: PlayerGameState.new(),
 }
 
-var game_phase_fsm: FiniteStateMachine = null
-var turn_phase_fsm: FiniteStateMachine = null
+var game_fsm: FiniteStateMachine = null
 
 
 func _ready() -> void:
@@ -104,8 +103,9 @@ func _apply_start_game() -> void:
 	print("[Flow] GameManager applying start game")
 	SignalBus.game_state_initialized.emit(active_player, ap_tracker)
 	SignalBus.player_game_state_initialized.emit(player_game_state[active_player])
-	turn_phase_fsm = FiniteStateMachine.new()
-	turn_phase_fsm.change_state(TurnPhaseDrawCard.new(turn_phase_fsm))
+	
+	game_fsm = FiniteStateMachine.new()
+	game_fsm.change_state(GameStartPhase.new(game_fsm))
 
 
 func _apply_card_draw(player_id: int) -> void:
@@ -155,7 +155,7 @@ func _apply_add_currency(player: int, amount: int) -> void:
 func _apply_switch_turn() -> void:
 	active_player = (active_player + 1) % 2
 	SignalBus.player_switched.emit(active_player)
-	turn_phase_fsm.change_state(TurnPhaseDrawCard.new(turn_phase_fsm))
+	game_fsm.change_state(GamePhaseDrawCard.new(game_fsm))
 	_apply_add_currency(active_player, base_income)
 
 

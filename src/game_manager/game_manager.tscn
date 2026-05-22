@@ -5,4 +5,7 @@
 
 [node name="GameManager" type="Node" unique_id=1910352311]
 script = ExtResource("1_ssjaa")
+max_ap_tracker_value = null
+base_income = null
+pass_turn_starting_ap = null
 test_deck = ExtResource("2_7l87a")

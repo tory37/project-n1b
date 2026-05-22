@@ -29,8 +29,8 @@ signal tile_clicked(axial: Vector2i)
 
 # Cards
 signal deck_clicked(owner_player_id: int)
-signal draw_card_requested()
-signal card_draw_animation_complete()
+signal draw_card_requested(player_id: int)
+signal card_draw_animation_complete(player_id: int)
 
 # Errors
 signal ap_spend_failed(player_index: int)
