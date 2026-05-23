@@ -181,39 +181,25 @@ Every `.gd` file must follow the official Godot 4 declaration order. Flag any fi
 
 ### 3. Generate Report
 
-Write a detailed review report to `.agents/output/reviews/<target-name>-<timestamp>.md`.
+Write a detailed review report to `.agents/output/reviews/<target-name>-<timestamp>.html`. Use the standard HTML shell from the **HTML Output Convention** in AGENTS.md (`badge-review`, depth-1 stylesheet path `../assets/style.css`). Bootstrap the stylesheet first if not present.
 
-The report must follow this structure:
+Structure the report with these sections:
 
-```markdown
-# Godot Best Practices Review — <target>
-**Date:** <timestamp>
-**Scope:** <files or diff range reviewed>
+**Header** — `.doc-header` with `badge-review` badge, date, and title "Godot Best Practices Review — \<target\>". Include a `.meta-block` showing scope (files or diff range).
 
-## Summary
-High-level assessment of overall code quality and Godot best-practices adherence.
+**Summary** (`<h2>`) — High-level assessment of overall code quality and Godot best-practices adherence.
 
-## Critical Findings
-Bugs, architectural violations, or patterns that will cause correctness or maintainability problems.
-Each finding: `[CRITICAL] [Category X] filename.gd:line — explanation`
+**Critical Findings** (`<h2>`) — Each finding as a `.finding-card.critical`: `.badge-critical` + category label, `.finding-title` with `filename.gd:line`, `.finding-body` with explanation.
 
-## Warnings
-Violations of best practices that are not immediately harmful but should be addressed.
-Each finding: `[WARNING] [Category X] filename.gd:line — explanation`
+**Warnings** (`<h2>`) — Each as `.finding-card.warning` with `.badge-warning`.
 
-## Suggestions
-Non-blocking improvements or optimizations.
-Each finding: `[SUGGESTION] [Category X] filename.gd:line — explanation`
+**Suggestions** (`<h2>`) — Each as `.finding-card.suggestion` with `.badge-suggestion`.
 
-## Positive Notes
-What was done well. Be specific.
+**Positive Notes** (`<h2>`) — Each as `.finding-card.positive`.
 
-## Test Coverage
-Summary of GUT test coverage. List what's covered and what's missing.
+**Test Coverage** (`<h2>`) — Summary paragraph, then `.checklist` of covered and missing items.
 
-## Files Reviewed
-- path/to/file.gd
-```
+**Files Reviewed** (`<h2>`) — File paths as `.file-chip` elements inside a `.files-list` div.
 
 ### 4. Present Summary
 

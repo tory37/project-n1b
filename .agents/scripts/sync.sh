@@ -33,8 +33,8 @@ echo "Linking Gemini skills to WORKSPACE scope..."
 if [ -d "$PROJECT_AGENTS/skills" ]; then
     for skill_dir in "$PROJECT_AGENTS/skills"/*/; do
         if [ -d "$skill_dir" ]; then
-            # We use --scope workspace to ensure the skill is ONLY active in this directory.
-            gemini skills link "$skill_dir" --scope workspace
+            # --scope workspace keeps the skill local-only; --consent skips the interactive prompt.
+            gemini skills link "$skill_dir" --scope workspace --consent
             echo "  ✓ Linked Gemini skill: $(basename "$skill_dir") (local-only)"
         fi
     done

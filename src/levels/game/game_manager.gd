@@ -12,28 +12,49 @@ extends Node
 @export var pass_turn_starting_ap: int = 3
 
 # TODO: Remove - Test data
-@export var test_deck: DeckData = DeckData.new()
+@export var test_deck: DeckData
+
+
+@onready var spawner: MultiplayerSpawner = $MultiplayerSpawner
+@onready var players_container: Node = $Players
+
 
 ## Whose turn it is currently; changes on switch_turn.
-var active_player: PlayerSeat.Type = PlayerSeat.PLAYER_ONE
+var _player_states: Dictionary[int, PlayerState] = {} # peer_id: PlayerState
+var _active_player: PlayerSeat.Type = PlayerSeat.PLAYER_ONE
+var _ap_tracker: int = 0
+
+var _game_fsm: FiniteStateMachine = null
+
+
 ## The seat this client controls; fixed after lobby assignment.
-var local_player_id: PlayerSeat.Type = PlayerSeat.PLAYER_ONE
-var ap_tracker: int = 0
-var player_game_state: Dictionary[PlayerSeat.Type, PlayerGameState] = {
-	PlayerSeat.PLAYER_ONE: PlayerGameState.new(),
-	PlayerSeat.PLAYER_TWO: PlayerGameState.new(),
-}
-
-var game_fsm: FiniteStateMachine = null
-
-
 func _ready() -> void:
+	var _local_player_id: PlayerSeat.Type = PlayerSeat.PLAYER_ONE
 	print("[Flow] GameManager ready")
 
-	player_game_state[PlayerSeat.PLAYER_ONE].deck = test_deck.cards.duplicate()
-	player_game_state[PlayerSeat.PLAYER_TWO].deck = test_deck.cards.duplicate()
+	if multiplayer.is_server():
+		# Spawn a player for each connected peer
+		for peer_id in NetworkManager.connected_players:
+			_initialize_player(peer_id)
+
+		# Also spawn for future connections
+		NetworkManager.player_connected.connect(_initialize_player)
+		NetworkManager.player_disconnected.connect(_teardown_player)
 
 	_subscribe_to_game_signals()
+
+
+func _initialize_player(peer_id: int) -> void:
+	# Register state, deal starting hand, etc.
+	_player_states[peer_id] = PlayerState.new()
+	_player_states[peer_id].deck = test_deck.cards.duplicate()
+
+
+func _teardown_player(peer_id: int) -> void:
+	# Cleanup state, etc.
+	_player_states.erase(peer_id)
+
+## 
 
 
 func _on_start_game_requested() -> void:
@@ -43,7 +64,7 @@ func _on_start_game_requested() -> void:
 
 func _on_draw_card_requested() -> void:
 	print("[Flow] Card draw requested by player")
-	_apply_card_draw(active_player)
+	_apply_card_draw(_active_player)
 
 
 func _on_add_ap_requested(amount: int) -> void:
@@ -52,7 +73,7 @@ func _on_add_ap_requested(amount: int) -> void:
 
 func _on_spend_ap_requested(_player_id: int, amount: int) -> void:
 	if not can_spend_ap(amount):
-		SignalBus.ap_spend_failed.emit(active_player)
+		SignalBus.ap_spend_failed.emit(_active_player)
 		return
 	_apply_spend_ap(amount)
 
@@ -76,9 +97,9 @@ func _on_print_players_hands_requested() -> void:
 
 func can_spend_ap(amount: int) -> bool:
 	if _is_player_1():
-		return amount <= ap_tracker + max_ap_tracker_value
+		return amount <= _ap_tracker + max_ap_tracker_value
 
-	return amount <= abs(ap_tracker) + max_ap_tracker_value
+	return amount <= abs(_ap_tracker) + max_ap_tracker_value
 
 
 func _subscribe_to_game_signals() -> void:
@@ -96,83 +117,83 @@ func _subscribe_to_game_signals() -> void:
 
 
 func _is_player_1() -> bool:
-	return active_player == PlayerSeat.PLAYER_ONE
+	return _active_player == PlayerSeat.PLAYER_ONE
 
 
 func _apply_start_game() -> void:
 	print("[Flow] GameManager applying start game")
-	SignalBus.game_state_initialized.emit(active_player, ap_tracker)
-	SignalBus.player_game_state_initialized.emit(player_game_state[active_player])
+	SignalBus.game_state_initialized.emit(_active_player, _ap_tracker)
+	SignalBus.player_state_initialized.emit(_player_states[_active_player])
 	
-	game_fsm = FiniteStateMachine.new()
-	game_fsm.change_state(GameStartPhase.new(game_fsm))
+	_game_fsm = FiniteStateMachine.new()
+	_game_fsm.change_state(GameStartPhase.new(_game_fsm))
 
 
 func _apply_card_draw(player_id: int) -> void:
-	if not player_game_state.has(player_id):
+	if not _player_states.has(player_id):
 		print("[Error] Invalid player ID for card draw: %d" % player_id)
 		return
 
 	print("[Flow] Applying card draw for player %d" % player_id)
-	player_game_state[player_id].deck_to_hand()
-	print("[Flow] Player %d hand after draw: %s" % [player_id, player_game_state[player_id].hand])
+	_player_states[player_id].deck_to_hand()
+	print("[Flow] Player %d hand after draw: %s" % [player_id, _player_states[player_id].hand])
 	SignalBus.card_draw_animation_complete.emit.call_deferred()
 
 
 func _apply_add_ap(amount: int) -> void:
 	if _is_player_1():
-		ap_tracker = clamp(ap_tracker + amount, -max_ap_tracker_value, max_ap_tracker_value)
+		_ap_tracker = clamp(_ap_tracker + amount, -max_ap_tracker_value, max_ap_tracker_value)
 	else:
-		ap_tracker = clamp(ap_tracker - amount, -max_ap_tracker_value, max_ap_tracker_value)
-	SignalBus.ap_tracker_moved.emit(ap_tracker)
+		_ap_tracker = clamp(_ap_tracker - amount, -max_ap_tracker_value, max_ap_tracker_value)
+	SignalBus.ap_tracker_moved.emit(_ap_tracker)
 
 
 func _apply_spend_ap(amount: int) -> void:
 	# DESIGN TODO: ap tracker direction is a 2-player mechanic
 	#   revisit if N-player is ever designed
 	if _is_player_1():
-		ap_tracker = clamp(ap_tracker - amount, -max_ap_tracker_value, max_ap_tracker_value)
+		_ap_tracker = clamp(_ap_tracker - amount, -max_ap_tracker_value, max_ap_tracker_value)
 	else:
-		ap_tracker = clamp(ap_tracker + amount, -max_ap_tracker_value, max_ap_tracker_value)
+		_ap_tracker = clamp(_ap_tracker + amount, -max_ap_tracker_value, max_ap_tracker_value)
 
-	SignalBus.ap_tracker_moved.emit(ap_tracker)
+	SignalBus.ap_tracker_moved.emit(_ap_tracker)
 
 	if _is_player_1():
-		if ap_tracker < 0:
+		if _ap_tracker < 0:
 			_apply_switch_turn()
-	elif ap_tracker > 0:
+	elif _ap_tracker > 0:
 		_apply_switch_turn()
 
 
 func _apply_add_currency(player: int, amount: int) -> void:
-	player_game_state[player].currency += amount
+	_player_states[player].currency += amount
 	SignalBus.player_currency_updated.emit(
 		player,
-		player_game_state[player].currency,
+		_player_states[player].currency,
 	)
 
 
 func _apply_switch_turn() -> void:
-	active_player = (active_player + 1) % 2
-	SignalBus.player_switched.emit(active_player)
-	game_fsm.change_state(GamePhaseDrawCard.new(game_fsm))
-	_apply_add_currency(active_player, base_income)
+	_active_player = (_active_player + 1) % 2
+	SignalBus.player_switched.emit(_active_player)
+	_game_fsm.change_state(GamePhaseDrawCard.new(_game_fsm))
+	_apply_add_currency(_active_player, base_income)
 
 
 func _apply_pass_turn() -> void:
 	if _is_player_1():
-		ap_tracker = -pass_turn_starting_ap
+		_ap_tracker = -pass_turn_starting_ap
 	else:
-		ap_tracker = pass_turn_starting_ap
-	SignalBus.ap_tracker_moved.emit(ap_tracker)
+		_ap_tracker = pass_turn_starting_ap
+	SignalBus.ap_tracker_moved.emit(_ap_tracker)
 	_apply_switch_turn()
 
 
 func _print_players_hands() -> void:
 	print("Player 1 hand:")
-	for card in player_game_state[PlayerSeat.PLAYER_ONE].hand:
+	for card in _player_states[PlayerSeat.PLAYER_ONE].hand:
 		print("- %s" % card.name)
 
 	print("Player 2 hand:")
-	for card in player_game_state[PlayerSeat.PLAYER_TWO].hand:
+	for card in _player_states[PlayerSeat.PLAYER_TWO].hand:
 		print("- %s" % card.name)

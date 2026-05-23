@@ -24,7 +24,7 @@ func after_each() -> void:
 # --- can_spend_ap() ---
 
 func test_can_spend_ap_true_within_bounds_player_one() -> void:
-	_gm.ap_tracker = 5
+	_gm._ap_tracker = 5
 	assert_true(_gm.can_spend_ap(15))  # 15 <= 5 + 10
 
 func test_can_spend_ap_false_over_bounds_player_one() -> void:
@@ -35,7 +35,7 @@ func test_can_spend_ap_true_at_exact_boundary_player_one() -> void:
 	assert_true(_gm.can_spend_ap(10))  # 10 <= 0 + 10
 
 func test_can_spend_ap_true_within_bounds_player_two() -> void:
-	_gm.active_player = PlayerSeat.PLAYER_TWO
+	_gm._active_player = PlayerSeat.PLAYER_TWO
 	_gm.ap_tracker = -5
 	assert_true(_gm.can_spend_ap(14))  # 14 <= abs(-5) + 10
 
@@ -136,11 +136,11 @@ func test_spend_ap_guard_does_not_switch_turn_when_over_bounds() -> void:
 
 func test_add_currency_increases_target_player_currency() -> void:
 	_gm._on_add_currency_requested(PlayerSeat.PLAYER_ONE, 5)
-	assert_eq(_gm.player_game_state[PlayerSeat.PLAYER_ONE].currency, 5)
+	assert_eq(_gm.player_state[PlayerSeat.PLAYER_ONE].currency, 5)
 
 func test_add_currency_does_not_affect_other_player() -> void:
 	_gm._on_add_currency_requested(PlayerSeat.PLAYER_ONE, 5)
-	assert_eq(_gm.player_game_state[PlayerSeat.PLAYER_TWO].currency, 0)
+	assert_eq(_gm.player_state[PlayerSeat.PLAYER_TWO].currency, 0)
 
 func test_add_currency_emits_player_currency_updated() -> void:
 	watch_signals(SignalBus)
@@ -161,7 +161,7 @@ func test_switch_turn_wraps_back_to_player_one() -> void:
 
 func test_switch_turn_gives_base_income_to_new_player() -> void:
 	_gm._on_switch_turn_requested()
-	assert_eq(_gm.player_game_state[PlayerSeat.PLAYER_TWO].currency, _gm.base_income)
+	assert_eq(_gm.player_state[PlayerSeat.PLAYER_TWO].currency, _gm.base_income)
 
 func test_switch_turn_emits_player_switched_with_new_player() -> void:
 	watch_signals(SignalBus)
@@ -191,4 +191,4 @@ func test_pass_turn_emits_ap_tracker_moved() -> void:
 
 func test_pass_turn_gives_base_income_to_new_player() -> void:
 	_gm._on_pass_turn_requested()
-	assert_eq(_gm.player_game_state[PlayerSeat.PLAYER_TWO].currency, _gm.base_income)
+	assert_eq(_gm.player_state[PlayerSeat.PLAYER_TWO].currency, _gm.base_income)

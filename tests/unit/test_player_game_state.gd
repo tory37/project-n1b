@@ -1,10 +1,10 @@
 extends GutTest
 
-var _state: PlayerGameState
+var _state: PlayerState
 
 
 func before_each() -> void:
-	_state = PlayerGameState.new()
+	_state = PlayerState.new()
 
 
 # --- deck_to_hand() ---

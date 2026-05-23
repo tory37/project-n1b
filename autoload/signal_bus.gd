@@ -6,7 +6,7 @@ signal game_state_initialized(
 		active_player: int,
 		ap_tracker: int,
 )
-signal player_game_state_initialized(player_game_state: PlayerGameState)
+signal player_state_initialized(player_state: PlayerState)
 
 # Player
 signal player_switched(new_player_index: int)

@@ -8,7 +8,7 @@ extends MarginContainer
 
 func _ready() -> void:
 	SignalBus.game_state_initialized.connect(_on_game_state_initialized)
-	SignalBus.player_game_state_initialized.connect(_on_player_game_state_initialized)
+	SignalBus.player_state_initialized.connect(_on_player_state_initialized)
 	SignalBus.player_switched.connect(_on_update_player_label)
 
 
@@ -17,8 +17,8 @@ func _on_game_state_initialized(active_player: int, ap_tracker: int) -> void:
 	_on_update_ap_label(ap_tracker)
 
 
-func _on_player_game_state_initialized(player_game_state: PlayerGameState) -> void:
-	_on_update_currency_label(player_game_state.currency)
+func _on_player_state_initialized(player_state: PlayerState) -> void:
+	_on_update_currency_label(player_state.currency)
 
 
 func _on_update_player_label(player: int) -> void:

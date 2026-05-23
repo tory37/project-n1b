@@ -1,4 +1,4 @@
-class_name PlayerGameState
+class_name PlayerState
 extends RefCounted
 
 var currency: int = 0
