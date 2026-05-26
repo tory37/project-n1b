@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Networking Authority Model — Reference</title>
+  <link rel="stylesheet" href="../.agents/output/assets/style.css">
+  <style>
+    .flow-diagram {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin: 1.25rem 0;
+    }
+    .flow-box {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.5rem 0.9rem;
+      font-family: monospace;
+      font-size: 0.85rem;
+      color: var(--text-primary);
+      white-space: nowrap;
+    }
+    .flow-box.highlight {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+    .flow-arrow {
+      color: var(--text-muted);
+      font-size: 1.1rem;
+    }
+    .flow-label {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      display: block;
+      margin-bottom: 0.25rem;
+    }
+    .copies-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+      margin: 1.25rem 0;
+    }
+    .copy-box {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+    }
+    .copy-box.authority {
+      border-color: var(--primary);
+    }
+    .copy-box-label {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      margin-bottom: 0.5rem;
+    }
+    .copy-box-title {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 0.75rem;
+    }
+    .copy-box.authority .copy-box-title {
+      color: var(--primary);
+    }
+    .copy-field {
+      font-family: monospace;
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      margin: 0.2rem 0;
+    }
+    .copy-field .redacted {
+      color: var(--danger, #ff4d4d);
+      text-decoration: line-through;
+      opacity: 0.6;
+    }
+    .annotation-table td:first-child {
+      font-family: monospace;
+      color: var(--primary);
+      white-space: nowrap;
+    }
+    .side-note {
+      background: var(--surface-2);
+      border-left: 3px solid var(--primary);
+      padding: 0.75rem 1rem;
+      border-radius: 0 6px 6px 0;
+      margin: 1rem 0;
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+    }
+    .step-item {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .step-number {
+      flex-shrink: 0;
+      width: 2rem;
+      height: 2rem;
+      border-radius: 50%;
+      background: var(--primary);
+      color: #000;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.85rem;
+    }
+    .step-body strong {
+      display: block;
+      margin-bottom: 0.35rem;
+    }
+    .step-body p {
+      margin: 0;
+      color: var(--text-secondary);
+    }
+    .genre-eg {
+      color: var(--text-muted);
+      font-style: italic;
+    }
+  </style>
+</head>
+<body data-type="research">
+  <div class="container">
+    <header class="doc-header">
+      <div class="doc-meta">
+        <span class="badge badge-research">REFERENCE</span>
+        <span class="doc-date">2026-05-25</span>
+      </div>
+      <h1>Networking Authority Model</h1>
+      <p style="color: var(--text-secondary); margin-top: 0.5rem;">
+        The pattern every multiplayer game should follow for authoritative state management —
+        from local prototype to production networking.
+      </p>
+    </header>
+
+    <main>
+
+      <!-- SECTION 1: Why -->
+      <section>
+        <h2>Why this architecture exists</h2>
+        <p>
+          In any multiplayer game, a player's machine can be tampered with. If the client were
+          allowed to directly change shared game state, cheating becomes trivial: a player could
+          give themselves infinite gold in an RPG, teleport through walls in a shooter, or
+          set the score to whatever they like in a sports game. The solution is the same across
+          every genre: <strong>only one machine — the server — is permitted to change
+          authoritative state.</strong> Every other machine (the clients) can only
+          <em>ask</em> for things to happen. The server validates, executes, and tells
+          everyone what the new reality is.
+        </p>
+      </section>
+
+      <!-- SECTION 2: Step by step -->
+      <section>
+        <h2>What actually happens, step by step</h2>
+        <p>
+          Every state-changing action in a multiplayer game follows this exact sequence —
+          whether it's spending AP in a card game, firing a weapon in a shooter, or
+          placing a unit in an RTS.
+        </p>
+
+        <ol style="list-style: none; padding: 0; margin-top: 1.5rem;">
+
+          <li class="step-item">
+            <div class="step-number">1</div>
+            <div class="step-body">
+              <strong>The player does something on their screen.</strong>
+              <p>
+                They interact with the UI — clicking a button, pressing a key, dragging a piece.
+                This is a pure local event. Nothing in shared state has changed yet.
+                <span class="genre-eg">e.g. clicking "Play Card" in this project, pulling the trigger in a shooter, hitting "End Turn" in a strategy game.</span>
+              </p>
+            </div>
+          </li>
+
+          <li class="step-item">
+            <div class="step-number">2</div>
+            <div class="step-body">
+              <strong>The client sends a request to the server. It does not act itself.</strong>
+              <p>
+                The client calls a <code>request_*</code> function on the server machine — not locally.
+                It is asking permission, not taking action. In a local prototype where server and client
+                share the same process, this is simulated by a local signal or direct function call.
+                In production it becomes a network message.
+                <span class="genre-eg">e.g. <code>request_spend_ap(player_id, 2)</code> in this project; <code>request_fire_weapon(player_id, target_pos)</code> in a shooter; <code>request_move_unit(unit_id, tile)</code> in an RTS.</span>
+              </p>
+              <pre><code># @rpc("any_peer") — any connected client can call this on the server.
+# In the prototype, this annotation is omitted; a local signal stands in.
+@rpc("any_peer", "reliable")
+func request_spend_ap(player_id: int, amount: int) -> void:
+    ...</code></pre>
+            </div>
+          </li>
+
+          <li class="step-item">
+            <div class="step-number">3</div>
+            <div class="step-body">
+              <strong>The server validates the request.</strong>
+              <p>
+                The server checks whether the action is legal given the current authoritative state.
+                If it isn't, the request is rejected and the client is told why. Nothing has changed yet.
+                <span class="genre-eg">e.g. "Does this player have enough AP?" in this project; "Is the player's ammo count above zero?" in a shooter; "Is this unit actually yours, and is the tile reachable?" in an RTS.</span>
+              </p>
+            </div>
+          </li>
+
+          <li class="step-item">
+            <div class="step-number">4</div>
+            <div class="step-body">
+              <strong>The server mutates its own copy of authoritative state.</strong>
+              <p>
+                An <code>_apply_*</code> function runs on the server. This is the
+                <em>only</em> place shared game state ever changes — one function, on one machine,
+                with no exceptions. The server's copy is updated first, before any client knows.
+                <span class="genre-eg">e.g. decrement AP tracker in this project; decrement ammo, apply hit detection in a shooter; update unit position on the board in a strategy game.</span>
+              </p>
+              <pre><code># No annotation. This function is never called remotely —
+# it runs on the server only, called locally by request_*.
+func _apply_spend_ap(player_id: int, amount: int) -> void:
+    ...</code></pre>
+            </div>
+          </li>
+
+          <li class="step-item">
+            <div class="step-number">5</div>
+            <div class="step-body">
+              <strong>The server decides what each player is allowed to see.</strong>
+              <p>
+                Before sending anything, the server constructs a separate payload for each recipient,
+                filtering out information they shouldn't have. This is not optional — it is the only
+                thing standing between the server's full picture and a curious player inspecting
+                their network traffic.
+                <span class="genre-eg">e.g. in this project, Player 2 gets a card <em>count</em>, not Player 1's actual hand; in poker, a player sees their hole cards but not the opponent's; in an MMO, a player only receives data for enemies within render distance.</span>
+              </p>
+            </div>
+          </li>
+
+          <li class="step-item">
+            <div class="step-number">6</div>
+            <div class="step-body">
+              <strong>The server pushes each player their filtered slice of the new state.</strong>
+              <p>
+                An <code>_rpc_sync_*</code> function is called — once per recipient when the payload
+                differs per person, or broadcast to everyone when it doesn't. Nothing syncs
+                automatically. If the server doesn't push it, no client will ever know it changed.
+                <span class="genre-eg">e.g. AP tracker value goes to all players (same for everyone); hand contents go to each player separately (different per person).</span>
+              </p>
+              <pre><code># @rpc("authority") — only the server can invoke this on clients.
+# Clients cannot call this themselves, so they cannot fake a sync.
+# "reliable" — guaranteed delivery; a dropped packet means a permanently stale client.
+@rpc("authority", "reliable")
+func _rpc_sync_ap(value: int) -> void:
+    ...
+
+# How the server calls it:
+_rpc_sync_ap.rpc(value)             # → runs on ALL connected peers
+_rpc_sync_ap.rpc_id(peer_id, value) # → runs on ONE specific peer only</code></pre>
+            </div>
+          </li>
+
+          <li class="step-item">
+            <div class="step-number">7</div>
+            <div class="step-body">
+              <strong>Each client writes the incoming data into their local copy of state.</strong>
+              <p>
+                When the sync message arrives, the client deserializes it and overwrites the relevant
+                fields in their local state object. Their copy was stale a moment ago — now it reflects
+                the server's authoritative version, for the fields they're allowed to see.
+              </p>
+            </div>
+          </li>
+
+          <li class="step-item">
+            <div class="step-number">8</div>
+            <div class="step-body">
+              <strong>The UI reacts to the updated local state.</strong>
+              <p>
+                After writing the new state, the sync function fires an event (a Signal, a callback,
+                an observer notification — whatever the framework uses). The UI hears it and redraws.
+                The UI is always <em>downstream</em> of state. It reads state; it never writes it.
+                <span class="genre-eg">e.g. the AP tracker widget redraws in this project; a health bar fills or drains in an RPG; the minimap updates to show a moved unit in an RTS.</span>
+              </p>
+            </div>
+          </li>
+
+        </ol>
+
+        <div class="side-note">
+          Every multiplayer action follows this same eight-step path. The only thing that
+          varies between actions is which fields get mutated in step 4 and what gets filtered
+          per recipient in step 5.
+        </div>
+      </section>
+
+      <!-- SECTION 3: Server vs Client state -->
+      <section>
+        <h2>Server State vs. Client State</h2>
+        <div class="meta-block" style="margin-top: 1rem;">
+          <div class="meta-item">
+            <span class="meta-label">Server (Authoritative) State</span>
+            <span class="meta-value">
+              Anything that, if tampered with, would give a player an unfair advantage or break
+              the game for someone else. This state lives in a single authoritative object on the server.
+              Every client has a local copy, but the server's version is the only truth.
+              <br><br>
+              <span class="genre-eg">In this project: AP tracker, each player's hand, deck, currency, turn order. In a battle royale: player positions, health, inventory. In an online board game: piece positions, whose turn it is, the score.</span>
+            </span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Client (Local) State</span>
+            <span class="meta-value">
+              Anything that only affects a single player's local experience and could not be
+              exploited even if modified. This never touches the authoritative state object.
+              It lives in UI nodes, local variables, or a separate local-only data structure.
+              <br><br>
+              <span class="genre-eg">Which card the player is currently reading in this project. Which enemy a player is hovering over in a shooter. Whether the settings panel is open in any game. Animation progress, screen shake timers, camera offsets.</span>
+            </span>
+          </div>
+        </div>
+
+        <div class="side-note">
+          A useful test: "If this value were randomly changed or deleted, would the other player notice or be harmed?"
+          If yes, it's server state. If it only affects the local player's screen, it's client state.
+        </div>
+      </section>
+
+      <!-- SECTION 4: Three copies -->
+      <section>
+        <h2>The Multiple Copies Problem</h2>
+        <p>
+          The authoritative state object exists on <strong>every machine simultaneously</strong> —
+          the server and each connected client all have their own copy in memory. They do not
+          share a variable. The moment state changes, the copies diverge and must be explicitly
+          re-synced by the server. In a local prototype, this is simulated by multiple peer
+          contexts in the same process, but the rule holds: treat them as separate machines
+          from day one, or the networking step will require a full rewrite.
+        </p>
+        <p>
+          The diagram below uses a 2-player card game as the example. In a 4-player strategy
+          game there would be five copies (one server, four clients). In an MMO with 100 players
+          in a zone, there would be 101 copies — and each one receives only the slice of world
+          state relevant to that player's position.
+        </p>
+        <div class="copies-grid">
+          <div class="copy-box authority">
+            <div class="copy-box-label">Authority</div>
+            <div class="copy-box-title">Server</div>
+            <div class="copy-field">ap: 3</div>
+            <div class="copy-field">p1.hand: [CardA, CardB]</div>
+            <div class="copy-field">p1.deck: [CardC, CardD…]</div>
+            <div class="copy-field">p2.hand: [CardX, CardY]</div>
+            <div class="copy-field">p2.deck: [CardZ…]</div>
+            <div style="margin-top: 0.75rem; font-size: 0.78rem; color: var(--text-muted);">
+              Full picture. Single source of truth. Never filtered.
+            </div>
+          </div>
+          <div class="copy-box">
+            <div class="copy-box-label">Peer</div>
+            <div class="copy-box-title">Player 1</div>
+            <div class="copy-field">ap: 3</div>
+            <div class="copy-field">p1.hand: [CardA, CardB]</div>
+            <div class="copy-field">p1.deck: [CardC, CardD…]</div>
+            <div class="copy-field">p2.hand: <span class="redacted">[CardX, CardY]</span> count: 2</div>
+            <div class="copy-field">p2.deck: <span class="redacted">[CardZ…]</span> count: 8</div>
+            <div style="margin-top: 0.75rem; font-size: 0.78rem; color: var(--text-muted);">
+              Sees own cards in full. Opponent hand filtered to count only.
+            </div>
+          </div>
+          <div class="copy-box">
+            <div class="copy-box-label">Peer</div>
+            <div class="copy-box-title">Player 2</div>
+            <div class="copy-field">ap: 3</div>
+            <div class="copy-field">p1.hand: <span class="redacted">[CardA, CardB]</span> count: 2</div>
+            <div class="copy-field">p1.deck: <span class="redacted">[CardC…]</span> count: 9</div>
+            <div class="copy-field">p2.hand: [CardX, CardY]</div>
+            <div class="copy-field">p2.deck: [CardZ…]</div>
+            <div style="margin-top: 0.75rem; font-size: 0.78rem; color: var(--text-muted);">
+              Sees own cards in full. Opponent hand filtered to count only.
+            </div>
+          </div>
+        </div>
+        <p>
+          The server constructs a different outgoing message per recipient before any sync call.
+          This filtering is the mechanism for hidden information in any genre —
+          <span class="genre-eg">opponent hands in a card game, enemy positions beyond fog-of-war in an RTS, other players' hole cards in poker, loot inside an unopened chest in an RPG.</span>
+        </p>
+      </section>
+
+      <!-- SECTION 5: The three-function seam -->
+      <section>
+        <h2>The Three-Function Seam</h2>
+        <p>
+          Every state-mutating action passes through exactly three named layers. The naming
+          convention makes each function's role unambiguous at a glance, and — crucially —
+          makes the networking migration a mechanical step rather than a redesign.
+        </p>
+
+        <div style="margin: 1.5rem 0;">
+          <span class="flow-label">Full call chain</span>
+          <div class="flow-diagram">
+            <div class="flow-box highlight">request_*()</div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-box highlight">_apply_*()</div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-box highlight">_rpc_sync_*()</div>
+          </div>
+        </div>
+
+        <table class="annotation-table">
+          <thead>
+            <tr>
+              <th>Prefix</th>
+              <th>Who calls it</th>
+              <th>What it does</th>
+              <th>Future RPC annotation</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>request_*</td>
+              <td>Any peer — client or server</td>
+              <td>
+                The public entrypoint. Validates the action against current state.
+                Rejects if illegal. Calls <code>_apply_*</code> if valid.
+                <span class="genre-eg">e.g. checking AP balance in a card game, checking ammo in a shooter, checking resource cost in an RTS.</span>
+              </td>
+              <td><code>@rpc("any_peer")</code></td>
+            </tr>
+            <tr>
+              <td>_apply_*</td>
+              <td>Server only — called locally</td>
+              <td>
+                Mutates authoritative state. The <em>only</em> place state changes.
+                Calls <code>_rpc_sync_*</code> once mutation is done, for any fields
+                clients need to know about.
+              </td>
+              <td>No annotation — server-local only, never called remotely.</td>
+            </tr>
+            <tr>
+              <td>_rpc_sync_*</td>
+              <td>Server — sends to one or all clients</td>
+              <td>
+                Receives a serialized, filtered slice of state. Writes it into the local
+                copy. Fires an event so the UI can react.
+              </td>
+              <td><code>@rpc("authority", "reliable")</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- SECTION 6: RPC annotations -->
+      <section>
+        <h2>RPC Annotations — What Each Part Means</h2>
+        <p>
+          In Godot 4, <code>@rpc</code> takes up to three arguments:
+          <code>@rpc(who_can_call, call_local?, transfer_mode)</code>.
+          The same concepts exist in Unity (Mirror/Netcode), Unreal (RPCs), and most other
+          multiplayer frameworks — only the syntax differs.
+        </p>
+        <table>
+          <thead>
+            <tr><th>Argument</th><th>Options</th><th>Meaning</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Who can call</strong></td>
+              <td><code>"any_peer"</code></td>
+              <td>
+                Any connected peer can invoke this function on a remote machine.
+                Used on <code>request_*</code> — a client sends it toward the server.
+              </td>
+            </tr>
+            <tr>
+              <td></td>
+              <td><code>"authority"</code></td>
+              <td>
+                Only the authority (server) can invoke this remotely.
+                Used on <code>_rpc_sync_*</code> — prevents a client from faking a state sync
+                to itself or others.
+              </td>
+            </tr>
+            <tr>
+              <td><strong>Call local</strong></td>
+              <td><code>"call_local"</code></td>
+              <td>
+                When calling <code>.rpc()</code>, also run the function on the calling machine.
+                Useful when the server needs to update its own UI from the same sync function
+                that clients use.
+              </td>
+            </tr>
+            <tr>
+              <td></td>
+              <td><em>(omitted)</em></td>
+              <td>
+                Default behaviour: the function only runs on <em>remote</em> machines, not the caller.
+                Use this when the server updates its own state directly inside <code>_apply_*</code>
+                before calling the sync — which is the standard pattern here.
+              </td>
+            </tr>
+            <tr>
+              <td><strong>Transfer mode</strong></td>
+              <td><code>"reliable"</code></td>
+              <td>
+                Guaranteed delivery and ordering (equivalent to TCP).
+                Use this for all state changes — a single dropped packet would leave a client
+                permanently out of sync.
+                <span class="genre-eg">e.g. a card being played, a unit moving, a player dying.</span>
+              </td>
+            </tr>
+            <tr>
+              <td></td>
+              <td><code>"unreliable"</code></td>
+              <td>
+                Fire-and-forget (equivalent to UDP). Acceptable only when the data will be
+                resent so frequently that a missed packet doesn't matter.
+                <span class="genre-eg">e.g. a player's real-time position in a shooter — it's updated every frame, so a dropped packet is invisible.</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3 style="margin-top: 1.5rem;">Calling conventions</h3>
+        <table>
+          <thead>
+            <tr><th>Method</th><th>Where it runs</th><th>When to use</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>fn.rpc(...)</code></td>
+              <td>All connected peers</td>
+              <td>
+                Broadcasting a change that is identical for everyone.
+                <span class="genre-eg">e.g. a public score update, a shared timer, the AP tracker in this project.</span>
+              </td>
+            </tr>
+            <tr>
+              <td><code>fn.rpc_id(peer_id, ...)</code></td>
+              <td>One specific peer</td>
+              <td>
+                Sending a filtered payload unique to one recipient.
+                <span class="genre-eg">e.g. a player's private hand in a card game, a player's fog-of-war view in an RTS, a player's private inventory in an RPG.</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- SECTION 7: Prototype vs networked -->
+      <section>
+        <h2>Prototype Flow vs. Networked Flow</h2>
+        <p>
+          In a local prototype, server and clients share the same process.
+          A local signal or direct function call is enough to simulate the boundary between them.
+          When real networking arrives, that boundary becomes a physical network — and the
+          callsite changes, but nothing else does. This is the entire point of the seam.
+        </p>
+
+        <h3>Now — local prototype</h3>
+        <div class="flow-diagram">
+          <div class="flow-box">Player action (UI)</div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-box">Local signal / direct call</div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-box">_on_*() callback</div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-box highlight">_apply_*()</div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-box highlight">_rpc_sync_*()</div>
+        </div>
+        <div class="side-note">
+          The local signal works as a stand-in because every peer is in the same process.
+          The <code>_on_*</code> callback is the effective request boundary — it just arrives
+          via signal instead of over a network.
+        </div>
+
+        <h3>Later — real networking (Godot 4 example)</h3>
+        <div class="flow-diagram">
+          <div class="flow-box">Player action (UI)</div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-box">request_*<br><span style="font-size:0.72rem; color: var(--text-muted)">.rpc_id(server_id, …)</span></div>
+          <div class="flow-arrow">→<span style="font-size:0.72rem; display:block; color:var(--text-muted); text-align:center">network</span></div>
+          <div class="flow-box highlight">request_*() on server</div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-box highlight">_apply_*()</div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-box highlight">_rpc_sync_*()</div>
+        </div>
+        <div class="side-note">
+          The migration cost is intentionally low. Add <code>@rpc("any_peer")</code> to each
+          <code>request_*</code> function. Change each callsite from a signal emit to
+          <code>.rpc_id(server_id, ...)</code>. Remove the local signals that were
+          standing in. The <code>_apply_*</code> and <code>_rpc_sync_*</code> layers are
+          entirely untouched.
+        </div>
+      </section>
+
+      <!-- SECTION 8: Full code example -->
+      <section>
+        <h2>Full Code Example — Spending AP (this project)</h2>
+        <p>
+          Tracing one action through all three layers with annotations shown.
+          The same structure applies in any game:
+          <span class="genre-eg">swap "spend_ap" for "fire_weapon" in a shooter, "place_building" in a city builder, or "fold_hand" in an online poker game — the skeleton is identical.</span>
+        </p>
+
+        <h3>Prototype (today — GDScript, Godot 4)</h3>
+        <pre><code>## ----- On the client (same process — no real network yet) -----
+
+# Player clicks "Play Card". Cost is 2 AP.
+# A local signal stands in for the future RPC call.
+SignalBus.spend_ap_requested.emit(my_peer_id, 2)
+
+
+## ----- In GameManager (server context) -----
+
+# Signal callback — this is the request arriving, simulated locally.
+func _on_spend_ap_requested(player_id: int, amount: int) -> void:
+    if not can_spend_ap(player_id, amount):
+        SignalBus.ap_spend_failed.emit(player_id)   # reject
+        return
+    _apply_spend_ap(player_id, amount)
+
+
+# Authority-only mutator. No annotation needed yet — server-local only.
+func _apply_spend_ap(player_id: int, amount: int) -> void:
+    if _is_player_1(player_id):
+        _game_state.ap = clamp(
+            _game_state.ap - amount,
+            -max_ap_value,
+            max_ap_value
+        )
+    else:
+        _game_state.ap = clamp(
+            _game_state.ap + amount,
+            -max_ap_value,
+            max_ap_value
+        )
+    # AP tracker is public info — broadcast the same value to everyone.
+    _rpc_sync_ap.rpc(_game_state.ap)
+
+
+# "authority" means only the server can call this on clients.
+# Clients cannot fake a sync to themselves.
+@rpc("authority", "reliable")
+func _rpc_sync_ap(value: int) -> void:
+    _game_state.ap = value
+    SignalBus.ap_moved.emit(value)  # UI redraws here</code></pre>
+
+        <h3>Networked (future — minimal changes highlighted)</h3>
+        <pre><code>## ----- On the CLIENT machine -----
+
+# Same button press. But now we send a message to the server machine,
+# instead of emitting a local signal.
+game_manager.request_spend_ap.rpc_id(SERVER_PEER_ID, my_peer_id, 2)
+
+
+## ----- In GameManager on the SERVER machine -----
+
+# @rpc("any_peer") lets any client call this function on the server.
+# The body still only runs on the server.
+@rpc("any_peer", "reliable")                          # <-- added
+func request_spend_ap(player_id: int, amount: int) -> void:
+    if not can_spend_ap(player_id, amount):
+        _rpc_notify_spend_failed.rpc_id(player_id)
+        return
+    _apply_spend_ap(player_id, amount)
+
+
+# Completely unchanged from the prototype.
+func _apply_spend_ap(player_id: int, amount: int) -> void:
+    # ... same mutation logic ...
+    _rpc_sync_ap.rpc(_game_state.ap)
+
+
+# Completely unchanged from the prototype.
+@rpc("authority", "reliable")
+func _rpc_sync_ap(value: int) -> void:
+    _game_state.ap = value
+    SignalBus.ap_moved.emit(value)</code></pre>
+
+        <div class="side-note">
+          <code>_apply_spend_ap</code> and <code>_rpc_sync_ap</code> are
+          <strong>byte-for-byte identical</strong> between the prototype and the networked version.
+          The only changes are one annotation added to <code>request_*</code> and one callsite
+          swap from signal to <code>.rpc_id()</code>. Everything else was already in the right shape.
+        </div>
+      </section>
+
+      <!-- SECTION 9: Information hiding -->
+      <section>
+        <h2>Information Hiding — Filtered Sync Payloads</h2>
+        <p>
+          The sync step is the only place where hidden information could be accidentally leaked.
+          The server must construct a different outgoing payload per recipient before any
+          <code>_rpc_sync_*</code> call that involves private data. This is not about trust —
+          it is about what is even sent over the wire. A sufficiently motivated player will
+          inspect their own network traffic. The server must never put something in the packet
+          that the recipient isn't supposed to see.
+        </p>
+        <p>
+          <span class="genre-eg">In poker: the server sends each player their hole cards but nobody else's. In an FPS with fog of war: the server only sends enemy positions if the enemy is visible to that player. In a hidden-role game like Werewolf: only the werewolves receive a message telling them who the other werewolves are.</span>
+        </p>
+
+        <pre><code># Server iterates every peer and builds a tailored payload for each.
+func _sync_player_state_to_all_peers() -> void:
+    for peer_id in NetworkManager.connected_players:
+        var opponent_id: int = _opponent_id(peer_id)
+
+        _rpc_sync_player_state.rpc_id(
+            peer_id,
+            _serialize_own_state(_game_state.player_states[peer_id]),  # full view
+            _game_state.player_states[opponent_id].get_public_view()   # filtered
+        )
+
+
+# Full state — only ever sent to the player who owns it.
+func _serialize_own_state(state: PlayerState) -> Dictionary:
+    return {
+        "currency": state.currency,
+        "hand":     state.hand,     # actual card data
+        "deck":     state.deck,
+        "discard":  state.discard,
+    }
+
+
+# Public view — sent to the opponent.
+# Cards are stripped. Only counts are exposed.
+func get_public_view() -> Dictionary:
+    return {
+        "currency":   currency,
+        "hand_count": hand.size(),   # how many, not which ones
+        "deck_count": deck.size(),
+    }</code></pre>
+      </section>
+
+      <!-- SECTION 10: Rules -->
+      <section>
+        <h2>The Rules at a Glance</h2>
+        <ul class="checklist">
+          <li>Only <code>_apply_*</code> functions write to authoritative state. No exceptions, anywhere in the codebase.</li>
+          <li><code>request_*</code> is the sole public entrypoint for any state change. It validates, then delegates. It never mutates directly.</li>
+          <li>After mutating state, push it to clients via <code>_rpc_sync_*</code>. Clients will never see a change unless the server explicitly sends it.</li>
+          <li>Build a separate payload per recipient whenever the data differs per player. Never trust the client to ignore data it wasn't supposed to receive.</li>
+          <li>Client state — UI, animation, hover effects — lives in UI nodes or local variables. It never touches the authoritative state object.</li>
+          <li>The UI reacts to sync events. It never reads state on a timer and never writes state at all.</li>
+          <li>In a local prototype, local signals or direct calls stand in for <code>request_*</code> RPC calls. Treat the boundary as if the network exists from day one.</li>
+        </ul>
+      </section>
+
+    </main>
+  </div>
+</body>
+</html>

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Game Init — Game Loop</title>
+  <link rel="stylesheet" href="../../.agents/assets/style.css">
+  <link rel="stylesheet" href="../assets/design.css">
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="../assets/mermaid-config.js"></script>
+  <script src="../assets/diagram-utils.js"></script>
+</head>
+<body data-type="feature">
+  <div class="container" style="max-width: 1100px;">
+    <nav class="page-nav">
+      <a href="../index.html">Design</a>
+      <span class="sep">/</span>
+      <span>Game Loop</span>
+      <span class="sep">/</span>
+      <span class="current">Game Init</span>
+    </nav>
+    <header class="doc-header">
+      <div class="doc-meta">
+        <span class="badge badge-feature">DIAGRAM</span>
+        <span class="doc-date">2026-05-24</span>
+      </div>
+      <h1>Game Init</h1>
+      <p class="subtitle">Server-authoritative initialization sequence when a game session starts.</p>
+    </header>
+    <main>
+      <div class="diagram-wrapper">
+        <div class="mermaid">
+sequenceDiagram
+    participant S as Server (Host)
+    participant C as Client (Guest)
+
+    Note over S,C: Lobby calls _start_game.rpc() — scene loads on all peers
+
+    S->>S: _ready() — initialize player states
+    S-->>C: _rpc_sync_player_init(peer_id, seat)
+    C->>C: Set up empty PlayerState
+
+    S->>S: _apply_start_game()
+    S->>S: draw_cards(5) into each player's hand (pure data, no awaiting)
+    S-->>C: _rpc_sync_player_state(own_state, opponent_public_view)
+    C->>C: Receive final hand — play deal animation locally
+
+    S->>S: FSM → GamePhaseDrawCard (Turn Start)
+        </div>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

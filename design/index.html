@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Design — Project N1B</title>
+  <link rel="stylesheet" href="../.agents/assets/style.css">
+  <link rel="stylesheet" href="assets/design.css">
+</head>
+<body data-type="feature">
+  <div class="container" style="max-width: 1100px;">
+    <header class="doc-header">
+      <div class="doc-meta">
+        <span class="badge badge-feature">DESIGN</span>
+        <span class="doc-date">2026-05-24</span>
+      </div>
+      <h1>Project N1B</h1>
+      <p class="subtitle">Architecture diagrams, design docs, and game loop specifications.</p>
+    </header>
+    <main>
+
+      <div class="diagram-section">
+        <div class="diagram-section-header">
+          <h2>Game Loop</h2>
+          <p>Turn structure, networking patterns, and phase-by-phase flow.</p>
+        </div>
+        <div class="diagram-grid">
+          <a class="diagram-card" href="game-loop/top-level-loop.html">
+            <div class="diagram-card-type">Flowchart</div>
+            <div class="diagram-card-title">Top-Level Loop</div>
+            <div class="diagram-card-desc">The full game cycle from lobby to win condition.</div>
+          </a>
+          <a class="diagram-card" href="game-loop/state-mutation.html">
+            <div class="diagram-card-type">Sequence</div>
+            <div class="diagram-card-title">State Mutation Pattern</div>
+            <div class="diagram-card-desc">The networking seam all game actions follow.</div>
+          </a>
+          <a class="diagram-card" href="game-loop/game-init.html">
+            <div class="diagram-card-type">Sequence</div>
+            <div class="diagram-card-title">Game Init</div>
+            <div class="diagram-card-desc">Server-authoritative initialization when a session starts.</div>
+          </a>
+          <a class="diagram-card" href="networking-authority-model.html">
+            <div class="diagram-card-type">Reference</div>
+            <div class="diagram-card-title">Networking Authority Model</div>
+            <div class="diagram-card-desc">Server vs. client state, the three-copy problem, RPC annotations, and the request/apply/rpc seam end-to-end.</div>
+          </a>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</body>
+</html>

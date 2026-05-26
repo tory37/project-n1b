@@ -5,6 +5,8 @@
 [ext_resource type="PackedScene" uid="uid://dnm1lkkfq5gx" path="res://src/world/hex_board/hex_board.tscn" id="3_ewew8"]
 [ext_resource type="PackedScene" uid="uid://b8xmcjwsj2" path="res://src/world/table/table.tscn" id="4_ghaey"]
 [ext_resource type="PackedScene" uid="uid://dudx5da1opo8o" path="res://src/deck/deck_view.tscn" id="5_76xvg"]
+[ext_resource type="PackedScene" uid="uid://l0x0uwiw7luy" path="res://src/ui/game_state_preview/game_state_preview.tscn" id="6_n5fbu"]
+[ext_resource type="Script" uid="uid://dgn6k7vjvdxru" path="res://src/ui/game_state_preview/game_state_preview_ui.gd" id="7_3idar"]
 
 [node name="Game" type="Node3D" unique_id=494198879]
 script = ExtResource("1_b6y0w")
@@ -32,3 +34,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 0, 10)
 [node name="Player2Deck" parent="." unique_id=1746932960 instance=ExtResource("5_76xvg")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 0, -10)
 owner_player_id = 1
+
+[node name="GameStatePreview" parent="." unique_id=2067799545 instance=ExtResource("6_n5fbu")]
+script = ExtResource("7_3idar")

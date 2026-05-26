@@ -1,21 +1,27 @@
 class_name GamePhaseDrawCard
-extends FiniteState
-
-func _init(fsm: FiniteStateMachine) -> void:
-	super(fsm)
+extends GamePhaseState
 
 
 func enter() -> void:
-	print("[Flow] Entering GamePhaseDrawCard")
-	SignalBus.card_draw_animation_complete.connect(_on_card_draw_animation_complete)
-	SignalBus.draw_card_requested.emit()
+	Loggit.p("Entering GamePhaseDrawCard", "Flow")
+
+	var active_player_id: int = _game_manager.get_active_player_id()
+
+	Loggit.p("Active player is: %d" % active_player_id, "Flow")
+
+	if (_game_manager.can_draw_card(active_player_id)):
+		_game_manager.draw_cards(active_player_id, 1)
+	else:
+		# TODO: Send the game over signal / active player lost
+		Loggit.p("Player %d cannot draw a card. Skipping draw phase." % active_player_id, "Flow")
+
+
+	# TODO: Remove or Gate Debug
+	_game_manager.print_game_state()
+
+	_game_manager.transition_to_phase(GameState.Phase.MAIN)
+	
 
 
 func exit() -> void:
-	print("[Flow] Exiting GamePhaseDrawCard")
-	SignalBus.card_draw_animation_complete.disconnect(_on_card_draw_animation_complete)
-
-
-func _on_card_draw_animation_complete() -> void:
-	print("[Flow] Received card draw animation complete signal")
-	_fsm.change_state(GameMainPhase.new(_fsm))
+	Loggit.p("Exiting GamePhaseDrawCard", "Flow")

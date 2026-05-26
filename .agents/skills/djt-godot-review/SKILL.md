@@ -40,14 +40,15 @@ Evaluate every file against each category below. For each violation, note the fi
 
 ---
 
-#### B — Networking Architecture Seam (Autoloads)
+#### B — Networking Architecture Seam
 
-Every state-mutating function in an Autoload singleton must follow the `request_*` / `_apply_*` split pattern:
+Every state-mutating function in a game manager or multiplayer-aware node must follow the `request_*` / `_apply_*` / `_rpc_sync_*` split pattern:
 
 - `request_*` — public entrypoint, accepts inputs, performs validation, calls `_apply_*`. Must NOT directly mutate state.
 - `_apply_*` — private, authority-only state mutator. This is the only place state changes happen.
+- `_rpc_sync_*` — private, authority-broadcast. Sends state to clients after `_apply_*` mutates it.
 
-Flag any Autoload function that mutates state directly without this split. This seam exists so that adding `@rpc("any_peer")` / `@rpc("authority")` decorators later requires zero logic rewrites.
+Flag any function that mutates state directly without this split. This seam exists so that adding `@rpc` decorators later requires decorating existing functions — not rewriting game logic.
 
 ```gdscript
 # CORRECT
@@ -56,6 +57,12 @@ func request_spend_ap(amount: int) -> void:
 
 func _apply_spend_ap(amount: int) -> void:
     player_resources[active_player]["ap"] -= amount
+    _rpc_sync_ap_tracker.rpc(player_resources[active_player]["ap"])
+
+@rpc("authority", "reliable")
+func _rpc_sync_ap_tracker(value: int) -> void:
+    ap_tracker = value
+    SignalBus.ap_tracker_moved.emit(value)
 
 # VIOLATION — direct mutation without split
 func spend_ap(amount: int) -> void:
@@ -179,9 +186,82 @@ Every `.gd` file must follow the official Godot 4 declaration order. Flag any fi
 
 ---
 
+#### M — RPC Authority & Server/Client Guards
+
+When any `@rpc` annotation is present, enforce the following rules. Every violation here is **Critical** — these are exploitable security and correctness bugs, not style issues.
+
+**1. `request_*` must have a server guard.**
+Every `@rpc("any_peer")` method must begin with `if not multiplayer.is_server(): return`. The `@rpc` annotation enables remote execution but does not prevent the method from being called locally. Without the guard, a bug or accidental local call on the client mutates state without server authority.
+
+```gdscript
+# CORRECT
+@rpc("any_peer", "reliable")
+func request_spend_ap(amount: int) -> void:
+    if not multiplayer.is_server():
+        return
+    var player_id := multiplayer.get_remote_sender_id()
+    _apply_spend_ap(player_id, amount)
+
+# VIOLATION — no guard; accidental local call on client corrupts state
+@rpc("any_peer", "reliable")
+func request_spend_ap(amount: int) -> void:
+    _apply_spend_ap(amount)
+```
+
+**2. Never pass `player_id` as a parameter to `request_*`.**
+A client can pass any value, including another player's ID. The server must derive the caller's identity from `multiplayer.get_remote_sender_id()`, which the networking layer guarantees. Flag any `request_*` RPC that accepts a `player_id` parameter.
+
+```gdscript
+# VIOLATION — client-supplied player_id is spoofable
+@rpc("any_peer", "reliable")
+func request_spend_ap(player_id: int, amount: int) -> void: ...
+
+# CORRECT
+@rpc("any_peer", "reliable")
+func request_spend_ap(amount: int) -> void:
+    var player_id := multiplayer.get_remote_sender_id()
+    ...
+```
+
+**3. `_apply_*` must have no RPC annotation.**
+These methods are server-local only. They are called directly by `request_*` on the server, never remotely. An `@rpc` annotation on an `_apply_*` method is a violation.
+
+**4. `_rpc_sync_*` must use `@rpc("authority", "reliable")`.**
+Only the server may call these. `@rpc("any_peer")` on a sync method allows any client to forge a state update. Flag any sync method missing this annotation or using `"any_peer"` instead of `"authority"`.
+
+**5. Hidden data must use `rpc_id`, not `rpc`.**
+`.rpc()` broadcasts to all connected peers. Any sync RPC carrying player-private data (hand cards, secret resources, etc.) must use `.rpc_id(peer_id, ...)` to send only to the owning player. Opponents receive a public view (e.g. card count as a placeholder array) via a separate RPC.
+
+```gdscript
+# VIOLATION — sends full hand to all peers
+_rpc_sync_hand.rpc(player_state.hand)
+
+# CORRECT — full hand to owner, placeholder count to opponent
+_rpc_sync_own_hand.rpc_id(player_id, player_state.hand)
+_rpc_sync_opponent_hand.rpc_id(opponent_id, player_id, player_state.hand.size())
+```
+
+**6. Client signal handlers must forward via `rpc_id(1, ...)`.**
+Client-side callbacks that trigger a server action must call the `request_*` method via `.rpc_id(1, ...)`. Calling the method directly on the client runs it locally — no network message is sent.
+
+```gdscript
+# VIOLATION — runs locally on client, nothing sent to server
+func _on_spend_ap_requested(amount: int) -> void:
+    request_spend_ap(amount)
+
+# CORRECT
+func _on_spend_ap_requested(amount: int) -> void:
+    request_spend_ap.rpc_id(1, amount)
+```
+
+**7. Server/client signal subscriptions must be gated.**
+`_ready()` must subscribe to server-only signals (game flow, player connected/disconnected) inside `if multiplayer.is_server():`, and client-only signals (UI input requests) inside `else:`. Subscribing both sides to all signals causes the server to forward UI events as RPCs and clients to handle authority-only events they should never see.
+
+---
+
 ### 3. Generate Report
 
-Write a detailed review report to `.agents/output/reviews/<target-name>-<timestamp>.html`. Use the standard HTML shell from the **HTML Output Convention** in AGENTS.md (`badge-review`, depth-1 stylesheet path `../assets/style.css`). Bootstrap the stylesheet first if not present.
+Write a detailed review report to `.agents/output/reviews/<target-name>-<timestamp>.html`. Use the standard HTML shell from the **HTML Output Convention** in AGENTS.md (`badge-review`, depth-1 stylesheet path `../../assets/style.css`). Bootstrap the stylesheet first if not present.
 
 Structure the report with these sections:
 

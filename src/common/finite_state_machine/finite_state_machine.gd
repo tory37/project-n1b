@@ -10,3 +10,8 @@ func change_state(next: FiniteState) -> void:
 
 	_current_state = next
 	_current_state.enter()
+
+
+func tick(delta: float) -> void:
+	if _current_state:
+		_current_state.tick(delta)

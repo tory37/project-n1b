@@ -93,7 +93,7 @@ For any conditional block (`if/else`, `switch/match`, `ternary`) with more than 
 
 ### Step 4: Write the Coverage Gap Report
 
-Write the report to `.agents/output/coverage/<scope>-<YYYY-MM-DD>.html`. Use the standard HTML shell from the **HTML Output Convention** in AGENTS.md (`badge-coverage`, depth-1 stylesheet path `../assets/style.css`). Bootstrap the stylesheet first if not present.
+Write the report to `.agents/output/coverage/<scope>-<YYYY-MM-DD>.html`. Use the standard HTML shell from the **HTML Output Convention** in AGENTS.md (`badge-coverage`, depth-1 stylesheet path `../../assets/style.css`). Bootstrap the stylesheet first if not present.
 
 Structure the report with these sections:
 

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>State Mutation Pattern — Game Loop</title>
+  <link rel="stylesheet" href="../../.agents/assets/style.css">
+  <link rel="stylesheet" href="../assets/design.css">
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="../assets/mermaid-config.js"></script>
+  <script src="../assets/diagram-utils.js"></script>
+</head>
+<body data-type="feature">
+  <div class="container" style="max-width: 1100px;">
+    <nav class="page-nav">
+      <a href="../index.html">Design</a>
+      <span class="sep">/</span>
+      <span>Game Loop</span>
+      <span class="sep">/</span>
+      <span class="current">State Mutation Pattern</span>
+    </nav>
+    <header class="doc-header">
+      <div class="doc-meta">
+        <span class="badge badge-feature">DIAGRAM</span>
+        <span class="doc-date">2026-05-24</span>
+      </div>
+      <h1>State Mutation Pattern</h1>
+      <p class="subtitle">The networking seam that all game actions follow.</p>
+    </header>
+    <main>
+      <div class="diagram-wrapper">
+        <div class="mermaid">
+sequenceDiagram
+    participant UI as UI / World
+    participant C as GameManager (Client)
+    participant S as GameManager (Server)
+
+    Note over UI,S: Any state mutation — spend AP, draw card, pass turn…
+
+    UI->>C: SignalBus.*_requested (signal up)
+    C->>C: _on_*_requested()
+    C-->>S: request_*.rpc_id(1, …)
+    S->>S: _apply_*() — validate + mutate
+    S-->>C: _rpc_sync_*(result)
+    C->>C: apply received state
+    C->>UI: SignalBus.*_updated (signal down)
+        </div>
+      </div>
+      <div class="section accent">
+        When the host player initiates, the SignalBus hop still fires locally but the RPC step is skipped —
+        <code>_apply_*()</code> runs directly on the server.
+      </div>
+    </main>
+  </div>
+</body>
+</html>

@@ -1,39 +1,12 @@
 extends Node
 
-# Game State
-signal game_start_requested()
-signal game_state_initialized(
-		active_player: int,
-		ap_tracker: int,
-)
-signal player_state_initialized(player_state: PlayerState)
-
-# Player
-signal player_switched(new_player_index: int)
-
-# Turn
-signal switch_turn_requested()
-signal pass_turn_requested()
-
-# Action Points
+# Request Signals
 signal add_ap_requested(amount: int)
-signal spend_ap_requested(player_index: int, amount: int)
-signal ap_tracker_moved(new_value: int)
 
-# Currency
-signal add_currency_requested(player_index: int, amount: int)
-signal player_currency_updated(player_index: int, currency: int)
-
-# Board Interaction
-signal tile_clicked(axial: Vector2i)
-
-# Cards
-signal deck_clicked(owner_player_id: int)
-signal draw_card_requested(player_id: int)
-signal card_draw_animation_complete(player_id: int)
-
-# Errors
-signal ap_spend_failed(player_index: int)
-
-# Debug
-signal print_players_hands_requested()
+# Synchronization Signals
+signal active_player_synced(player_id: int)
+signal ap_synced(ap: int)
+signal currency_synced(player_id: int, currency: int)
+signal player_hand_synced(player_id: int, hand: Array[GameCard])
+signal player_deck_synced(player_id: int, deck: Array[GameCard])
+signal player_discard_synced(player_id: int, discard: Array[GameCard])

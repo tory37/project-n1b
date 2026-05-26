@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GameManager Networking Finalization — Feature</title>
+  <link rel="stylesheet" href="../assets/style.css">
+</head>
+<body data-type="feature">
+  <div class="container">
+    <header class="doc-header">
+      <div class="doc-meta">
+        <span class="badge badge-feature">FEATURE</span>
+        <span class="doc-date">2026-05-22</span>
+      </div>
+      <h1>GameManager Networking Finalization</h1>
+    </header>
+    <main>
+
+      <section>
+        <p>
+          The lobby is implemented and loads into the game scene. <code>GameManager._ready()</code>
+          has the skeleton for player initialization but has two foundational gaps that must be
+          resolved before any of the remaining <code>@rpc</code> work is wired up.
+          Fix these two spots first — everything else depends on them being correct.
+        </p>
+      </section>
+
+      <!-- ── SPOT 1 ─────────────────────────────────────────────────────── -->
+      <div class="phase-card">
+        <div class="phase-header">
+          <span class="phase-number">1</span>
+          <span class="phase-title">Seat / peer_id mismatch in <code>_initialize_player</code></span>
+        </div>
+
+        <div class="phase-steps">
+          <div class="section warning">
+            <strong>The bug — <code>game_manager.gd:40–44</code></strong>
+            <p>
+              <code>player_states</code> is populated with <code>peer_id</code> as the key
+              (e.g. <code>1</code> for the server, a large random number for the client).
+              But every game logic function —
+              <code>_apply_add_currency</code>, <code>_apply_switch_turn</code>,
+              <code>_print_players_hands</code> — accesses
+              <code>player_states[_game_state.active_player]</code>, where
+              <code>active_player</code> is <code>PlayerSeat.PLAYER_ONE = 0</code> or
+              <code>PlayerSeat.PLAYER_TWO = 1</code>.
+              Those keys will never match the actual peer IDs — the lookup will silently
+              return null or crash at runtime.
+            </p>
+          </div>
+
+          <div class="section accent">
+            <strong>The fix</strong>
+            <p>
+              <code>player_states</code> should stay keyed by <code>PlayerSeat.Type</code>
+              — the game logic is already written that way. <code>_initialize_player</code>
+              needs to <em>assign</em> a seat rather than use the raw peer_id as the key.
+              <code>GameState</code> also needs a reverse lookup so you can translate an
+              incoming <code>peer_id</code> into a seat later (e.g. when an RPC arrives from
+              a specific peer).
+            </p>
+          </div>
+
+          <p><strong>Changes needed:</strong></p>
+
+          <p><code>game_state.gd</code> — add a seat lookup alongside player states:</p>
+          <pre><code>var player_states: Dictionary[int, PlayerState] = {}  # PlayerSeat.Type → PlayerState
+var peer_to_seat: Dictionary[int, int] = {}            # peer_id → PlayerSeat.Type</code></pre>
+
+          <p><code>game_manager.gd</code> — assign seats in order of connection:</p>
+          <pre><code>func _initialize_player(peer_id: int) -> void:
+    var seat: PlayerSeat.Type = PlayerSeat.PLAYER_ONE \
+        if _game_state.player_states.is_empty() \
+        else PlayerSeat.PLAYER_TWO
+    _game_state.peer_to_seat[peer_id] = seat
+    _game_state.player_states[seat] = PlayerState.new()
+    _game_state.player_states[seat].deck = test_deck.cards.duplicate()</code></pre>
+        </div>
+      </div>
+
+      <!-- ── SPOT 2 ─────────────────────────────────────────────────────── -->
+      <div class="phase-card">
+        <div class="phase-header">
+          <span class="phase-number">2</span>
+          <span class="phase-title">Clients never get <code>_initialize_player</code> called</span>
+        </div>
+
+        <div class="phase-steps">
+          <div class="section warning">
+            <strong>The gap — <code>game_manager.gd:28–36</code></strong>
+            <p>
+              <code>_initialize_player</code> only runs on the server. Clients load the game
+              scene, <code>_subscribe_to_game_signals</code> connects them to all the same
+              signals, but <code>player_states</code> is empty on their side. Any
+              <code>_apply_*</code> function that touches <code>player_states</code> will
+              fail on the client.
+            </p>
+          </div>
+
+          <div class="section accent">
+            <strong>The fix</strong>
+            <p>
+              After the server initializes a player, broadcast it to all clients with an
+              <code>@rpc</code>. The client just mirrors the seat assignment — no logic, just
+              state setup. Note that clients intentionally receive no deck here; card state
+              lives on the server and syncs separately. They do need the
+              <code>PlayerState</code> entry to exist so UI reads don't fail.
+            </p>
+          </div>
+
+          <p><strong>Changes needed in <code>game_manager.gd</code>:</strong></p>
+          <pre><code>func _initialize_player(peer_id: int) -> void:
+    var seat: PlayerSeat.Type = PlayerSeat.PLAYER_ONE \
+        if _game_state.player_states.is_empty() \
+        else PlayerSeat.PLAYER_TWO
+    _game_state.peer_to_seat[peer_id] = seat
+    _game_state.player_states[seat] = PlayerState.new()
+    _game_state.player_states[seat].deck = test_deck.cards.duplicate()
+    _rpc_sync_player_init.rpc(peer_id, seat)  # broadcast to all clients
+
+
+@rpc("authority", "call_local", "reliable")
+func _rpc_sync_player_init(peer_id: int, seat: PlayerSeat.Type) -> void:
+    if multiplayer.is_server():
+        return  # server already handled this in _initialize_player
+    _game_state.peer_to_seat[peer_id] = seat
+    _game_state.player_states[seat] = PlayerState.new()</code></pre>
+        </div>
+      </div>
+
+      <!-- ── REMAINING SPOTS ────────────────────────────────────────────── -->
+      <h2>Remaining spots — try these on your own</h2>
+      <p>
+        Once the two fixes above are in place and tested, here are the remaining networking
+        spots in order of complexity:
+      </p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Spot</th>
+            <th>What to do</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>3</td>
+            <td><code>_subscribe_to_game_signals</code></td>
+            <td>
+              Signal handlers currently run on <em>all peers</em>, but <code>_apply_*</code>
+              should only mutate state on the authority. Either guard each
+              <code>_apply_*</code> with
+              <code>if not multiplayer.is_server(): return</code>, or only call
+              <code>_subscribe_to_game_signals</code> on the server and route client inputs
+              through RPCs.
+            </td>
+          </tr>
+          <tr>
+            <td>4</td>
+            <td><code>_apply_start_game</code> (line 116)</td>
+            <td>
+              The FSM starts only on the calling peer. Add
+              <code>@rpc("authority", "call_local")</code> and invoke via <code>.rpc()</code>
+              so all peers enter the same game phase simultaneously.
+            </td>
+          </tr>
+          <tr>
+            <td>5</td>
+            <td><code>_apply_switch_turn</code> / <code>_apply_card_draw</code></td>
+            <td>
+              State mutations all peers must see. Decorate with
+              <code>@rpc("authority", "call_local", "reliable")</code> and invoke via
+              <code>.rpc()</code>.
+            </td>
+          </tr>
+          <tr>
+            <td>6</td>
+            <td><code>_on_spend_ap_requested</code> / <code>_on_draw_card_requested</code></td>
+            <td>
+              These are the "any peer" entrypoints — the future
+              <code>@rpc("any_peer")</code> functions. When ready, a client calls these on
+              the server, and the server calls the matching <code>_apply_*</code> back down
+              to all peers.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+    </main>
+  </div>
+</body>
+</html>

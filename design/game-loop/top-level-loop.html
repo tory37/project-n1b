@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Top-Level Loop — Game Loop</title>
+  <link rel="stylesheet" href="../../.agents/assets/style.css">
+  <link rel="stylesheet" href="../assets/design.css">
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <script src="../assets/mermaid-config.js"></script>
+  <script src="../assets/diagram-utils.js"></script>
+</head>
+<body data-type="feature">
+  <div class="container" style="max-width: 1100px;">
+    <nav class="page-nav">
+      <a href="../index.html">Design</a>
+      <span class="sep">/</span>
+      <span>Game Loop</span>
+      <span class="sep">/</span>
+      <span class="current">Top-Level Loop</span>
+    </nav>
+    <header class="doc-header">
+      <div class="doc-meta">
+        <span class="badge badge-feature">DIAGRAM</span>
+        <span class="doc-date">2026-05-24</span>
+      </div>
+      <h1>Top-Level Loop</h1>
+      <p class="subtitle">The full game cycle from lobby to win condition.</p>
+    </header>
+    <main>
+      <div class="diagram-wrapper">
+        <div class="mermaid">
+flowchart TD
+    LOBBY["Lobby<br/>Host / Join"]:::setup
+    INIT["Game Init<br/>Initialize players, deal decks, players draw cards"]:::setup
+    TURN_START["Turn Start<br/>Active player draws a card and other resets"]:::loop
+    MAIN["Main Phase<br/>Play cards, spend AP"]:::loop
+    PASS["Pass / AP Crosses Zero<br/>Switch active player"]:::loop
+    WIN["Win Condition Reached"]:::terminal
+
+    LOBBY --> INIT
+    INIT --> TURN_START
+    TURN_START --> MAIN
+    MAIN --> PASS
+    PASS --> TURN_START
+    MAIN --> WIN
+
+    classDef setup    fill:#071228,stroke:#3b9eff,color:#e6edf3
+    classDef loop     fill:#071a0d,stroke:#22d167,color:#e6edf3
+    classDef terminal fill:#200a0a,stroke:#ff4d4d,color:#e6edf3
+        </div>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

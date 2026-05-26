@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PlayerState Encapsulation vs Flat Fields — Research</title>
+  <link rel="stylesheet" href="../assets/style.css">
+</head>
+<body data-type="research">
+  <div class="container">
+    <header class="doc-header">
+      <div class="doc-meta">
+        <span class="badge badge-research">RESEARCH</span>
+        <span class="doc-date">2026-05-22</span>
+      </div>
+      <h1>PlayerState Encapsulation vs. Flat Fields in GameManager</h1>
+    </header>
+    <main>
+
+      <section>
+        <p>
+          <strong>The Question:</strong> Is it good practice to keep per-player data in a
+          <code>PlayerState</code> object? Or should <code>GameManager</code> hold raw/flat
+          fields and surgically pass only what each peer needs — avoiding the deck-hiding
+          problem that comes with sending a full <code>PlayerState</code>?
+        </p>
+        <div class="section accent">
+          <strong>Short Answer:</strong> PlayerState encapsulation is the correct pattern.
+          The deck-hiding problem is not caused by using a PlayerState object — it is caused
+          by sending the wrong thing over the wire. That is a sync-layer problem, solved at
+          the RPC/serialization boundary, not at the storage layer. Flat fields in
+          GameManager do not remove the problem; they just make it harder to fix cleanly.
+        </div>
+      </section>
+
+      <!-- ── SECTION I ────────────────────────────────────────────────── -->
+      <section>
+        <h2>I. The Core Misunderstanding — Storage vs. Transport</h2>
+        <p>
+          The intuition behind flat fields is: "if I only have one variable per thing,
+          I can just choose not to send the sensitive one." That intuition is correct —
+          but it applies equally to encapsulated objects. The storage shape does not
+          determine what gets sent; the RPC call does.
+        </p>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Approach</th>
+              <th>How deck hiding works</th>
+              <th>Tradeoff</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Flat fields in GameManager</strong><br>
+                <code>p1_hand, p1_deck, p2_hand, p2_deck…</code>
+              </td>
+              <td>Manually pass each field that is allowed. You write
+                <code>rpc("sync_p2_state", p2_hand_count, p2_currency)</code> and omit
+                <code>p2_deck</code>. Works, but every new field requires manually auditing
+                every RPC call site.
+              </td>
+              <td>
+                GameManager becomes a God Object. <a href="https://peerdh.com/blogs/programming-insights/state-management-patterns-in-multiplayer-game-development">[State Management Patterns — peerdh.com]</a>
+                calls this "scattered state" — it is the #1 root cause of sync bugs in
+                multiplayer games because there is no single place to enforce what is and
+                is not public.
+              </td>
+            </tr>
+            <tr>
+              <td><strong>PlayerState object</strong><br>
+                <code>player_states[seat]: PlayerState</code>
+              </td>
+              <td>Add a method to PlayerState:
+                <code>get_public_view() -> Dictionary</code> that strips sensitive fields
+                before serialization. The RPC always calls
+                <code>rpc("sync_opponent_state", opponent.get_public_view())</code>. The
+                rule is in one place, enforced at the class boundary.
+              </td>
+              <td>
+                Slightly more code up front. Pays off immediately on the first field you add
+                to PlayerState — you do not have to audit every RPC call site.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ── SECTION II ───────────────────────────────────────────────── -->
+      <section>
+        <h2>II. Industry Precedent — All Major Engines Use Encapsulated PlayerState</h2>
+        <p>
+          This is not a marginal design choice. It is the dominant pattern across every
+          major engine and authoritative networking framework.
+        </p>
+        <ul>
+          <li>
+            <strong>Unreal Engine</strong> has a dedicated <code>APlayerState</code> class
+            that is replicated to all peers. The engine separates it from
+            <code>AGameState</code> (global state) by design.
+            <a href="https://cedric-neukirchen.net/docs/multiplayer-compendium/common-classes/gamestate/">[Cedric Neukirchen — Multiplayer Compendium]</a>
+          </li>
+          <li>
+            <strong>Real-time card games</strong> (.NET architecture guide) use a
+            state-sync model where "the server continuously transmits authoritative state
+            snapshots to clients." The snapshot shape per-player is a bounded, structured
+            object — not a flat dump.
+            <a href="https://developersvoice.com/blog/practical-design/realtime-card-games-net-architecture-guide/">[DevelopersVoice — Real-Time Multiplayer Card Games]</a>
+          </li>
+          <li>
+            <strong>Server-authoritative fog of war</strong> (the exact deck-hiding problem
+            this project faces): "your authoritative node needs to be a bit smarter and only
+            sends the game state that a player should know. If you have done this, then even
+            if the cheater lifts fog of war, the game state will not be revealed."
+            <a href="https://ruoyusun.com/2019/03/28/game-networking-1.html">[Ruoyu Sun — Game Networking Demystified]</a>
+            The encapsulated object is what makes the server "smarter" in a maintainable way.
+          </li>
+        </ul>
+      </section>
+
+      <!-- ── SECTION III ──────────────────────────────────────────────── -->
+      <section>
+        <h2>III. The Working Stack — Three Evidence-Based Approaches</h2>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Method</th>
+              <th>Theoretical Basis</th>
+              <th>Practical Implementation (Godot 4)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>PlayerState + <code>get_public_view()</code></strong>
+                <span class="badge badge-complete">Recommended</span>
+              </td>
+              <td>
+                Information hiding at the class boundary. The object owns the rule of what
+                is public. Follows the Single Responsibility Principle — PlayerState is
+                responsible for knowing its own data and what it is safe to broadcast.
+              </td>
+              <td>
+                <code>PlayerState</code> keeps full private fields (<code>deck</code>,
+                <code>hand</code>). Add:
+                <pre><code>func get_public_view() -> Dictionary:
+    return { "hand_count": hand.size(),
+             "currency": currency }</code></pre>
+                Server RPC sends <code>get_public_view()</code> to opponents,
+                full state to owner.
+                <a href="https://www.strayspark.studio/blog/godot-4-multiplayer-networking-authoritative-server">[StraySpark — Authoritative Server Guide]</a>
+              </td>
+            </tr>
+            <tr>
+              <td><strong>State Snapshot Sync</strong>
+                <span class="badge badge-in-progress">Valid alternative</span>
+              </td>
+              <td>
+                Server broadcasts authoritative state snapshots each tick or on change.
+                <a href="https://ruoyusun.com/2019/03/28/game-networking-1.html">[Ruoyu Sun]</a>
+                The snapshot content is filtered per-recipient. Works well for discrete
+                turn-based games.
+              </td>
+              <td>
+                On each state change, server calls two RPCs:
+                <code>_rpc_sync_own_state.rpc_id(owner_id, full_state)</code> and
+                <code>_rpc_sync_opponent_state.rpc_id(opponent_id, public_view)</code>.
+                No polling required — only fire on mutation.
+              </td>
+            </tr>
+            <tr>
+              <td><strong>MultiplayerSynchronizer (limited use)</strong>
+                <span class="badge badge-warning">Partial fit</span>
+              </td>
+              <td>
+                Godot 4's built-in property replication. Works for primitives.
+                <a href="https://forum.godotengine.org/t/multiplayersynchronizer-vs-rpcs/115962">[Godot Forum]</a>
+              </td>
+              <td>
+                Does <em>not</em> support per-recipient filtering — it broadcasts to all
+                peers equally.
+                <a href="https://godotawesome.com/godot-4-multiplayer-networking-guide-2025/">[GodotAwesome 2025]</a>
+                Cannot hide the deck using this alone. Use RPCs for anything that needs
+                per-player visibility control.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ── SECTION IV ───────────────────────────────────────────────── -->
+      <section>
+        <h2>IV. Engagement Theater vs. Active ROI</h2>
+        <p>
+          Applied to this design question: what looks like a simplification but creates
+          hidden debt, versus what adds a small upfront cost and pays off immediately.
+        </p>
+
+        <div class="section danger">
+          <strong>Engagement Theater — Flat fields in GameManager</strong>
+          <ul>
+            <li>Feels simpler: fewer files, fewer classes.</li>
+            <li>Every new player attribute (health, status effects, played cards) must be added
+              to GameManager as a new pair of variables (<code>p1_x</code>, <code>p2_x</code>).
+              The file grows into a God Object.
+              <a href="https://peerdh.com/blogs/programming-insights/state-management-patterns-in-multiplayer-game-development">[peerdh.com]</a>
+            </li>
+            <li>Information hiding logic is spread across every RPC call site. One forgotten
+              omission leaks the deck. There is no single place to audit.</li>
+            <li>Adding a third player (or even a spectator) requires a surgery of the entire
+              GameManager surface.</li>
+          </ul>
+        </div>
+
+        <div class="section success">
+          <strong>Active ROI — PlayerState with <code>get_public_view()</code></strong>
+          <ul>
+            <li>Adding a new attribute (e.g., <code>mana</code>) touches one class.
+              It is private by default; you opt in to making it public in one method.</li>
+            <li>RPC call sites never need to change — they always call
+              <code>get_public_view()</code>. The rule lives in one place.</li>
+            <li>The GameManager stays lean: it orchestrates state transitions, it does not
+              own per-player data.</li>
+            <li>Scaling to a third player means adding a third entry to
+              <code>player_states</code> — no structural changes.</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- ── SECTION V ────────────────────────────────────────────────── -->
+      <section>
+        <h2>V. The 5 Inviolable Laws</h2>
+        <ol>
+          <li>
+            <strong>Information hiding is a sync-layer problem, not a storage-layer problem.</strong>
+            Whether you use flat fields or encapsulated objects, you still decide what to
+            put in each RPC. The object just enforces that decision consistently.
+            <a href="https://ruoyusun.com/2019/03/28/game-networking-1.html">[Ruoyu Sun]</a>
+          </li>
+          <li>
+            <strong>The server is the only node that holds full PlayerState.</strong>
+            Clients receive either their own full state or their opponent's public view —
+            never the opponent's full state.
+            <a href="https://developersvoice.com/blog/practical-design/realtime-card-games-net-architecture-guide/">[DevelopersVoice]</a>
+          </li>
+          <li>
+            <strong>Do not use <code>MultiplayerSynchronizer</code> for hidden state.</strong>
+            It broadcasts to all peers without per-recipient filtering. Use manual
+            <code>@rpc</code> calls for anything that needs visibility control.
+            <a href="https://forum.godotengine.org/t/multiplayersynchronizer-vs-rpcs/115962">[Godot Forum]</a>
+          </li>
+          <li>
+            <strong>One class owns the definition of "what is public."</strong>
+            Put <code>get_public_view()</code> on <code>PlayerState</code>. Never let
+            GameManager decide field-by-field at each call site — that path leads to leaks.
+          </li>
+          <li>
+            <strong>GameManager orchestrates; PlayerState owns.</strong>
+            GameManager's job is to sequence game logic (turn flow, AP tracker, phase FSM).
+            PlayerState's job is to hold and expose player data. Keep them separated or
+            GameManager becomes the bottleneck for every feature.
+            <a href="https://peerdh.com/blogs/programming-insights/state-management-patterns-in-multiplayer-game-development">[peerdh.com]</a>
+          </li>
+        </ol>
+      </section>
+
+      <!-- ── SECTION VI ───────────────────────────────────────────────── -->
+      <section>
+        <h2>VI. Applied to This Project — What Changes</h2>
+        <p>
+          <code>PlayerState</code> is correct as-is for storage. The one addition needed
+          is a method that defines what is safe to send to opponents:
+        </p>
+        <pre><code># player_state.gd — add this method
+func get_public_view() -> Dictionary:
+    return {
+        "hand_count": hand.size(),
+        "discard_count": discard.size(),
+        "currency": currency,
+    }
+    # deck is intentionally excluded</code></pre>
+        <p>
+          Then in <code>GameManager</code>, the RPC that syncs state to each client sends
+          the appropriate view:
+        </p>
+        <pre><code># On the server, after any state mutation:
+for peer_id in NetworkManager.connected_players:
+    var seat := _game_state.peer_to_seat[peer_id]
+    var own_state := _game_state.player_states[seat]
+    var opponent_seat := (seat + 1) % 2
+    var opponent_public := _game_state.player_states[opponent_seat].get_public_view()
+    _rpc_sync_state.rpc_id(peer_id, own_state_as_dict, opponent_public)</code></pre>
+        <p>
+          Nothing about <code>PlayerState</code> needs to change. The information hiding
+          happens at the boundary where data leaves the server, not in how data is stored.
+        </p>
+      </section>
+
+      <!-- ── BIBLIOGRAPHY ─────────────────────────────────────────────── -->
+      <section>
+        <h2>Sources &amp; Bibliography</h2>
+        <ol class="bibliography">
+          <li>
+            Ruoyu Sun — <em>Game Networking Demystified, Part I: State vs. Input</em> (2019).
+            <a href="https://ruoyusun.com/2019/03/28/game-networking-1.html">ruoyusun.com</a>
+          </li>
+          <li>
+            Cedric Neukirchen — <em>Multiplayer Compendium: AGameState &amp; APlayerState</em>.
+            <a href="https://cedric-neukirchen.net/docs/multiplayer-compendium/common-classes/gamestate/">cedric-neukirchen.net</a>
+          </li>
+          <li>
+            DevelopersVoice — <em>Real-Time Multiplayer Card Games in .NET: Deterministic Lockstep, Client Prediction, and Anti-Cheat Architecture</em>.
+            <a href="https://developersvoice.com/blog/practical-design/realtime-card-games-net-architecture-guide/">developersvoice.com</a>
+          </li>
+          <li>
+            peerdh.com — <em>State Management Patterns In Multiplayer Game Development</em>.
+            <a href="https://peerdh.com/blogs/programming-insights/state-management-patterns-in-multiplayer-game-development">peerdh.com</a>
+          </li>
+          <li>
+            StraySpark Studio — <em>Multiplayer Networking in Godot 4: Building an Authoritative Server from Scratch</em>.
+            <a href="https://www.strayspark.studio/blog/godot-4-multiplayer-networking-authoritative-server">strayspark.studio</a>
+          </li>
+          <li>
+            GodotAwesome — <em>Building Multiplayer Games in Godot 4: Complete Networking Guide 2025</em>.
+            <a href="https://godotawesome.com/godot-4-multiplayer-networking-guide-2025/">godotawesome.com</a>
+          </li>
+          <li>
+            Godot Forum — <em>MultiplayerSynchronizer vs RPCs</em>.
+            <a href="https://forum.godotengine.org/t/multiplayersynchronizer-vs-rpcs/115962">forum.godotengine.org</a>
+          </li>
+          <li>
+            WizardCell — <em>Unreal Engine Multiplayer Tips and Tricks</em>.
+            <a href="https://wizardcell.com/unreal/multiplayer-tips-and-tricks/">wizardcell.com</a>
+          </li>
+        </ol>
+      </section>
+
+    </main>
+  </div>
+</body>
+</html>
