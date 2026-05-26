@@ -33,24 +33,24 @@ func _on_currency_synced(player_id: int, currency: int) -> void:
 	)
 
 func _on_player_hand_synced(player_id: int, hand: Array[GameCard]) -> void:
-	var card_names: String = ""
+	var card_titles: String = ""
 	for card in hand:
-		card_names += card.name + ", "
-	Loggit.p("Player %d hand is: %s" % [player_id, card_names], "Flow")
+		card_titles += card.title + ", "
+	Loggit.p("Player %d hand is: %s" % [player_id, card_titles], "Flow")
 
 
 func _on_player_deck_synced(player_id: int, deck: Array[GameCard]) -> void:
-	var card_names: String = ""
+	var card_titles: String = ""
 	for card in deck:
 		if card is GameCard:
-			card_names += card.name + ", "
+			card_titles += card.title + ", "
 		else:
-			card_names += "Hidden" + ", "
-	Loggit.p("Player %d deck is: %s" % [player_id, card_names], "Flow")
+			card_titles += "Hidden" + ", "
+	Loggit.p("Player %d deck is: %s" % [player_id, card_titles], "Flow")
 
 
 func _on_player_discard_synced(player_id: int, discard: Array[GameCard]) -> void:
-	var card_names: String = ""
+	var card_titles: String = ""
 	for card in discard:
-		card_names += card.name + ", "
-	Loggit.p("Player %d discard is: %s" % [player_id, card_names], "Flow")
+		card_titles += card.title + ", "
+	Loggit.p("Player %d discard is: %s" % [player_id, card_titles], "Flow")

@@ -5,6 +5,8 @@ extends GamePhaseState
 func enter() -> void:
 	Loggit.p("Entering GamePhaseStart", "Flow")
 
+	_game_manager.initialize_all_players()
+	
 	var player_ids: Array[int] = _game_manager.get_player_id_turn_order()
 	_game_manager.set_active_player(player_ids[0])
 

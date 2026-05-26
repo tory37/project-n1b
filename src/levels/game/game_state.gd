@@ -11,19 +11,28 @@ var player_id_turn_order: Array[int] = []
 var player_states: Dictionary[int, PlayerState] = {}
 
 func print_debug_state() -> void:
-    Loggit.p("GameState Debug Info:", "Debug")
-    Loggit.p("  Turn: %d" % turn, "Debug")
-    Loggit.p("  Active Player: %d" % active_player_id, "Debug")
-    Loggit.p("  AP Tracker: %d" % ap, "Debug")
-    Loggit.p("  Current Phase: %s" % str(current_phase), "Debug")
-    Loggit.p("  Player States:", "Debug")
-    for player_id in player_states.keys():
-        var player_state = player_states[player_id]
-        Loggit.p("  Player %d State:" % player_id, "Debug")
-        Loggit.p("    Currency: %d" % player_state.currency, "Debug")
-        for card in player_state.hand:
-            Loggit.p("      Hand Card: %s" % card.name, "Debug")
-        for card in player_state.deck:
-            Loggit.p("      Deck Card: %s" % card.name, "Debug")
-        for card in player_state.discard:
-            Loggit.p("      Discard Card: %s" % card.name, "Debug")
+	Loggit.p("GameState Debug Info:", "Debug")
+	Loggit.p("  Turn: %d" % turn, "Debug")
+	Loggit.p("  Active Player: %d" % active_player_id, "Debug")
+	Loggit.p("  AP Tracker: %d" % ap, "Debug")
+	Loggit.p("  Current Phase: %s" % str(current_phase), "Debug")
+	Loggit.p("  Player States:", "Debug")
+	for player_id in player_states.keys():
+		var player_state = player_states[player_id]
+		Loggit.p("  Player %d State:" % player_id, "Debug")
+		Loggit.p("    Currency: %d" % player_state.currency, "Debug")
+		for card: GameCard in player_state.hand:
+			if card is GameCard:
+				Loggit.p("      Hand Card: %s" % card.data.title, "Debug")
+			else:
+				Loggit.p("      Hand Card: Hidden", "Debug") 
+		for card in player_state.deck:
+			if card is GameCard:
+				Loggit.p("      Deck Card: %s" % card.data.title, "Debug")
+			else:
+				Loggit.p("      Deck Card: Hidden", "Debug")
+		for card in player_state.discard:
+			if card is GameCard:
+				Loggit.p("      Discard Card: %s" % card.data.title, "Debug")
+			else:
+				Loggit.p("      Discard Card: Hidden", "Debug") 

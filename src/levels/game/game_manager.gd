@@ -56,10 +56,6 @@ var _phase_constructors: Dictionary = {
 func _ready() -> void:
 	Loggit.p("GameManager ready", "Flow")
 
-	if not multiplayer.is_server():
-		Loggit.p("GameManager is client", "Flow")
-		return
-
 	if multiplayer.is_server():
 		Loggit.p("GameManager is server", "Flow")
 
@@ -264,6 +260,14 @@ func can_draw_card(player_id: int) -> bool:
 
 
 # Exposed Actions for GamePhaseStates
+func initialize_all_players() -> void:
+	if not multiplayer.is_server():
+		Loggit.p("Only the server can initialize players", "Error")
+		return
+
+	for peer_id in multiplayer.get_peers():
+		_initialize_player(peer_id)
+
 
 func draw_cards(player_id: int, count: int) -> void:
 	if not multiplayer.is_server():
@@ -368,6 +372,12 @@ func _apply_pass_turn() -> void:
 # --- RPC ---
 
 @rpc("authority", "reliable")
+func _rpc_register_player(peer_id: int) -> void:
+	if not _game_state.player_states.has(peer_id):
+		_game_state.player_states[peer_id] = PlayerState.new()
+
+
+@rpc("authority", "reliable")
 func _rpc_sync_active_player(active_player_id: int) -> void:
 	_game_state.active_player_id = active_player_id
 
@@ -426,7 +436,13 @@ func _serialize_own_state(player_state: PlayerState) -> Dictionary:
 
 func _initialize_player(peer_id: int) -> void:
 	_game_state.player_states[peer_id] = PlayerState.new()
-	_game_state.player_states[peer_id].deck = test_deck.cards.duplicate()
+	_rpc_register_player.rpc(peer_id)
+
+	var new_deck: Array[GameCard] = []
+	for card_data: CardData in test_deck.cards:
+		new_deck.append(GameCard.new(card_data))
+	_game_state.player_states[peer_id].deck = new_deck
+
 	_game_state.player_id_turn_order.append(peer_id)
 
 
@@ -445,7 +461,7 @@ func _get_masked_cards(opponent_hand: Array[GameCard]) -> Array[GameCard]:
 	var masked_opponent_hand: Array[GameCard] = []
 	for opponent_card in opponent_hand:
 		if opponent_card is GameCard:
-			if opponent_card.is_revealed:
+			if opponent_card.revealed:
 				masked_opponent_hand.append(opponent_card)
 			else:
 				masked_opponent_hand.append(null)
@@ -454,12 +470,14 @@ func _get_masked_cards(opponent_hand: Array[GameCard]) -> Array[GameCard]:
 
 	return masked_opponent_hand
 
+
 func _get_opponent_state(player_id: int) -> PlayerState:
 	var opponent_id: int = _get_opponent_id(player_id)
 	if opponent_id == -1:
 		return null
 
 	return _game_state.player_states[opponent_id]
+
 
 # --- Debug ---
 
