@@ -3,11 +3,9 @@ extends RefCounted
 
 # Public State
 var currency: int = 0
-var discard: Array[GameCard] = []
-
-# Private State
 var hand: Array[GameCard] = []
 var deck: Array[GameCard] = []
+var discard: Array[GameCard] = []
 
 
 func get_public_view() -> Dictionary:

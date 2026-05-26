@@ -12,7 +12,7 @@ var peer: ENetMultiplayerPeer = null
 var is_server: bool = false
 var connected_players: Dictionary = {} # peer_id: PlayerInfo
 
-func _ready():
+func _ready() -> void:
 	multiplayer.peer_connected.connect(_on_peer_connected)
 	multiplayer.peer_disconnected.connect(_on_peer_disconnected)
 	multiplayer.connected_to_server.connect(_on_connected_to_server)
@@ -22,7 +22,7 @@ func _ready():
 
 func host_game(port: int = DEFAULT_PORT) -> Error:
 	peer = ENetMultiplayerPeer.new()
-	var error = peer.create_server(port, MAX_PLAYERS)
+	var error: Error = peer.create_server(port, MAX_PLAYERS)
 
 	if error != OK:
 		push_error("Failed to create server: %s" % error_string(error))
@@ -39,7 +39,7 @@ func host_game(port: int = DEFAULT_PORT) -> Error:
 
 func join_game(address: String, port: int = DEFAULT_PORT) -> Error:
 	peer = ENetMultiplayerPeer.new()
-	var error = peer.create_client(address, port)
+	var error: Error = peer.create_client(address, port)
 
 	if error != OK:
 		push_error("Failed to create client: %s" % error_string(error))

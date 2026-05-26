@@ -1,5 +1,4 @@
 class_name HexUtils
-extends Node
 ## Static utility for axial hex grid math.
 ## See common/README.md for coordinate system overview and usage examples.
 

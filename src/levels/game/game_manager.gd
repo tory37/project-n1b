@@ -71,6 +71,8 @@ func _exit_tree() -> void:
 
 
 ## ---- Signal Callbacks ----------------------------------------------
+# We do not block use to the active plaer as there are times when the active player is not the one requesting AP (e.g. during opponent's turn, or when a card effect is used).
+# TODO: This will need to be handled correctly though when that feature is implemented in a card
 func _on_add_ap_requested(amount: int) -> void:
 	if multiplayer.is_server():
 		return
@@ -265,6 +267,7 @@ func initialize_all_players() -> void:
 		Loggit.p("Only the server can initialize players", "Error")
 		return
 
+	_initialize_player(1)
 	for peer_id in multiplayer.get_peers():
 		_initialize_player(peer_id)
 
@@ -353,20 +356,16 @@ func _apply_add_currency(player: int, amount: int) -> void:
 
 
 func _apply_switch_turn() -> void:
-	_game_state.active_player_id = (_game_state.active_player_id + 1) % 2
-	SignalBus.player_switched.emit(_game_state.active_player_id)
-	transition_to_phase(GameState.Phase.DRAW_CARD)
-	_apply_add_currency(_game_state.active_player_id, base_income)
+	var next_id: int = _get_next_player_id()
+	if (next_id == _game_state.player_id_turn_order[0]):
+		_apply_increment_turn()
+	_apply_active_player(next_id)
 
 
-func _apply_pass_turn() -> void:
-	if _is_player_1(_game_state.active_player_id):
-		_game_state.ap = -pass_turn_starting_ap
-	else:
-		_game_state.ap = pass_turn_starting_ap
+func _apply_increment_turn() -> void:
+	_game_state.turn += 1
 
-	SignalBus.ap_moved.emit(_game_state.ap)
-	_apply_switch_turn()
+	_rpc_sync_turn.rpc(_game_state.turn)
 
 
 # --- RPC ---
@@ -402,6 +401,13 @@ func _rpc_sync_player_currency(
 
 
 @rpc("authority", "reliable")
+func _rpc_sync_turn(turn: int) -> void:
+	_game_state.turn = turn
+
+	SignalBus.turn_synced.emit(turn)
+
+
+@rpc("authority", "reliable")
 func _rpc_sync_player_hand(player_id: int, hand: Array[GameCard]) -> void:
 	_game_state.player_states[player_id].hand = hand
 
@@ -423,15 +429,6 @@ func _rpc_sync_player_discard(player_id: int, discard: Array[GameCard]) -> void:
 	SignalBus.player_discard_synced.emit(player_id, discard)
 
 
-func _serialize_own_state(player_state: PlayerState) -> Dictionary:
-	return {
-		"currency": player_state.currency,
-		"hand": player_state.hand,
-		"deck": player_state.deck,
-		"discard": player_state.discard,
-	}
-
-
 # --- Helpers ---
 
 func _initialize_player(peer_id: int) -> void:
@@ -448,6 +445,17 @@ func _initialize_player(peer_id: int) -> void:
 
 func _is_player_1(player_id: int) -> bool:
 	return _game_state.player_id_turn_order.find(player_id) == 0
+
+
+func _get_next_player_id() -> int:
+	var current_id: int = _game_state.active_player_id
+	var current_index: int = _game_state.player_id_turn_order.find(current_id)
+	if current_index == -1:
+		Loggit.p("Current player ID not found in turn order: %d" % current_id, "Error")
+		return -1
+
+	var next_index: int = (current_index + 1) % _game_state.player_id_turn_order.size()
+	return _game_state.player_id_turn_order[next_index]
 
 
 func _get_opponent_id(player_id: int) -> int:
@@ -469,18 +477,3 @@ func _get_masked_cards(opponent_hand: Array[GameCard]) -> Array[GameCard]:
 			masked_opponent_hand.append(null)
 
 	return masked_opponent_hand
-
-
-func _get_opponent_state(player_id: int) -> PlayerState:
-	var opponent_id: int = _get_opponent_id(player_id)
-	if opponent_id == -1:
-		return null
-
-	return _game_state.player_states[opponent_id]
-
-
-# --- Debug ---
-
-func _print_players_hands() -> void:
-	Loggit.p("Player 1 hand: %s" % _game_state.player_states[_game_state.player_id_turn_order[0]].hand, "Debug")
-	Loggit.p("Player 2 hand: %s" % _game_state.player_states[_game_state.player_id_turn_order[1]].hand, "Debug")

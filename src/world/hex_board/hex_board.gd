@@ -9,7 +9,8 @@ const FLAT_TOP_ROTATION: Vector3 = deg_to_rad(30) * Vector3(0, 1, 0)
 @export var orientation: HexOrientation.Type = HexOrientation.POINTY_TOP
 @export var hex_tile_scene: PackedScene
 
-var _tiles: Dictionary[Vector2i, Node] = { }
+
+var _tiles: Dictionary[Vector2i, HexTile] = { }
 
 
 func _ready() -> void:
