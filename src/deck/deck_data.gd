@@ -5,10 +5,3 @@ extends Resource
 
 func _init() -> void:
 	cards = []
-
-func add_card(card: CardData) -> void:
-	cards.append(card)
-
-func remove_card(card: CardData) -> void:
-	if card in cards:
-		cards.erase(card)

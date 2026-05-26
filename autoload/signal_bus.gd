@@ -2,7 +2,7 @@ extends Node
 
 # Board Interaction
 signal tile_clicked(axial: Vector2i)
-signal deck_clicked()
+signal deck_clicked(deck_owner_id: int)
 
 # Request Signals
 signal add_ap_requested(amount: int)

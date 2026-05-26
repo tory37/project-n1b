@@ -17,21 +17,21 @@ func print_debug_state() -> void:
 	Loggit.p("  AP Tracker: %d" % ap, "Debug")
 	Loggit.p("  Current Phase: %s" % str(current_phase), "Debug")
 	Loggit.p("  Player States:", "Debug")
-	for player_id in player_states.keys():
-		var player_state = player_states[player_id]
+	for player_id: int in player_states.keys():
+		var player_state: PlayerState = player_states[player_id]
 		Loggit.p("  Player %d State:" % player_id, "Debug")
 		Loggit.p("    Currency: %d" % player_state.currency, "Debug")
-		for card: GameCard in player_state.hand:
+		for card: GameCard in player_state.hand.cards:
 			if card is GameCard:
 				Loggit.p("      Hand Card: %s" % card.data.title, "Debug")
 			else:
 				Loggit.p("      Hand Card: Hidden", "Debug") 
-		for card in player_state.deck:
+		for card in player_state.deck.cards:
 			if card is GameCard:
 				Loggit.p("      Deck Card: %s" % card.data.title, "Debug")
 			else:
 				Loggit.p("      Deck Card: Hidden", "Debug")
-		for card in player_state.discard:
+		for card in player_state.discard.cards:
 			if card is GameCard:
 				Loggit.p("      Discard Card: %s" % card.data.title, "Debug")
 			else:

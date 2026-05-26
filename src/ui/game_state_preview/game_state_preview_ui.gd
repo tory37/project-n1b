@@ -1,10 +1,9 @@
 extends Node
 ## UI component to display AP and Currency for the active player.
 
-
 func _ready() -> void:
 	SignalBus.active_player_synced.connect(_on_active_player_synced)
-	SignalBus.ap_synced.connect(_on_ap_synced)	
+	SignalBus.ap_synced.connect(_on_ap_synced)
 	SignalBus.currency_synced.connect(_on_currency_synced)
 	SignalBus.turn_synced.connect(_on_turn_synced)
 	SignalBus.player_hand_synced.connect(_on_player_hand_synced)
@@ -14,7 +13,7 @@ func _ready() -> void:
 
 func _exit_tree() -> void:
 	SignalBus.active_player_synced.disconnect(_on_active_player_synced)
-	SignalBus.ap_synced.disconnect(_on_ap_synced)	
+	SignalBus.ap_synced.disconnect(_on_ap_synced)
 	SignalBus.currency_synced.disconnect(_on_currency_synced)
 	SignalBus.turn_synced.disconnect(_on_turn_synced)
 	SignalBus.player_hand_synced.disconnect(_on_player_hand_synced)
@@ -32,13 +31,14 @@ func _on_ap_synced(ap: int) -> void:
 
 func _on_currency_synced(player_id: int, currency: int) -> void:
 	Loggit.p(
-		"Received currency synced signal. Player %d currency is now: %d" % [player_id, currency], 
-		"Flow"
+		"Received currency synced signal. Player %d currency is now: %d" % [player_id, currency],
+		"Flow",
 	)
 
 
 func _on_turn_synced(turn: int) -> void:
 	Loggit.p("Received turn synced signal. Turn is now: %d" % turn, "Flow")
+
 
 func _on_player_hand_synced(player_id: int, hand: Array[GameCard]) -> void:
 	var card_titles: String = ""

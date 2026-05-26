@@ -7,7 +7,7 @@ extends Control
 @onready var _start_button: Button = $CenterContainer/VBoxContainer/StartButton
 @onready var _status_label: Label = $CenterContainer/VBoxContainer/StatusLabel
 
-@export var _game_scene_name: String = "res://src/levels/game/game.tscn"
+@export var game_scene: PackedScene
 
 
 func _ready() -> void:
@@ -92,4 +92,4 @@ func _on_start() -> void:
 
 @rpc("authority", "call_local", "reliable")
 func _start_game() -> void:
-	get_tree().change_scene_to_file(_game_scene_name)
+	get_tree().change_scene_to(game_scene)

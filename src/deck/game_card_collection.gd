@@ -1,10 +1,10 @@
-class_name GameDeck
+class_name GameCardCollection
 extends RefCounted
 
 var cards: Array[GameCard] = []
 
-func _init(deck_data: DeckData) -> void:
-	cards = deck_data.cards.map(
+func _init(collection: Array[CardData]) -> void:
+	cards = collection.map(
 		func(card_data: CardData) -> GameCard:
 			return GameCard.new(card_data)
 	)
