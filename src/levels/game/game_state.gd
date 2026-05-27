@@ -26,7 +26,7 @@ func print_debug_state() -> void:
 				Loggit.p("      Hand Card: %s" % card.data.title, "Debug")
 			else:
 				Loggit.p("      Hand Card: Hidden", "Debug") 
-		for card in player_state.deck.cards:
+		for card: GameCard in player_state.deck.cards:
 			if card is GameCard:
 				Loggit.p("      Deck Card: %s" % card.data.title, "Debug")
 			else:

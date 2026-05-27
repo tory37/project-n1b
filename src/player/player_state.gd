@@ -3,9 +3,9 @@ extends RefCounted
 
 # Public State
 var currency: int = 0
-var hand: GameCardCollection = GameCardCollection.new([])
-var deck: GameCardCollection = GameCardCollection.new([])
-var discard: GameCardCollection = GameCardCollection.new([])
+var hand: GameCardCollection = GameCardCollection.new()
+var deck: GameCardCollection = GameCardCollection.new()
+var discard: GameCardCollection = GameCardCollection.new()
 
 
 func get_public_view() -> Dictionary:

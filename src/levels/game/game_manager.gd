@@ -106,7 +106,7 @@ func get_player_currency(player_id: int) -> int:
 func get_player_hand(player_id: int) -> GameCardCollection:
 	if not _game_state.player_states.has(player_id):
 		Loggit.p("Invalid player ID for hand retrieval: %d" % player_id, "Error")
-		return GameCardCollection.new([])
+		return GameCardCollection.new()
 
 	return _game_state.player_states[player_id].hand
 
@@ -114,7 +114,7 @@ func get_player_hand(player_id: int) -> GameCardCollection:
 func get_player_deck(player_id: int) -> GameCardCollection:
 	if not _game_state.player_states.has(player_id):
 		Loggit.p("Invalid player ID for deck retrieval: %d" % player_id, "Error")
-		return GameCardCollection.new([])
+		return GameCardCollection.new()
 
 	return _game_state.player_states[player_id].deck
 
@@ -122,7 +122,7 @@ func get_player_deck(player_id: int) -> GameCardCollection:
 func get_player_discard(player_id: int) -> GameCardCollection:
 	if not _game_state.player_states.has(player_id):
 		Loggit.p("Invalid player ID for discard retrieval: %d" % player_id, "Error")
-		return GameCardCollection.new([])
+		return GameCardCollection.new(
 
 	return _game_state.player_states[player_id].discard
 
@@ -455,14 +455,14 @@ func _get_opponent_id(player_id: int) -> int:
 
 
 func _get_masked_cards(opponent_hand: GameCardCollection) -> GameCardCollection:
-	var masked_opponent_hand: GameCardCollection = GameCardCollection.new([])
+	var masked_opponent_hand: GameCardCollection = GameCardCollection.new()
 	for opponent_card in opponent_hand.cards:
 		if opponent_card is GameCard:
 			if opponent_card.revealed:
-				masked_opponent_hand.append(opponent_card)
+				masked_opponent_hand.add_card(opponent_card)
 			else:
-				masked_opponent_hand.append(null)
+				masked_opponent_hand.add_card(null)
 		else:
-			masked_opponent_hand.append(null)
+			masked_opponent_hand.add_card(null)
 
 	return masked_opponent_hand

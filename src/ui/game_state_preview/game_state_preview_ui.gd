@@ -40,14 +40,14 @@ func _on_turn_synced(turn: int) -> void:
 	Loggit.p("Received turn synced signal. Turn is now: %d" % turn, "Flow")
 
 
-func _on_player_hand_synced(player_id: int, hand: Array[GameCard]) -> void:
+func _on_player_hand_synced(player_id: int, hand: GameCardCollection) -> void:
 	var card_titles: String = ""
 	for card in hand:
 		card_titles += card.data.title + ", "
 	Loggit.p("Player %d hand is: %s" % [player_id, card_titles], "Flow")
 
 
-func _on_player_deck_synced(player_id: int, deck: Array[GameCard]) -> void:
+func _on_player_deck_synced(player_id: int, deck: GameCardCollection) -> void:
 	var card_titles: String = ""
 	for card in deck:
 		if card is GameCard:
@@ -57,7 +57,7 @@ func _on_player_deck_synced(player_id: int, deck: Array[GameCard]) -> void:
 	Loggit.p("Player %d deck is: %s" % [player_id, card_titles], "Flow")
 
 
-func _on_player_discard_synced(player_id: int, discard: Array[GameCard]) -> void:
+func _on_player_discard_synced(player_id: int, discard: GameCardCollection) -> void:
 	var card_titles: String = ""
 	for card in discard:
 		card_titles += card.data.title + ", "
