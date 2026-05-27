@@ -12,7 +12,7 @@ func get_public_view() -> Dictionary:
 	return {
 		"hand_count": hand.cards.size(),
 		"deck_count": deck.cards.size(),
-		"discard_count": discard.size(),
+		"discard_count": discard.cards.size(),
 		"currency": currency,
 	}
 
