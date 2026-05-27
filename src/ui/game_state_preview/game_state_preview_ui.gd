@@ -42,14 +42,14 @@ func _on_turn_synced(turn: int) -> void:
 
 func _on_player_hand_synced(player_id: int, hand: GameCardCollection) -> void:
 	var card_titles: String = ""
-	for card in hand:
+	for card in hand.cards:
 		card_titles += card.data.title + ", "
 	Loggit.p("Player %d hand is: %s" % [player_id, card_titles], "Flow")
 
 
 func _on_player_deck_synced(player_id: int, deck: GameCardCollection) -> void:
 	var card_titles: String = ""
-	for card in deck:
+	for card in deck.cards:
 		if card is GameCard:
 			card_titles += card.data.title + ", "
 		else:
@@ -59,6 +59,6 @@ func _on_player_deck_synced(player_id: int, deck: GameCardCollection) -> void:
 
 func _on_player_discard_synced(player_id: int, discard: GameCardCollection) -> void:
 	var card_titles: String = ""
-	for card in discard:
+	for card in discard.cards:
 		card_titles += card.data.title + ", "
 	Loggit.p("Player %d discard is: %s" % [player_id, card_titles], "Flow")

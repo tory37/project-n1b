@@ -122,7 +122,7 @@ func get_player_deck(player_id: int) -> GameCardCollection:
 func get_player_discard(player_id: int) -> GameCardCollection:
 	if not _game_state.player_states.has(player_id):
 		Loggit.p("Invalid player ID for discard retrieval: %d" % player_id, "Error")
-		return GameCardCollection.new(
+		return GameCardCollection.new()
 
 	return _game_state.player_states[player_id].discard
 
