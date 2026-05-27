@@ -10,8 +10,8 @@ var discard: GameCardCollection = GameCardCollection.new()
 
 func get_public_view() -> Dictionary:
 	return {
-		"hand_count": hand.size(),
-		"deck_count": deck.size(),
+		"hand_count": hand.cards.size(),
+		"deck_count": deck.cards.size(),
 		"discard_count": discard.size(),
 		"currency": currency,
 	}
