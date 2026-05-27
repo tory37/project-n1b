@@ -45,7 +45,7 @@ func _on_player_hand_synced(player_id: int, hand: GameCardCollection) -> void:
 	for card in hand.cards:
 		if card is GameCard:
 			card_titles += card.data.title + ", "
-		else: 
+		else:
 			card_titles += "Hidden" + ", "
 	Loggit.p("Player %d hand is: %s" % [player_id, card_titles], "Flow")
 

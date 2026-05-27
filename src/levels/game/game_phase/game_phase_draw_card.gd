@@ -20,7 +20,7 @@ func enter() -> void:
 	_game_manager.print_game_state()
 
 	_game_manager.transition_to_phase(GameState.Phase.MAIN)
-	
+
 
 
 func exit() -> void:

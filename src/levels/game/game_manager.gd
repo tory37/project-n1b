@@ -62,7 +62,9 @@ func _exit_tree() -> void:
 
 
 ## ---- Signal Callbacks ----------------------------------------------
-# We do not block use to the active plaer as there are times when the active player is not the one requesting AP (e.g. during opponent's turn, or when a card effect is used).
+# We do not block use to the active player as there are times when the active
+#   player is not the one requesting AP (e.g. during opponent's turn,
+#   or when a card effect is used).
 # TODO: This will need to be handled correctly though when that feature is implemented in a card
 func _on_add_ap_requested(amount: int) -> void:
 	if multiplayer.is_server():
@@ -73,7 +75,6 @@ func _on_add_ap_requested(amount: int) -> void:
 ## ---- Public Methods ------------------------------------------------
 
 # Getters
-
 
 func get_turn() -> int:
 	return _game_state.turn
@@ -293,8 +294,7 @@ func print_game_state() -> void:
 
 ## ---- Private Methods -----------------------------------------------
 
-# Apply: Authority State Mutators 
-
+# Apply: Authority State Mutators
 
 func _apply_active_player(player_id: int) -> void:
 	_game_state.active_player_id = player_id
@@ -314,7 +314,10 @@ func _apply_draw_cards(player_id: int, count: int) -> void:
 	_game_state.player_states[player_id].deck_to_hand(count)
 
 	Loggit.p(
-		"Player %d hand after draw: %s" % [player_id, _game_state.player_states[player_id].hand.cards],
+		"Player %d hand after draw: %s" % [
+			player_id,
+			_game_state.player_states[player_id].hand.cards
+		],
 		"Flow",
 	)
 

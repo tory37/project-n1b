@@ -1,13 +1,14 @@
 extends Control
 
+@export var game_scene: PackedScene
+
+
 @onready var _host_button: Button = $CenterContainer/VBoxContainer/Buttons/HostButton
 @onready var _join_button: Button = $CenterContainer/VBoxContainer/Buttons/JoinButton
 @onready var _address_input: LineEdit = $CenterContainer/VBoxContainer/AddressInput
 @onready var _player_list: ItemList = $CenterContainer/VBoxContainer/PlayerList
 @onready var _start_button: Button = $CenterContainer/VBoxContainer/StartButton
 @onready var _status_label: Label = $CenterContainer/VBoxContainer/StatusLabel
-
-@export var game_scene: PackedScene
 
 
 func _ready() -> void:
