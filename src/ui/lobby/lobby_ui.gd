@@ -93,4 +93,4 @@ func _on_start() -> void:
 
 @rpc("authority", "call_local", "reliable")
 func _start_game() -> void:
-	get_tree().change_scene_to(game_scene)
+	get_tree().change_scene_to_packed(game_scene)

@@ -5,10 +5,8 @@ var cards: Array[GameCard] = []
 
 
 func _init(collection: Array[CardData] = []) -> void:
-	cards = collection.map(
-		func(card_data: CardData) -> GameCard:
-			return GameCard.new(card_data)
-	)
+	for card_data: CardData in collection:
+		cards.append(GameCard.new(card_data))
 
 
 func add_card(card: GameCard) -> void:
