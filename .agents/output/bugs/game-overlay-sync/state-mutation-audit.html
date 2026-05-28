@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>State Mutation Audit — Techdebt</title>
+  <link rel="stylesheet" href="../../../assets/style.css">
+</head>
+<body data-type="techdebt">
+  <div class="container">
+    <header class="doc-header">
+      <div class="doc-meta">
+        <span class="badge badge-techdebt">TECHDEBT</span>
+        <span class="doc-date">2026-05-27</span>
+      </div>
+      <h1>State Mutation Audit — Direct Writes Outside <code>_apply_*</code></h1>
+    </header>
+    <main>
+
+      <section>
+        <h2>Context</h2>
+        <p>
+          The <code>request_* / _apply_*</code> pattern is the project's networking seam: every state change is
+          supposed to go through an <code>_apply_*</code> method that both writes local state <em>and</em> fires
+          the corresponding RPC to keep all peers in sync. Mutations that bypass this seam produce divergent
+          client state with no error — silent, hard-to-trace bugs.
+        </p>
+        <p>
+          The game overlay sync bugs were caused by exactly this pattern. This audit catalogs every other place
+          where it happens.
+        </p>
+        <p><strong>Scope:</strong> <code>src/levels/game/game_manager.gd</code> and the game phase files.</p>
+      </section>
+
+      <section>
+        <h2>Findings</h2>
+
+        <div class="finding-card critical">
+          <div class="finding-header">
+            <span class="badge badge-critical">CRITICAL</span>
+            <span class="finding-title">Finding 1 — <code>current_phase</code> written directly, never synced</span>
+          </div>
+          <div class="finding-body">
+            <p>
+              <code>transition_to_phase</code> writes <code>_game_state.current_phase</code> directly and has
+              no RPC to push the value to clients. There is no <code>_apply_current_phase</code> and no
+              <code>_rpc_sync_current_phase</code>.
+            </p>
+            <pre><code>// game_manager.gd:243
+func transition_to_phase(phase: GameState.Phase) -> void:
+    _game_state.current_phase = phase           // ← raw write, no RPC
+    _game_fsm.change_state(...)</code></pre>
+            <p>
+              Clients can never know what phase the game is in. Any client-side logic that needs to gate on
+              phase (e.g. "can I play a card right now?") reads stale data.
+            </p>
+            <div class="finding-file">game_manager.gd:243</div>
+          </div>
+        </div>
+
+        <div class="finding-card critical">
+          <div class="finding-header">
+            <span class="badge badge-critical">CRITICAL</span>
+            <span class="finding-title">Finding 2 — <code>_initialize_player</code> makes three unsynced writes</span>
+          </div>
+          <div class="finding-body">
+            <p>
+              <code>_initialize_player</code> sets up all initial per-player state on the server but routes
+              none of it through <code>_apply_*</code> methods. Three fields are affected:
+            </p>
+            <table>
+              <thead>
+                <tr>
+                  <th>Field</th>
+                  <th>Line</th>
+                  <th>Impact</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>player_id_turn_order.append(peer_id)</code></td>
+                  <td>454</td>
+                  <td>Never synced — root cause of the overlay player-number bug (Bug 1 in fix-plan)</td>
+                </tr>
+                <tr>
+                  <td><code>player_states[peer_id].deck = new_deck</code></td>
+                  <td>451</td>
+                  <td>Deck set server-side only; client deck is empty until <code>game_phase_start</code> manually calls <code>sync_player_deck_to_all_peers</code></td>
+                </tr>
+                <tr>
+                  <td><code>player_states[peer_id].player_number = ...</code></td>
+                  <td>452</td>
+                  <td>Written locally; the external call to <code>sync_player_number</code> that was supposed to push it is broken (Bug 2 in fix-plan)</td>
+                </tr>
+              </tbody>
+            </table>
+            <p>
+              All three should be handled by a single <code>_apply_initialize_player(peer_id)</code> that also
+              fires one broadcast RPC to register the peer with its full initial state on all clients.
+            </p>
+            <div class="finding-file">game_manager.gd:446–454</div>
+          </div>
+        </div>
+
+        <div class="finding-card warning">
+          <div class="finding-header">
+            <span class="badge badge-warning">WARNING</span>
+            <span class="finding-title">Finding 3 — <code>_apply_teardown_player</code> erases state without an RPC</span>
+          </div>
+          <div class="finding-body">
+            <p>
+              The method follows the naming convention but is missing its RPC half. It erases the player from
+              <code>player_states</code> on the server only — clients keep a stale entry for the departed player.
+            </p>
+            <pre><code>// game_manager.gd:313
+func _apply_teardown_player(peer_id: int) -> void:
+    _game_state.player_states.erase(peer_id)   // ← no _rpc_teardown_player.rpc(...)</code></pre>
+            <p>
+              Lower priority since teardown only fires on disconnect, but it will cause ghost-player state on
+              reconnect or lobby-return flows.
+            </p>
+            <div class="finding-file">game_manager.gd:313–314</div>
+          </div>
+        </div>
+
+        <div class="finding-card warning">
+          <div class="finding-header">
+            <span class="badge badge-warning">WARNING</span>
+            <span class="finding-title">Finding 4 — <code>_apply_draw_cards</code> syncs hand but not deck</span>
+          </div>
+          <div class="finding-body">
+            <p>
+              <code>deck_to_hand()</code> modifies both the deck and the hand. <code>_apply_draw_cards</code>
+              calls <code>sync_player_hand_to_all_peers</code> but has no corresponding deck sync. The deck
+              count on all clients goes stale after every draw.
+            </p>
+            <pre><code>// game_manager.gd:317
+func _apply_draw_cards(player_id: int, count: int) -> void:
+    _game_state.player_states[player_id].deck_to_hand(count)  // mutates deck AND hand
+    sync_player_hand_to_all_peers(player_id)                  // ← only hand synced
+    // missing: sync_player_deck_to_all_peers(player_id)</code></pre>
+            <p>
+              This is currently masked in <code>game_phase_start.gd</code> which manually calls
+              <code>sync_player_deck_to_all_peers</code> after <code>draw_cards</code>. But
+              <code>game_phase_draw_card.gd</code> only calls <code>draw_cards</code> — so the client deck
+              count is never updated during the draw phase.
+            </p>
+            <div class="finding-file">game_manager.gd:317–332, game_phase_draw_card.gd:13</div>
+          </div>
+        </div>
+
+      </section>
+
+      <section>
+        <h2>Summary</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Location</th>
+              <th>Field(s)</th>
+              <th>Severity</th>
+              <th>Currently Broken?</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>1</td>
+              <td><code>transition_to_phase</code></td>
+              <td><code>current_phase</code></td>
+              <td><span class="badge badge-critical">Critical</span></td>
+              <td>Yes — clients never know the current phase</td>
+            </tr>
+            <tr>
+              <td>2a</td>
+              <td><code>_initialize_player</code></td>
+              <td><code>player_id_turn_order</code></td>
+              <td><span class="badge badge-critical">Critical</span></td>
+              <td>Yes — overlay bug (fix-plan Bug 1)</td>
+            </tr>
+            <tr>
+              <td>2b</td>
+              <td><code>_initialize_player</code></td>
+              <td><code>player_states[x].deck</code></td>
+              <td><span class="badge badge-critical">Critical</span></td>
+              <td>Partially — masked by explicit call in start phase</td>
+            </tr>
+            <tr>
+              <td>2c</td>
+              <td><code>_initialize_player</code></td>
+              <td><code>player_states[x].player_number</code></td>
+              <td><span class="badge badge-critical">Critical</span></td>
+              <td>Yes — broken by fix-plan Bug 2</td>
+            </tr>
+            <tr>
+              <td>3</td>
+              <td><code>_apply_teardown_player</code></td>
+              <td><code>player_states</code> (erase)</td>
+              <td><span class="badge badge-warning">Warning</span></td>
+              <td>Not yet — disconnect flow not implemented</td>
+            </tr>
+            <tr>
+              <td>4</td>
+              <td><code>_apply_draw_cards</code></td>
+              <td><code>player_states[x].deck</code></td>
+              <td><span class="badge badge-warning">Warning</span></td>
+              <td>Yes — deck count stale after draw_card phase</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>Recommended Rule</h2>
+        <div class="section accent">
+          <p>
+            Every write to <code>_game_state</code> must live inside an <code>_apply_*</code> method.
+            Every <code>_apply_*</code> method must call the corresponding <code>_rpc_*</code> (or a
+            <code>sync_*</code> wrapper) before returning. No code outside <code>GameManager</code> may
+            touch <code>_game_state</code> at all — phase states go through the public API only.
+          </p>
+          <p>
+            Enforcing this eliminates the entire class of "forgot to sync" bugs at the architectural level.
+          </p>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</body>
+</html>

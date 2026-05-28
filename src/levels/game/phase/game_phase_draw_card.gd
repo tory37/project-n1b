@@ -19,7 +19,7 @@ func enter() -> void:
 	# TODO: Remove or Gate Debug
 	_game_manager.print_game_state()
 
-	_game_manager.transition_to_phase(GameState.Phase.MAIN)
+	_game_manager.transition_to_phase(GameManager.GamePhase.MAIN)
 
 
 

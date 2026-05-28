@@ -1,0 +1,85 @@
+[gd_scene format=3 uid="uid://chmm0j1cbcqa2"]
+
+[ext_resource type="Script" uid="uid://cg30iaa5bim34" path="res://src/ui/game_overlay/game_overlay_ui.gd" id="1_wa8wg"]
+
+[node name="GameOverlayUi" type="CanvasLayer" unique_id=1299964242]
+layer = 2
+script = ExtResource("1_wa8wg")
+
+[node name="Panel" type="PanelContainer" parent="." unique_id=572058940]
+custom_minimum_size = Vector2(240, 0)
+offset_left = 12.0
+offset_top = 12.0
+offset_right = 252.0
+offset_bottom = 321.0
+pivot_offset = Vector2(12, 12)
+
+[node name="Margin" type="MarginContainer" parent="Panel" unique_id=232635744]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="Layout" type="VBoxContainer" parent="Panel/Margin" unique_id=770372168]
+layout_mode = 2
+
+[node name="YouAreLabel" type="Label" parent="Panel/Margin/Layout" unique_id=2114000883]
+unique_name_in_owner = true
+layout_mode = 2
+text = "You Are: Player X"
+
+[node name="TurnLabel" type="Label" parent="Panel/Margin/Layout" unique_id=795607434]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Turn: 0"
+
+[node name="ActivePlayerLabel" type="Label" parent="Panel/Margin/Layout" unique_id=21220443]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Active Player: ?"
+
+[node name="ApLabel" type="Label" parent="Panel/Margin/Layout" unique_id=1277492090]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Ap: 0"
+
+[node name="HSeparator" type="HSeparator" parent="Panel/Margin/Layout" unique_id=596195382]
+layout_mode = 2
+
+[node name="P1CurrencyLabel" type="Label" parent="Panel/Margin/Layout" unique_id=1343031452]
+unique_name_in_owner = true
+layout_mode = 2
+text = "P1 Currency: 0"
+
+[node name="P1HandLabel" type="Label" parent="Panel/Margin/Layout" unique_id=1407824067]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="P1DeckLabel" type="Label" parent="Panel/Margin/Layout" unique_id=1750825260]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="P1DiscardLabel" type="Label" parent="Panel/Margin/Layout" unique_id=287940324]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="HSeparator2" type="HSeparator" parent="Panel/Margin/Layout" unique_id=2101315774]
+layout_mode = 2
+
+[node name="P2CurrencyLabel" type="Label" parent="Panel/Margin/Layout" unique_id=855009901]
+unique_name_in_owner = true
+layout_mode = 2
+text = "P2 Currency: 0"
+
+[node name="P2HandLabel" type="Label" parent="Panel/Margin/Layout" unique_id=1658377219]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="P2DeckLabel" type="Label" parent="Panel/Margin/Layout" unique_id=2096875757]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="P2DiscardLabel" type="Label" parent="Panel/Margin/Layout" unique_id=1793167187]
+unique_name_in_owner = true
+layout_mode = 2

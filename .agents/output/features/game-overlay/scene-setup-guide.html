@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Game Overlay UI — Scene Setup Guide</title>
+  <link rel="stylesheet" href="../../assets/style.css">
+</head>
+<body data-type="feature">
+  <div class="container">
+    <header class="doc-header">
+      <div class="doc-meta">
+        <span class="badge badge-feature">FEATURE</span>
+        <span class="doc-date">2026-05-26</span>
+      </div>
+      <h1>Scene Setup Guide: <code>game_overlay_ui.tscn</code></h1>
+    </header>
+    <main>
+
+      <section>
+        <h2>Goal</h2>
+        <p>
+          A simple HUD overlay that floats over the 3D game scene and displays live game state:
+          turn, active player, AP, currency, and hand/deck/discard counts for each player.
+          It reads from SignalBus signals and updates Labels in place — no fancy styling,
+          just readable output to prove the data pipeline is working.
+        </p>
+        <p>
+          <strong>You perform all of the editor work below.</strong> The script changes are separate
+          and will be presented for your approval after these steps are complete.
+        </p>
+      </section>
+
+      <section>
+        <h2>Godot UI Concepts You Need</h2>
+
+        <h3>Control nodes vs Node3D</h3>
+        <p>
+          Every visible 2D UI element in Godot inherits from <code>Control</code>.
+          <code>Control</code> nodes use an <strong>anchor + offset</strong> system to position
+          themselves relative to their parent — not the 3D world. Anchors are fractions of
+          the parent's size (0.0 = left/top, 1.0 = right/bottom). <code>anchors_preset = 15</code>
+          in the lobby scene means "Full Rect" — stretch to fill the entire parent.
+        </p>
+
+        <h3>CanvasLayer — why you need it for a HUD</h3>
+        <p>
+          When your scene root is <code>Node3D</code> (like <code>game.tscn</code>), adding a
+          <code>Control</code> child directly works, but gives you no explicit control over
+          draw order. A <strong><code>CanvasLayer</code></strong> node creates its own isolated
+          rendering layer. Set its <code>Layer</code> property to any number above 0 and it is
+          guaranteed to render <em>on top of</em> the 3D world. This is the standard pattern for
+          HUDs in Godot 4.
+        </p>
+
+        <h3>Layout containers</h3>
+        <p>
+          Godot containers automatically size and position their children — you don't set positions
+          manually.
+        </p>
+        <table>
+          <thead>
+            <tr><th>Container</th><th>What it does</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>PanelContainer</code></td><td>Draws a themed background panel; sizes to its content</td></tr>
+            <tr><td><code>MarginContainer</code></td><td>Adds inner padding around its single child</td></tr>
+            <tr><td><code>VBoxContainer</code></td><td>Stacks children vertically with a configurable gap</td></tr>
+          </tbody>
+        </table>
+        <p>You nest them: <strong>Panel → Margin → VBox → Labels</strong>.</p>
+
+        <h3>Scene Unique Names (<code>%NodeName</code>)</h3>
+        <p>
+          Instead of referencing a node by its full path (<code>$Panel/Margin/Layout/TurnLabel</code>),
+          you can flag any node as a <strong>Scene Unique Name</strong> and then access it from
+          the script as <code>%TurnLabel</code>. This survives renames anywhere in the path and
+          is the clean, refactor-safe way to reference UI nodes from a script.
+        </p>
+      </section>
+
+      <section>
+        <h2>Node Hierarchy to Build</h2>
+        <pre><code>GameOverlayUi        [CanvasLayer]      ← HUD root, layer = 2
+  └── Panel          [PanelContainer]   ← themed background panel
+      └── Margin     [MarginContainer]  ← 8px inner padding
+          └── Layout [VBoxContainer]    ← stacks rows vertically
+              ├── TurnLabel         [Label]
+              ├── ActivePlayerLabel [Label]
+              ├── ApLabel           [Label]
+              ├── [HSeparator]
+              ├── P1CurrencyLabel   [Label]
+              ├── P1HandLabel       [Label]
+              ├── P1DeckLabel       [Label]
+              ├── P1DiscardLabel    [Label]
+              ├── [HSeparator]
+              ├── P2CurrencyLabel   [Label]
+              ├── P2HandLabel       [Label]
+              ├── P2DeckLabel       [Label]
+              └── P2DiscardLabel    [Label]</code></pre>
+      </section>
+
+      <section>
+        <h2>Step-by-Step Editor Instructions</h2>
+
+        <div class="phase-card">
+          <div class="phase-header">
+            <span class="phase-number">1</span>
+            <span class="phase-title">Change the root node type to CanvasLayer</span>
+          </div>
+          <ol class="phase-steps">
+            <li>Open <code>src/ui/game_overlay/game_overlay_ui.tscn</code> in the Godot editor.</li>
+            <li>The current root node is a bare <code>Control</code>. Right-click <code>GameOverlayUi</code> in the Scene panel → <strong>Change Type</strong>.</li>
+            <li>Search for <code>CanvasLayer</code> → click <strong>Change</strong>.</li>
+            <li>In the Inspector, find the <strong>Layer</strong> property and set it to <code>2</code>.</li>
+          </ol>
+        </div>
+
+        <div class="phase-card">
+          <div class="phase-header">
+            <span class="phase-number">2</span>
+            <span class="phase-title">Add PanelContainer</span>
+          </div>
+          <ol class="phase-steps">
+            <li>Select <code>GameOverlayUi</code> (the CanvasLayer root).</li>
+            <li>Click the <strong>+</strong> (Add Child Node) button → search <code>PanelContainer</code> → <strong>Create</strong>.</li>
+            <li>Rename it to <code>Panel</code>.</li>
+            <li>In the Inspector, under <strong>Control → Layout → Custom Minimum Size</strong>, set <code>x = 240</code>.</li>
+            <li>Leave the Anchor preset at default (top-left). In the Inspector under <strong>Control → Layout → Offset</strong>, set <strong>Left = 12</strong> and <strong>Top = 12</strong> to give it a small margin from the screen corner.</li>
+          </ol>
+        </div>
+
+        <div class="phase-card">
+          <div class="phase-header">
+            <span class="phase-number">3</span>
+            <span class="phase-title">Add MarginContainer</span>
+          </div>
+          <ol class="phase-steps">
+            <li>Select <code>Panel</code>.</li>
+            <li>Add child → <code>MarginContainer</code> → rename to <code>Margin</code>.</li>
+            <li>In the Inspector under <strong>Theme Overrides → Constants</strong>, set all four margin values to <code>8</code>:
+              <ul>
+                <li><code>margin_left = 8</code></li>
+                <li><code>margin_right = 8</code></li>
+                <li><code>margin_top = 8</code></li>
+                <li><code>margin_bottom = 8</code></li>
+              </ul>
+            </li>
+          </ol>
+        </div>
+
+        <div class="phase-card">
+          <div class="phase-header">
+            <span class="phase-number">4</span>
+            <span class="phase-title">Add VBoxContainer</span>
+          </div>
+          <ol class="phase-steps">
+            <li>Select <code>Margin</code>.</li>
+            <li>Add child → <code>VBoxContainer</code> → rename to <code>Layout</code>.</li>
+            <li>In the Inspector under <strong>Theme Overrides → Constants → Separation</strong>, set to <code>4</code>.</li>
+          </ol>
+        </div>
+
+        <div class="phase-card">
+          <div class="phase-header">
+            <span class="phase-number">5</span>
+            <span class="phase-title">Add Labels and Separators</span>
+          </div>
+          <p>Select <code>Layout</code> and add each child in order. For each <strong>Label</strong>, set its placeholder text in the Inspector's <strong>Text</strong> field — the script will overwrite these at runtime, but the placeholder helps you see the layout while editing.</p>
+          <table>
+            <thead>
+              <tr><th>Node Name</th><th>Type</th><th>Placeholder Text</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>TurnLabel</code></td><td>Label</td><td>Turn: 0</td></tr>
+              <tr><td><code>ActivePlayerLabel</code></td><td>Label</td><td>Active Player: —</td></tr>
+              <tr><td><code>ApLabel</code></td><td>Label</td><td>AP: 0</td></tr>
+              <tr><td><em>(no rename needed)</em></td><td>HSeparator</td><td>—</td></tr>
+              <tr><td><code>P1CurrencyLabel</code></td><td>Label</td><td>P1 — Currency: 0</td></tr>
+              <tr><td><code>P1HandLabel</code></td><td>Label</td><td>P1 — Hand: 0</td></tr>
+              <tr><td><code>P1DeckLabel</code></td><td>Label</td><td>P1 — Deck: 0</td></tr>
+              <tr><td><code>P1DiscardLabel</code></td><td>Label</td><td>P1 — Discard: 0</td></tr>
+              <tr><td><em>(no rename needed)</em></td><td>HSeparator</td><td>—</td></tr>
+              <tr><td><code>P2CurrencyLabel</code></td><td>Label</td><td>P2 — Currency: 0</td></tr>
+              <tr><td><code>P2HandLabel</code></td><td>Label</td><td>P2 — Hand: 0</td></tr>
+              <tr><td><code>P2DeckLabel</code></td><td>Label</td><td>P2 — Deck: 0</td></tr>
+              <tr><td><code>P2DiscardLabel</code></td><td>Label</td><td>P2 — Discard: 0</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="phase-card">
+          <div class="phase-header">
+            <span class="phase-number">6</span>
+            <span class="phase-title">Attach the script</span>
+          </div>
+          <ol class="phase-steps">
+            <li>Select the root <code>GameOverlayUi</code> node.</li>
+            <li>In the Inspector, the <strong>Script</strong> property may have been cleared when you changed the node type. If so, drag <code>res://src/ui/game_overlay/game_overlay_ui.gd</code> onto the Script slot in the Inspector.</li>
+          </ol>
+        </div>
+
+        <div class="phase-card">
+          <div class="phase-header">
+            <span class="phase-number">7</span>
+            <span class="phase-title">Enable Scene Unique Names on every Label</span>
+          </div>
+          <p>The script will use <code>%TurnLabel</code> syntax to find nodes without fragile path strings. You must opt each Label into this system:</p>
+          <ol class="phase-steps">
+            <li>Right-click each of the 12 Labels in the Scene panel.</li>
+            <li>Click <strong>Access as Scene Unique Name</strong>.</li>
+            <li>A <code>%</code> icon will appear next to the node — that confirms it worked.</li>
+          </ol>
+          <p><em>Do this for all 12 Labels. The two HSeparators do not need it.</em></p>
+        </div>
+
+        <div class="phase-card">
+          <div class="phase-header">
+            <span class="phase-number">8</span>
+            <span class="phase-title">Instantiate into game.tscn</span>
+          </div>
+          <ol class="phase-steps">
+            <li>Open <code>src/levels/game/game.tscn</code>.</li>
+            <li>Select the root <code>Game</code> node.</li>
+            <li>In the top menu: <strong>Scene → Instantiate Child Scene…</strong> → select <code>game_overlay_ui.tscn</code> → <strong>Open</strong>.</li>
+            <li>The overlay node will appear in the scene tree. No repositioning needed — <code>CanvasLayer</code> children are always fixed to the screen.</li>
+          </ol>
+          <div class="test-criteria">
+            <strong>Checkpoint:</strong> Run the game. You should see a small dark panel in the top-left corner with placeholder text ("Turn: 0", "AP: 0", etc.). Nothing updates yet — that happens after the script is wired up.
+          </div>
+        </div>
+
+      </section>
+
+      <section>
+        <h2>Why the lobby didn't use CanvasLayer</h2>
+        <p>
+          The lobby scene (<code>lobby_ui.tscn</code>) has a <code>Control</code> root with
+          <code>anchors_preset = 15</code> (Full Rect). That's correct for the lobby because
+          <strong>the lobby IS the entire scene</strong> — there's no 3D world behind it.
+          The lobby's root viewport is the canvas, so <code>Control</code> fills it directly.
+        </p>
+        <p>
+          The game overlay is different: it floats <em>on top of</em> a <code>Node3D</code> scene.
+          That's exactly what <code>CanvasLayer</code> is designed for.
+        </p>
+      </section>
+
+    </main>
+  </div>
+</body>
+</html>

@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Godot Best Practices Review — TurnNumberState — Review</title>
+  <link rel="stylesheet" href="../assets/style.css">
+</head>
+<body data-type="review">
+  <div class="container">
+    <header class="doc-header">
+      <div class="doc-meta">
+        <span class="badge badge-review">REVIEW</span>
+        <span class="doc-date">2026-05-27</span>
+      </div>
+      <h1>Godot Best Practices Review — TurnNumberState</h1>
+      <div class="meta-block">
+        <div class="meta-item"><strong>Scope</strong> Network state template (first implementation)</div>
+        <div class="meta-item"><strong>Branch</strong> game_state_overlay</div>
+        <div class="meta-item"><strong>Intent</strong> Copy-paste template for all encapsulated network state items</div>
+      </div>
+    </header>
+    <main>
+
+      <h2>Summary</h2>
+      <div class="section accent">
+        <p>The structural skeleton is sound — the request/apply/sync layer separation is the right model, the validation hook is a good idea, and the lifecycle connect/disconnect pairing is correct in concept. However, there are <strong>5 critical bugs</strong> that will cause immediate runtime failures, and <strong>4 template-quality issues</strong> that — if baked into a copy-paste template — will silently introduce the same problems into every future state class. Fix all of these before using this as a template.</p>
+      </div>
+
+      <h2>Critical Findings</h2>
+
+      <!-- 1 -->
+      <div class="finding-card critical">
+        <div class="finding-header">
+          <span class="badge badge-critical">CRITICAL</span>
+          <span class="badge">Category A — GDScript / Category F</span>
+          <span class="finding-title">turn_number.gd:8 — Infinite recursion in <code>value</code> getter</span>
+        </div>
+        <div class="finding-body">
+          <p>The computed property getter reads <code>return value</code>, which calls the getter again recursively. This will stack-overflow the moment anything reads <code>value</code>.</p>
+          <pre><code># BUG
+var value: int:
+    get:
+        return value   # ← calls itself
+
+# FIX
+var value: int:
+    get:
+        return _value  # ← reads the backing field</code></pre>
+        </div>
+      </div>
+
+      <!-- 2 -->
+      <div class="finding-card critical">
+        <div class="finding-header">
+          <span class="badge badge-critical">CRITICAL</span>
+          <span class="badge">Category M — RPC / Category C — Signals</span>
+          <span class="finding-title">turn_number.gd:38 — Wrong signal name; handler is never called</span>
+        </div>
+        <div class="finding-body">
+          <p><code>signal_bus.gd</code> defines the signal as <code>increment_turn_requested</code>, but this file connects to <code>"turn_increment_requested"</code>. The words are transposed. The connection silently fails — no error, no handler, dead code.</p>
+          <pre><code># signal_bus.gd:11
+signal increment_turn_requested(turn: int)
+
+# BUG — wrong name, never fires
+SignalBus.connect("turn_increment_requested", _on_turn_increment_requested)
+
+# FIX — use property-access style (GDScript 2.0, compile-time checked)
+SignalBus.increment_turn_requested.connect(_on_turn_increment_requested)</code></pre>
+          <p>Same fix applies to the <code>_exit_tree</code> disconnect on line 42.</p>
+        </div>
+      </div>
+
+      <!-- 3 -->
+      <div class="finding-card critical">
+        <div class="finding-header">
+          <span class="badge badge-critical">CRITICAL</span>
+          <span class="badge">Category C — Signals</span>
+          <span class="finding-title">turn_number.gd:75 — Wrong failure signal name; emits to void</span>
+        </div>
+        <div class="finding-body">
+          <p><code>signal_bus.gd</code> defines <code>increment_turn_requested_failed</code>, but this file emits <code>"turn_increment_failed"</code>. Emitting a signal that doesn't exist on the bus throws a runtime error.</p>
+          <pre><code># signal_bus.gd:12
+signal increment_turn_requested_failed()
+
+# BUG — signal does not exist on SignalBus
+SignalBus.emit_signal("turn_increment_failed")
+
+# FIX — use property-access emit (GDScript 2.0)
+SignalBus.increment_turn_requested_failed.emit()</code></pre>
+          <p>Also applies to line 70: <code>SignalBus.emit_signal("turn_synced", new_value)</code> should be <code>SignalBus.turn_synced.emit(new_value)</code>. <code>turn_synced</code> at least matches a real signal, but the string API is deprecated.</p>
+        </div>
+      </div>
+
+      <!-- 4 -->
+      <div class="finding-card critical">
+        <div class="finding-header">
+          <span class="badge badge-critical">CRITICAL</span>
+          <span class="badge">Category M — RPC</span>
+          <span class="finding-title">turn_number.gd:46 — Argument passed to zero-parameter RPC</span>
+        </div>
+        <div class="finding-body">
+          <p>The signal handler receives <code>turn: int</code> from <code>increment_turn_requested</code> and forwards it as <code>request_increment.rpc(turn)</code>. But <code>request_increment()</code> declares no parameters — it calculates <code>_value + 1</code> internally. Passing a mismatched argument count to an RPC call is undefined behaviour and will produce a Godot runtime warning or error.</p>
+          <pre><code># BUG — extra arg sent to zero-param RPC
+func _on_turn_increment_requested(turn: int) -> void:
+    request_increment.rpc(turn)
+
+# FIX — drop the unused argument
+func _on_turn_increment_requested(_turn: int) -> void:
+    request_increment.rpc_id(1)</code></pre>
+          <p>Note the switch to <code>rpc_id(1)</code> — see warning below about <code>.rpc()</code> vs <code>.rpc_id(1)</code> on the client.</p>
+        </div>
+      </div>
+
+      <!-- 5 -->
+      <div class="finding-card critical">
+        <div class="finding-header">
+          <span class="badge badge-critical">CRITICAL</span>
+          <span class="badge">Category B — Networking Seam / Category M — RPC</span>
+          <span class="finding-title">turn_number.gd:13 — <code>request_set</code> missing <code>@rpc</code>; breaks architecture seam</span>
+        </div>
+        <div class="finding-body">
+          <p>The architecture mandate states: <em>"request_* — public entrypoint, callable by any peer. Will become @rpc("any_peer") when networking is added."</em> <code>request_set</code> has no <code>@rpc</code> decorator, which means the seam doesn't exist — adding networking later requires <em>rewriting</em> this function, not decorating it. As a template, this omission will be copy-pasted into every future state class.</p>
+          <pre><code># BUG — no seam for future @rpc
+func request_set(new_value: int) -> void:
+    ...
+
+# FIX — seam present; adding networking = adding the decorator
+@rpc("any_peer", "reliable")
+func request_set(new_value: int) -> void:
+    if not multiplayer.is_server():
+        return
+    _apply_set_value(new_value)</code></pre>
+        </div>
+      </div>
+
+      <h2>Warnings</h2>
+
+      <!-- 6 -->
+      <div class="finding-card warning">
+        <div class="finding-header">
+          <span class="badge badge-warning">WARNING</span>
+          <span class="badge">Category B — Networking Seam</span>
+          <span class="finding-title">turn_number.gd:59 — <code>_apply_set_value</code> doesn't set <code>_value</code> before broadcasting</span>
+        </div>
+        <div class="finding-body">
+          <p>The established <code>GameManager</code> pattern is: <strong>set state locally first, then broadcast</strong>. <code>_apply_set_turn</code> in <code>game_manager.gd:218</code> does <code>_game_state.turn = turn</code> before calling <code>_rpc_sync_turn.rpc(turn)</code>. <code>_apply_set_value</code> here skips the local set entirely, relying on the RPC running locally via Godot's authority-local-call behaviour.</p>
+          <p>This technically works today but is fragile and inconsistent. If <code>call_local</code> semantics change, or a future refactor skips the RPC under some condition, <code>_value</code> on the server will be stale. Match the established pattern:</p>
+          <pre><code># FIX — explicit local set, then broadcast
+func _apply_set_value(new_value: int) -> void:
+    _value = new_value
+    _rpc_sync_value.rpc(new_value)</code></pre>
+        </div>
+      </div>
+
+      <!-- 7 -->
+      <div class="finding-card warning">
+        <div class="finding-header">
+          <span class="badge badge-warning">WARNING</span>
+          <span class="badge">Category M — RPC</span>
+          <span class="finding-title">turn_number.gd:46 — Client should use <code>rpc_id(1)</code>, not <code>rpc()</code></span>
+        </div>
+        <div class="finding-body">
+          <p>On the client, calling <code>request_increment.rpc()</code> broadcasts to <em>all peers</em>, including other clients. The correct pattern for a client forwarding a request to the server is <code>request_increment.rpc_id(1)</code> — targeting peer ID 1 (the server) specifically. This mirrors what <code>game_manager.gd:74</code> does: <code>request_spend_ap.rpc_id(1, amount)</code>.</p>
+          <pre><code># BUG — broadcasts to all peers
+request_increment.rpc()
+
+# FIX — sends only to server
+request_increment.rpc_id(1)</code></pre>
+        </div>
+      </div>
+
+      <!-- 8 -->
+      <div class="finding-card warning">
+        <div class="finding-header">
+          <span class="badge badge-warning">WARNING</span>
+          <span class="badge">Category B — Networking Seam</span>
+          <span class="finding-title">turn_number.gd:66,73 — RPC sync naming diverges from codebase convention</span>
+        </div>
+        <div class="finding-body">
+          <p><code>GameManager</code> uses the prefix <code>_rpc_sync_*</code> for all authority-broadcast RPCs (e.g. <code>_rpc_sync_turn</code>, <code>_rpc_sync_ap</code>). This file uses <code>_sync_*</code>. As a template, this inconsistency will propagate. Rename to <code>_rpc_sync_value</code> and <code>_rpc_sync_increment_failure</code>.</p>
+        </div>
+      </div>
+
+      <!-- 9 -->
+      <div class="finding-card warning">
+        <div class="finding-header">
+          <span class="badge badge-warning">WARNING</span>
+          <span class="badge">Category A — GDScript Standards</span>
+          <span class="finding-title">turn_number.gd:38,42,70,75 — String-based signal API (GDScript 1.x style)</span>
+        </div>
+        <div class="finding-body">
+          <p>All four signal calls use the old string-argument form (<code>SignalBus.connect("name", ...)</code>, <code>SignalBus.emit_signal("name", ...)</code>). GDScript 2.0 uses the property-access form which is compile-time type-checked and will catch mismatched names before runtime. Two of the three bugs above (findings #2 and #3) would have been caught by the compiler if property-access style had been used.</p>
+          <pre><code># GDScript 1.x — not compile-time checked
+SignalBus.connect("turn_synced", _on_foo)
+SignalBus.emit_signal("turn_synced", value)
+
+# GDScript 2.0 — compile-time checked, preferred
+SignalBus.turn_synced.connect(_on_foo)
+SignalBus.turn_synced.emit(value)</code></pre>
+        </div>
+      </div>
+
+      <!-- 10 -->
+      <div class="finding-card warning">
+        <div class="finding-header">
+          <span class="badge badge-warning">WARNING</span>
+          <span class="badge">Category L — File Layout</span>
+          <span class="finding-title">turn_number.gd — Lifecycle methods appear after public methods</span>
+        </div>
+        <div class="finding-body">
+          <p>Godot 4's official declaration order puts built-in lifecycle methods (<code>_ready</code>, <code>_exit_tree</code>) before signal callbacks and before public methods. Currently <code>_ready</code> and <code>_exit_tree</code> appear after <code>request_set</code> and <code>request_increment</code>. The correct order for this file:</p>
+          <ol>
+            <li>class_name / extends</li>
+            <li>Variables (<code>_value</code>, <code>value</code>)</li>
+            <li>Lifecycle: <code>_ready</code>, <code>_exit_tree</code></li>
+            <li>Signal callbacks: <code>_on_turn_increment_requested</code></li>
+            <li>Public methods: <code>request_set</code>, <code>request_increment</code></li>
+            <li>Private methods: <code>_validate_set_value</code>, <code>_apply_set_value</code>, <code>_rpc_sync_*</code></li>
+          </ol>
+        </div>
+      </div>
+
+      <h2>Suggestions</h2>
+
+      <!-- 11 -->
+      <div class="finding-card suggestion">
+        <div class="finding-header">
+          <span class="badge badge-suggestion">SUGGESTION</span>
+          <span class="badge">Category A — GDScript Standards</span>
+          <span class="finding-title">turn_number.gd:51 — Remove underscore from <code>_new_value</code> parameter</span>
+        </div>
+        <div class="finding-body">
+          <p>The leading underscore on <code>_new_value</code> signals "intentionally unused." For a validation stub that is explicitly meant to be filled in, the underscore is misleading. Use <code>new_value</code>.</p>
+        </div>
+      </div>
+
+      <!-- 12 -->
+      <div class="finding-card suggestion">
+        <div class="finding-header">
+          <span class="badge badge-suggestion">SUGGESTION</span>
+          <span class="badge">Category A — GDScript Standards</span>
+          <span class="finding-title">turn_number.gd:59 — Redundant server guard in <code>_apply_set_value</code></span>
+        </div>
+        <div class="finding-body">
+          <p>Both callers (<code>request_set</code> and <code>request_increment</code>) already guard with <code>if not multiplayer.is_server(): return</code> before calling <code>_apply_set_value</code>. The guard inside <code>_apply_set_value</code> is dead code under normal usage and adds noise. GameManager's <code>_apply_*</code> functions do not repeat the guard — the server check lives in <code>request_*</code>. Remove it from <code>_apply_set_value</code> and add a comment documenting the precondition if desired.</p>
+        </div>
+      </div>
+
+      <!-- 13 -->
+      <div class="finding-card suggestion">
+        <div class="finding-header">
+          <span class="badge badge-suggestion">SUGGESTION</span>
+          <span class="badge">Category M — RPC</span>
+          <span class="finding-title">turn_number.gd:23 — <code>request_increment</code> silently returns on client; should log</span>
+        </div>
+        <div class="finding-body">
+          <p><code>request_set</code> calls <code>Loggit.p(..., "Error")</code> when the server check fails. <code>request_increment</code> silently returns. For a template, be consistent — either both log or neither does. Logging is preferable for debuggability.</p>
+        </div>
+      </div>
+
+      <!-- 14 -->
+      <div class="finding-card suggestion">
+        <div class="finding-header">
+          <span class="badge badge-suggestion">SUGGESTION</span>
+          <span class="badge">Category F — Node vs. Base Classes</span>
+          <span class="finding-title">turn_number.gd:2 — Consider whether <code>extends Node</code> is correct</span>
+        </div>
+        <div class="finding-body">
+          <p>This class holds a single primitive value and a set of network methods. It has no visual presence and no physics. <code>extends Node</code> is correct <em>only</em> if it needs to live in the scene tree to call <code>multiplayer.is_server()</code> and receive RPC messages — which it does. The <code>extends Node</code> is justified, but it's worth explicitly noting this in a comment as a template convention so future authors don't wonder if it should be <code>RefCounted</code>.</p>
+        </div>
+      </div>
+
+      <h2>Positive Notes</h2>
+
+      <div class="finding-card positive">
+        <div class="finding-header">
+          <span class="badge badge-complete">POSITIVE</span>
+          <span class="finding-title">Layer separation is correct</span>
+        </div>
+        <div class="finding-body">
+          <p>The three-layer split — request (entrypoint) → apply (mutation) → sync (broadcast) — is exactly right. <code>_apply_set_value</code> correctly has no <code>@rpc</code> annotation. <code>_sync_value</code> correctly uses <code>@rpc("authority", "reliable")</code>. The skeleton is solid.</p>
+        </div>
+      </div>
+
+      <div class="finding-card positive">
+        <div class="finding-header">
+          <span class="badge badge-complete">POSITIVE</span>
+          <span class="finding-title">Validation hook is a well-designed template slot</span>
+        </div>
+        <div class="finding-body">
+          <p><code>_validate_set_value</code> as a dedicated private method is a clean separation. Future states can override validation logic without touching the request/apply flow. The stub pattern (returns <code>true</code> by default) is a good no-op default.</p>
+        </div>
+      </div>
+
+      <div class="finding-card positive">
+        <div class="finding-header">
+          <span class="badge badge-complete">POSITIVE</span>
+          <span class="finding-title"><code>_ready</code> / <code>_exit_tree</code> connect/disconnect pairing</span>
+        </div>
+        <div class="finding-body">
+          <p>Disconnecting in <code>_exit_tree</code> is correct practice — it prevents dangling signal connections if the node is removed from the tree mid-game. Many implementations forget this.</p>
+        </div>
+      </div>
+
+      <div class="finding-card positive">
+        <div class="finding-header">
+          <span class="badge badge-complete">POSITIVE</span>
+          <span class="finding-title">Failure path is modelled</span>
+        </div>
+        <div class="finding-body">
+          <p>Having a <code>_rpc_sync_increment_failure</code> RPC that notifies clients of a rejected request is the right design. Most simple state templates skip this entirely. Keeping it in the template ensures every future state class has a failure signal slot from day one.</p>
+        </div>
+      </div>
+
+      <h2>Test Coverage</h2>
+      <p>No test file exists at <code>tests/unit/test_turn_number_state.gd</code>. Given this is intended as a template, unit tests would be particularly valuable — a passing test suite would validate that the template itself is correct before it gets copy-pasted.</p>
+      <ul class="checklist">
+        <li>[ ] <code>value</code> getter returns <code>_value</code>, not recursive reference</li>
+        <li>[ ] <code>request_set</code> calls <code>_apply_set_value</code> when server</li>
+        <li>[ ] <code>request_set</code> no-ops when not server</li>
+        <li>[ ] <code>request_increment</code> increments by 1</li>
+        <li>[ ] <code>request_increment</code> calls failure sync when validation fails</li>
+        <li>[ ] <code>_validate_set_value</code> stub returns true</li>
+        <li>[ ] <code>_apply_set_value</code> sets <code>_value</code> and calls RPC</li>
+      </ul>
+
+      <h2>Files Reviewed</h2>
+      <div class="files-list">
+        <span class="file-chip">src/levels/game/state/turn_number.gd</span>
+        <span class="file-chip">autoload/signal_bus.gd</span>
+        <span class="file-chip">src/levels/game/game_manager.gd</span>
+      </div>
+
+    </main>
+  </div>
+</body>
+</html>

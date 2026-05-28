@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Game State Code Organization — Research</title>
+  <link rel="stylesheet" href="../assets/style.css">
+</head>
+<body data-type="research">
+  <div class="container">
+    <header class="doc-header">
+      <div class="doc-meta">
+        <span class="badge badge-research">RESEARCH</span>
+        <span class="doc-date">2026-05-27</span>
+      </div>
+      <h1>Organizing the Request → Validate → Apply → Sync Stack in Game Managers</h1>
+    </header>
+    <main>
+
+      <div class="section accent">
+        <p><strong>The Core Question:</strong> You have a 4-method pipeline per piece of state: <code>request_*</code> → <code>_validate_*</code> → <code>_apply_*</code> → <code>_rpc_sync_*</code>. Three candidate organizations: (A) group the full stack per state vertically in one file, (B) one file per state variable, (C) one file per method type (all requests together, all applies together). What do successful devs do?</p>
+      </div>
+
+      <!-- Section I -->
+      <section>
+        <h2>I. The Success/Failure Matrix</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Organization Style</th>
+              <th>Initial Feel</th>
+              <th>At 5+ State Variables</th>
+              <th>Adding a New State Variable</th>
+              <th>Debugging a Bug in One Variable</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>A — Vertical grouping (full stack together, one file)</strong></td>
+              <td>Slightly more scrolling than horizontal</td>
+              <td>One logical section per state; very readable</td>
+              <td>Add one contiguous block; no other sections touched</td>
+              <td>One section, everything visible — minimal context switching</td>
+            </tr>
+            <tr>
+              <td><strong>B — File per state variable</strong></td>
+              <td>More files from day one</td>
+              <td>Clean per-file clarity; easy to delete a whole state</td>
+              <td>Create new file; wire to parent manager</td>
+              <td>One file open, fully focused — strongest isolation</td>
+            </tr>
+            <tr>
+              <td><strong>C — File per method type (all requests in one file, etc.)</strong></td>
+              <td>Seems organized</td>
+              <td>Each file grows proportionally; files become long</td>
+              <td>Touch 4+ files simultaneously — classic "shotgun surgery"</td>
+              <td>Jump between 4 files to trace one pipeline</td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="section warning"><strong>Drop-off Point for Style C:</strong> The moment you need to trace a bug in AP spend validation, you have your editor open to <code>requests.gd</code>, <code>validators.gd</code>, <code>appliers.gd</code>, and <code>rpc.gd</code> simultaneously. At this point most devs report regretting the structure. Martin Fowler calls this the <em>Shotgun Surgery</em> smell: "every time you make a change, you have to make many little changes to a lot of different classes." <a href="https://refactoring.com/catalog/shotgunSurgery.html">[Fowler, Refactoring Catalog]</a></p>
+      </section>
+
+      <!-- Section II -->
+      <section>
+        <h2>II. The Cognitive Load Problem</h2>
+        <p>The bottleneck in maintaining a networked game manager is <strong>cognitive locality</strong> — the ability to hold all relevant logic for one piece of state in working memory at once. All three options produce the same running code. They differ entirely in how much mental overhead you carry while reading or changing them.</p>
+
+        <h3>Horizontal (Style C) — Highest Cognitive Load</h3>
+        <p>Organizing by method type mirrors how relational databases are normalized — technically clean, practically expensive for humans. The vertical slice architecture literature explains the failure mode clearly: "The cohesion is low because you are creating many files in different layers. You would need to ensure that every representation of the model is updated or added accordingly, which poses a certain risk for missing one of the many folders." <a href="https://antondevtips.com/blog/vertical-slice-architecture-the-best-ways-to-structure-your-project">[AntonDevTips — Vertical Slice Architecture]</a></p>
+        <p>The CQRS community has lived this problem at scale. When every new command required touching a separate handler, validator, repository, and controller layer simultaneously, the pattern devolved into what the community called <em>Anemic Domain Model</em> — technically separated but logically incoherent. <a href="https://www.architecture-weekly.com/p/my-thoughts-on-vertical-slices-cqrs">[Architecture Weekly — Vertical Slices & CQRS]</a></p>
+
+        <h3>Vertical Grouping (Style A & B) — Cognitive Locality Preserved</h3>
+        <p>Jimmy Bogard's foundational principle for vertical slice architecture: <em>"Minimize coupling between slices, and maximize coupling in a slice."</em> Your state variable IS the slice. Everything that touches AP — request, validate, apply, sync — belongs in one cohesive unit. <a href="https://www.architecture-weekly.com/p/my-thoughts-on-vertical-slices-cqrs">[Architecture Weekly]</a></p>
+        <p>The feature-slice literature enumerates the cognitive benefits directly: "We drill down the folders by feature (and subfeatures), and the main components in charge reveal themselves… Feature slices maintain developer focus. Since all components for a feature live nearby, developers avoid the distraction of constant layer-switching and can sustain 'the flow' more effectively." <a href="https://dev.to/dchowitz/7-reasons-why-i-favour-feature-slices-4kl3">[7 Reasons for Feature Slices — DEV Community]</a></p>
+      </section>
+
+      <!-- Section III -->
+      <section>
+        <h2>III. The "Working" Stack — Three Validated Approaches</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Method</th>
+              <th>Theoretical Basis</th>
+              <th>Practical Implementation</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Style A: Vertical Groups Within One File</strong> (Recommended starting point)</td>
+              <td>Vertical Slice Architecture. Cohesion per feature/state, not per layer. From Jimmy Bogard's VSA design: "minimize coupling between slices." <a href="https://antondevtips.com/blog/vertical-slice-architecture-the-best-ways-to-structure-your-project">[AntonDevTips]</a></td>
+              <td>In <code>game_manager.gd</code>, add section comments like <code># === AP STATE ===</code> and place <code>request_spend_ap → _validate_spend_ap → _apply_spend_ap → _rpc_sync_ap</code> contiguously. Getters and helpers for that state live in the block too. A new engineer reads top-to-bottom and understands all of AP in one pass.</td>
+            </tr>
+            <tr>
+              <td><strong>Style B: File Per State Variable</strong> (Correct when file grows too large)</td>
+              <td>Single Responsibility Principle + composition. Aligns with CQRS Scalable Aggregates pattern where each aggregate owns its pipeline rather than accumulating all handlers centrally. <a href="https://maximegel.medium.com/cqrs-scalable-aggregates-ed09466ee7d6">[CQRS Scalable Aggregates]</a></td>
+              <td>Extract <code>ApState.gd</code>, <code>TurnState.gd</code>, <code>CurrencyState.gd</code> as inner objects or class resources. <code>GameManager</code> becomes a thin coordinator that holds instances and delegates. The threshold to split: when the manager file exceeds ~400 lines, or when you need to unit-test one state variable in complete isolation from the others.</td>
+            </tr>
+            <tr>
+              <td><strong>Style C: File Per Method Type</strong> (Not recommended)</td>
+              <td>Horizontal layering. Matches how enterprise back-ends are sometimes organized (Controller / Service / Repository). Works in teams with strict layer ownership. <a href="https://gregpark.io/blog/building-new-features-horizontal-or-vertical-slices">[Greg Park — Horizontal vs Vertical Slices]</a></td>
+              <td>Would mean <code>requests.gd</code>, <code>validators.gd</code>, <code>appliers.gd</code>, <code>rpc_syncs.gd</code>. Avoid for a solo or small team. The "shotgun surgery" cost hits every state change. Only justified when different programmers are contractually responsible for different layers (e.g., dedicated netcode engineer owns <code>rpc_syncs.gd</code>).</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- Section IV -->
+      <section>
+        <h2>IV. The Game Networking Angle: Why "By State" Is the Right Default</h2>
+        <p>In authoritative-server game networking, each state variable has a <strong>trust boundary</strong>: client requests are untrusted, server validation is the gate, server apply is authoritative, and sync propagates truth. This boundary is <em>per state variable</em>, not per method type. Your validation logic for AP spend has nothing to do with your validation logic for turn increment. They share no invariants. Grouping them together in a validators file creates false cohesion.</p>
+
+        <p>The Godot 4 authoritative server guide makes this explicit: "Never trust anything the client sends except input. Every <code>any_peer</code> RPC must verify the sender matches the action being performed." <a href="https://www.strayspark.studio/blog/godot-4-multiplayer-networking-authoritative-server">[StraySpark — Godot 4 Authoritative Server]</a> The validation for AP is about AP's rules. Keeping that validator adjacent to AP's applier means a future maintainer can verify correctness without ever leaving the AP section.</p>
+
+        <p>The generalist programmer networking guide confirms the separation of concerns follows state boundaries: "Only validated server state affects gameplay fairness, while client prediction handles responsiveness." <a href="https://generalistprogrammer.com/tutorials/game-networking-fundamentals-complete-multiplayer-guide-2025">[Game Networking Fundamentals 2025]</a> The natural unit of reasoning is the state variable, not the method type.</p>
+
+        <div class="section success">
+          <strong>The litmus test:</strong> If someone asks "how does AP spending work?", can they find the answer by reading a single contiguous block of code? With Style A: yes. With Style C: they must mentally stitch together 4 files.
+        </div>
+      </section>
+
+      <!-- Section V -->
+      <section>
+        <h2>V. The 5 Inviolable Laws</h2>
+
+        <div class="finding-card suggestion">
+          <div class="finding-header">
+            <span class="finding-title">Law 1: Organize by state variable, not by method type.</span>
+          </div>
+          <div class="finding-body">
+            <p>Every piece of state — AP, turn, active player, currency — owns its complete pipeline: request → validate → apply → sync. These four methods are more coupled to each other than to their counterparts in other state variables. File/section structure must reflect that coupling. <a href="https://www.architecture-weekly.com/p/my-thoughts-on-vertical-slices-cqrs">[Architecture Weekly]</a></p>
+          </div>
+        </div>
+
+        <div class="finding-card suggestion">
+          <div class="finding-header">
+            <span class="finding-title">Law 2: Start vertical-in-one-file; split to files only when a state variable's complexity justifies it.</span>
+          </div>
+          <div class="finding-body">
+            <p>Early splits create premature abstraction. VSA literature warns: "Feature slices discourage premature abstraction… each slice can remain simple initially, evolving only to necessary complexity." <a href="https://dev.to/dchowitz/7-reasons-why-i-favour-feature-slices-4kl3">[DEV Community]</a> The trigger for splitting is file size or independent testability, not anticipation.</p>
+          </div>
+        </div>
+
+        <div class="finding-card suggestion">
+          <div class="finding-header">
+            <span class="finding-title">Law 3: Never split by method type unless teams own layers.</span>
+          </div>
+          <div class="finding-body">
+            <p>Horizontal (layer-per-file) only pays off when separate engineers own separate layers. For a solo or small-team game project, it forces shotgun surgery on every feature addition. "Changes that affect the same behavior are scattered across many files rather than isolated to one place." <a href="https://antondevtips.com/blog/vertical-slice-architecture-the-best-ways-to-structure-your-project">[AntonDevTips]</a></p>
+          </div>
+        </div>
+
+        <div class="finding-card suggestion">
+          <div class="finding-header">
+            <span class="finding-title">Law 4: Validators live next to appliers, not in a validators region.</span>
+          </div>
+          <div class="finding-body">
+            <p>A validator for AP spend is authoritative about AP business rules. It belongs adjacent to <code>_apply_spend_ap</code>, not near validators for turn management. The shared fact between them is the pipeline shape, not the domain. Keep domain cohesion above pipeline cohesion. <a href="https://generalistprogrammer.com/tutorials/game-networking-fundamentals-complete-multiplayer-guide-2025">[Game Networking Fundamentals 2025]</a></p>
+          </div>
+        </div>
+
+        <div class="finding-card suggestion">
+          <div class="finding-header">
+            <span class="finding-title">Law 5: The unit of change is the state variable, not the method type.</span>
+          </div>
+          <div class="finding-body">
+            <p>When requirements change (e.g., "AP can now overflow by 2 during a power-up phase"), you change one section: the AP block. When you add a new state variable (e.g., <code>momentum</code>), you add one new block. "The cohesion for a single use case is very high. This simplifies the development experience and makes it easy to find all the relevant components." <a href="https://antondevtips.com/blog/vertical-slice-architecture-the-best-ways-to-structure-your-project">[AntonDevTips]</a></p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section VI: Recommendation -->
+      <section>
+        <h2>VI. Concrete Recommendation for Your GameManager</h2>
+
+        <p>Given the current file size (~423 lines) and number of state variables (AP, turn, active player, currency, player hand/deck/discard), the optimal structure is <strong>Style A — vertical groups within one file</strong>, organized like this:</p>
+
+        <div class="section accent">
+          <pre><code>game_manager.gd
+
+# === LIFECYCLE ===
+# _ready, _exit_tree
+
+# === TURN STATE ===
+# request_reset_turn, request_increment_turn
+# (no validation needed yet — server-only, internal)
+# _apply_set_turn, _apply_increment_turn
+# _rpc_sync_turn
+
+# === AP STATE ===
+# request_spend_ap
+# _validate_spend_ap   &lt;-- NEW: extracted from inline check
+# _apply_spend_ap, _apply_add_ap
+# _rpc_sync_ap
+# can_spend_ap          &lt;-- stays here, it's AP's business rule
+
+# === ACTIVE PLAYER STATE ===
+# set_active_player
+# _apply_active_player, _apply_switch_turn
+# _rpc_sync_active_player
+
+# === CURRENCY STATE ===
+# add_currency
+# _apply_add_currency
+# _rpc_sync_player_currency
+
+# === PLAYER COLLECTION STATE (hand / deck / discard) ===
+# draw_cards
+# _apply_draw_cards
+# sync_player_hand_to_all_peers
+# _rpc_sync_player_hand, _rpc_sync_player_deck, _rpc_sync_player_discard
+
+# === PLAYER REGISTRY ===
+# initialize_all_players, _initialize_player
+# _rpc_register_player, _rpc_sync_player_number
+
+# === FSM ===
+# transition_to_phase
+
+# === HELPERS ===
+# _is_player_1, _get_next_player_id, _get_opponent_id, etc.</code></pre>
+        </div>
+
+        <p><strong>When to graduate to Style B (file per state):</strong> If any single state block — AP, for example — grows to require 80+ lines of logic (complex overflow rules, card effect modifiers, multi-step validation chains), extract it to <code>src/levels/game/state/ap_state.gd</code> with a matching <code>class_name ApState</code>. <code>GameManager</code> then holds an <code>_ap: ApState</code> instance and delegates to it. The pipeline shape stays identical; only the file boundary moves.</p>
+      </section>
+
+      <!-- Section VII: Sources -->
+      <section>
+        <h2>VII. Sources &amp; Bibliography</h2>
+        <ol class="bibliography">
+          <li><a href="https://www.architecture-weekly.com/p/my-thoughts-on-vertical-slices-cqrs">Architecture Weekly — "My Thoughts on Vertical Slices, CQRS, Semantic Diffusion and other fancy words"</a></li>
+          <li><a href="https://antondevtips.com/blog/vertical-slice-architecture-the-best-ways-to-structure-your-project">AntonDevTips — "Vertical Slice Architecture: The Best Ways to Structure Your Project"</a></li>
+          <li><a href="https://dev.to/dchowitz/7-reasons-why-i-favour-feature-slices-4kl3">DEV Community — "7 Reasons Why I Favour Feature Slices"</a></li>
+          <li><a href="https://maximegel.medium.com/cqrs-scalable-aggregates-ed09466ee7d6">Medium — "CQRS Scalable Aggregates" (Maxime Gélinas)</a></li>
+          <li><a href="https://www.strayspark.studio/blog/godot-4-multiplayer-networking-authoritative-server">StraySpark Studio — "Multiplayer Networking in Godot 4: Building an Authoritative Server from Scratch"</a></li>
+          <li><a href="https://generalistprogrammer.com/tutorials/game-networking-fundamentals-complete-multiplayer-guide-2025">Generalist Programmer — "Game Networking Fundamentals: Complete Multiplayer Guide 2025"</a></li>
+          <li><a href="https://gregpark.io/blog/building-new-features-horizontal-or-vertical-slices">Greg Park — "Building New Features with Horizontal or Vertical Slices"</a></li>
+          <li><a href="https://docs.godotengine.org/en/stable/tutorials/networking/high_level_multiplayer.html">Godot Engine Docs — "High-level Multiplayer"</a></li>
+          <li><a href="https://godotengine.org/article/multiplayer-changes-godot-4-0-report-2/">Godot Engine Blog — "Multiplayer in Godot 4.0: RPC syntax, channels, ordering"</a></li>
+          <li>Fowler, Martin — <em>Refactoring: Improving the Design of Existing Code</em> (Shotgun Surgery smell)</li>
+        </ol>
+      </section>
+
+    </main>
+  </div>
+</body>
+</html>

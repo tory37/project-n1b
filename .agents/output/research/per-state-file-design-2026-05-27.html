@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Per-State-File Design &amp; Setter Guards — Research</title>
+  <link rel="stylesheet" href="../assets/style.css">
+</head>
+<body data-type="research">
+  <div class="container">
+    <header class="doc-header">
+      <div class="doc-meta">
+        <span class="badge badge-research">RESEARCH</span>
+        <span class="doc-date">2026-05-27</span>
+      </div>
+      <h1>Per-State-File Design, Public Getter / Private Setter, and the Caller-Guard Question</h1>
+    </header>
+    <main>
+
+      <div class="section accent">
+        <p><strong>The Design Under Review:</strong> Move each piece of game state (<code>ap</code>, <code>turn</code>, <code>active_player</code>, etc.) to its own file. <code>GameManager</code> holds public instances: <code>game_manager.ap</code>. Reads via <code>game_manager.ap.value</code>. Mutations via <code>game_manager.ap.request_spend(amount)</code>. Optional: a setter guard on <code>value</code> that enforces the write came from the right context. Question: where is the line between tight and over-engineered?</p>
+      </div>
+
+      <!-- Section I -->
+      <section>
+        <h2>I. The Core Pattern Is Already Named: DDD Aggregate Root</h2>
+        <p>What you're describing has a formal name in Domain-Driven Design: the <strong>Aggregate Root</strong>. The pattern's defining rule is: <em>"All modifications to the aggregate must go through its root entity, allowing the aggregate to maintain invariants and uphold business rules."</em> <a href="https://www.momentslog.com/development/design-pattern/aggregate-roots-controlling-invariants-in-domain-aggregates">[MomentsLog — Aggregate Roots]</a></p>
+
+        <p>The implementation mechanics are exactly what you described: <em>"Aggregates and Entities usually have public getters but private setters."</em> This creates three layers: <a href="https://buildsimple.substack.com/p/gen-5-ddd-aggregates-encapsulating">[BuildSimple — DDD Aggregates in Practice]</a></p>
+
+        <ol>
+          <li><strong>Private internal state</strong> — <code>_value: int</code> — writable only from within the class</li>
+          <li><strong>Public read-only access</strong> — <code>value</code> getter — exposes current state without mutation capability</li>
+          <li><strong>Public mutation methods</strong> — <code>request_spend(amount)</code> — the only legitimate entry point for changes</li>
+        </ol>
+
+        <p>This is battle-tested across game and enterprise architectures. The DDD literature confirms: <em>"External interactions must occur through clearly defined operations provided by the aggregate root."</em> <a href="https://www.momentslog.com/development/design-pattern/aggregate-roots-controlling-invariants-in-domain-aggregates">[MomentsLog]</a></p>
+      </section>
+
+      <!-- Section II -->
+      <section>
+        <h2>II. The Critical GDScript Constraint: <code>@rpc</code> Requires <code>Node</code></h2>
+
+        <div class="section danger">
+          <strong>Hard technical limit:</strong> In Godot 4, <code>@rpc</code> is implemented via <code>MultiplayerAPI.rpc()</code>, which requires the object to be a <code>Node</code> in the active scene tree. It will fail on <code>RefCounted</code> and plain <code>Object</code> classes. <a href="https://shaggydev.com/2025/11/03/godot-refcounted/">[The Shaggy Dev — RefCounted in Godot 4]</a> <a href="https://godotengine.org/article/multiplayer-changes-godot-4-0-report-2/">[Godot Engine — RPC Syntax Report]</a>
+        </div>
+
+        <p>This forks the design into two valid approaches. The choice determines how much pipeline each state file can own:</p>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Approach</th>
+              <th>Base Class</th>
+              <th>Can own <code>@rpc</code>?</th>
+              <th>Scene tree cost</th>
+              <th>Full self-containment?</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>A — Node-based state</strong></td>
+              <td><code>extends Node</code>, added as named child of GameManager</td>
+              <td>✅ Yes — full pipeline in one file</td>
+              <td>One extra node per state variable</td>
+              <td>✅ Complete: request → validate → apply → rpc_sync all live in the state file</td>
+            </tr>
+            <tr>
+              <td><strong>B — RefCounted state</strong></td>
+              <td><code>extends RefCounted</code>, held as a member variable</td>
+              <td>❌ No — <code>@rpc</code> stays in GameManager</td>
+              <td>None</td>
+              <td>🟡 Partial: request + validate + apply in state file; rpc_sync stays in GameManager and calls back into state via <code>sync_from_authority(v)</code></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <p><strong>Recommendation:</strong> Approach A (Node-based). The node overhead is trivial. In exchange you get complete self-containment — the entire AP pipeline is readable in <code>ap_state.gd</code> without opening GameManager at all. This fully realizes the intent of moving to per-state files.</p>
+      </section>
+
+      <!-- Section III -->
+      <section>
+        <h2>III. What GDScript 4 Properties Can Actually Enforce</h2>
+
+        <p>In GDScript 4, properties use <code>get:</code> / <code>set(v):</code> blocks inline on the variable declaration. Three things are confirmed true:</p>
+
+        <h3>1. A getter-only property is read-only to outside callers</h3>
+        <pre><code>var value: int:
+    get:
+        return _value
+# No "set:" block = any external assignment is a compile-time error in typed mode
+# Internal code can still write _value directly</code></pre>
+
+        <h3>2. A setter can contain any logic including <code>multiplayer.is_server()</code></h3>
+        <pre><code>var _value: int:
+    set(v):
+        assert(multiplayer.is_server(), "Only server may write AP")
+        _value = v</code></pre>
+        <p>Setters are executed on every assignment to the variable, including from within the same class. <a href="https://godotengine.org/article/multiplayer-changes-godot-4-0-report-2/">[Godot Engine — Multiplayer 4.0 Report]</a></p>
+
+        <h3>3. GDScript has no private access modifiers</h3>
+        <p>The <code>_</code> prefix on <code>_value</code> is convention only — not enforced by the compiler. Any external code can write <code>ap_state._value = 999</code> and it will work at runtime. The protection is social, not structural.</p>
+
+        <div class="section warning">
+          <strong>Bottom line on setter enforcement:</strong> GDScript gives you good-faith encapsulation, not hard encapsulation. The <code>var value: int: get: return _value</code> pattern plus <code>assert(multiplayer.is_server())</code> in <code>_apply_*</code> is the practical ceiling of enforcement this language can offer.
+        </div>
+      </section>
+
+      <!-- Section IV -->
+      <section>
+        <h2>IV. The Caller-Guard Question — Exactly Where the Line Is</h2>
+
+        <p>The user's instinct: "build an actual setter that verifies we came from an rpc." This is worth unpacking precisely, because it splits into several sub-ideas with different viability profiles.</p>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Guard Idea</th>
+              <th>Possible in GDScript?</th>
+              <th>Verdict</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Getter-only public property (<code>value</code> has no <code>set:</code>)</td>
+              <td>✅ Yes — standard syntax</td>
+              <td><span class="badge badge-complete">DO IT</span> This is free and catches typos at compile time</td>
+            </tr>
+            <tr>
+              <td><code>assert(multiplayer.is_server())</code> inside <code>_apply_*</code></td>
+              <td>✅ Yes — runtime check</td>
+              <td><span class="badge badge-complete">DO IT</span> Crashes loudly in debug if a client somehow reaches apply. Zero overhead in release builds</td>
+            </tr>
+            <tr>
+              <td>A setter on <code>_value</code> that checks <code>multiplayer.is_server()</code></td>
+              <td>✅ Yes — technically valid</td>
+              <td><span class="badge badge-warning">SKIP</span> Adds noise. You already guard in <code>_apply_*</code>. Double-guarding via the setter makes stack traces harder to read and fires on every internal write, including test setup</td>
+            </tr>
+            <tr>
+              <td><code>_is_applying: bool</code> flag — set before <code>_apply_*</code>, checked in setter</td>
+              <td>✅ Yes — possible to implement</td>
+              <td><span class="badge badge-critical">OVER-ENGINEERING</span> Mutable state used purely for structural enforcement. Introduces a new failure mode (flag not reset on error path). DDD warns: this creates <em>"impressive amounts of artificial complexity."</em> <a href="https://buildsimple.substack.com/p/gen-5-ddd-aggregates-encapsulating">[BuildSimple]</a></td>
+            </tr>
+            <tr>
+              <td>Call stack inspection — verify the setter was called from <code>_rpc_sync_*</code></td>
+              <td>❌ No — GDScript has no call stack introspection API</td>
+              <td><span class="badge badge-critical">IMPOSSIBLE</span> GDScript has no equivalent of Python's <code>inspect.stack()</code> or Java's <code>getStackTrace()</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- Section V -->
+      <section>
+        <h2>V. The Reference Implementation — <code>ApState.gd</code></h2>
+
+        <p>This is what the pattern looks like when applied correctly to AP, using the Node-based approach. The entire pipeline lives in one file. The guard is clean. Nothing over-engineered.</p>
+
+        <pre><code>class_name ApState
+extends Node
+## Owns the full request → validate → apply → sync pipeline for the AP tracker.
+## future @rpc("any_peer") on request_spend, @rpc("authority") on _rpc_sync_value
+
+## Read-only externally. No set: block = external assignment is a compiler error.
+var value: int:
+    get:
+        return _value
+
+var max_value: int = 10
+var _value: int = 0
+
+
+# Request — future @rpc("any_peer", "reliable")
+func request_spend(amount: int) -> void:
+    if not multiplayer.is_server():
+        return  # future: rpc_id(1, "request_spend", amount)
+    if not _validate_spend(amount):
+        return
+    _apply_spend(amount)
+
+
+# Validate
+func _validate_spend(amount: int) -> bool:
+    if amount <= 0:
+        push_error("AP spend amount must be positive: %d" % amount)
+        return false
+    if amount > _value + max_value:
+        push_error("Cannot spend more AP than available: %d" % amount)
+        return false
+    return true
+
+
+# Apply — the server guard lives here, not in the setter
+func _apply_spend(amount: int) -> void:
+    assert(multiplayer.is_server(), "ApState._apply_spend called on non-server peer")
+    _value = clamp(_value - amount, -max_value, max_value)
+    _rpc_sync_value.rpc(_value)
+
+
+# Sync — future @rpc("authority", "reliable")
+@rpc("authority", "reliable")
+func _rpc_sync_value(v: int) -> void:
+    _value = v
+    SignalBus.ap_synced.emit(_value)</code></pre>
+
+        <p>In <code>GameManager</code>:</p>
+        <pre><code>@onready var ap: ApState = $ApState  # Added as named child node in the scene</code></pre>
+
+        <p>Callers anywhere:</p>
+        <pre><code># Read
+var current_ap: int = game_manager.ap.value
+
+# Mutate (routes through the full pipeline)
+game_manager.ap.request_spend(2)</code></pre>
+      </section>
+
+      <!-- Section VI -->
+      <section>
+        <h2>VI. The 5 Laws</h2>
+
+        <div class="finding-card suggestion">
+          <div class="finding-header">
+            <span class="finding-title">Law 1: State classes extend Node so they can own their @rpc methods.</span>
+          </div>
+          <div class="finding-body">
+            <p>RefCounted cannot use <code>@rpc</code>. Node-based state files achieve true self-containment of the full pipeline. The overhead is one extra scene tree node per state variable — trivial. <a href="https://shaggydev.com/2025/11/03/godot-refcounted/">[Shaggy Dev]</a></p>
+          </div>
+        </div>
+
+        <div class="finding-card suggestion">
+          <div class="finding-header">
+            <span class="finding-title">Law 2: Public getter, no setter on <code>value</code>.</span>
+          </div>
+          <div class="finding-body">
+            <p>Define <code>var value: int: get: return _value</code> with no <code>set:</code> block. External callers get a compiler error if they try to write. This is the cleanest, lowest-cost setter guard available in GDScript. <a href="https://www.momentslog.com/development/design-pattern/aggregate-roots-controlling-invariants-in-domain-aggregates">[MomentsLog — Aggregate Roots]</a></p>
+          </div>
+        </div>
+
+        <div class="finding-card suggestion">
+          <div class="finding-header">
+            <span class="finding-title">Law 3: The server guard lives in <code>_apply_*</code>, not in a setter.</span>
+          </div>
+          <div class="finding-body">
+            <p>Use <code>assert(multiplayer.is_server())</code> at the top of every <code>_apply_*</code> method. Asserts crash loudly in debug builds and cost nothing in release. Putting the guard in the setter instead doubles up without adding real protection, and fires on legitimate internal writes like test setup.</p>
+          </div>
+        </div>
+
+        <div class="finding-card suggestion">
+          <div class="finding-header">
+            <span class="finding-title">Law 4: Stop before the <code>_is_applying</code> flag.</span>
+          </div>
+          <div class="finding-body">
+            <p>The idea of a flag that tells the setter "a valid apply method called me" is over-engineering. It adds mutable state for a structural purpose, introduces an entire class of reset-on-error bugs, and DDD practitioners warn that this kind of enforcement creates <em>"impressive amounts of artificial complexity"</em> when domain complexity doesn't justify it. <a href="https://buildsimple.substack.com/p/gen-5-ddd-aggregates-encapsulating">[BuildSimple]</a></p>
+          </div>
+        </div>
+
+        <div class="finding-card suggestion">
+          <div class="finding-header">
+            <span class="finding-title">Law 5: Call stack verification is impossible in GDScript — don't design around it.</span>
+          </div>
+          <div class="finding-body">
+            <p>GDScript has no runtime call stack introspection API. There is no equivalent of Python's <code>inspect.stack()</code> or Java's <code>Thread.currentThread().getStackTrace()</code>. Designs that assume this capability will either require C++ engine extensions or won't be buildable at all. The protection ceiling in pure GDScript is: no public setter + server assert in apply methods.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section VII -->
+      <section>
+        <h2>VII. Sources &amp; Bibliography</h2>
+        <ol class="bibliography">
+          <li><a href="https://www.momentslog.com/development/design-pattern/aggregate-roots-controlling-invariants-in-domain-aggregates">MomentsLog — "Aggregate Roots: Controlling Invariants in Domain Aggregates"</a></li>
+          <li><a href="https://buildsimple.substack.com/p/gen-5-ddd-aggregates-encapsulating">BuildSimple — "DDD Aggregates: Encapsulating Business Logic in Domain Objects"</a></li>
+          <li><a href="https://shaggydev.com/2025/11/03/godot-refcounted/">The Shaggy Dev — "A Brief Introduction to the RefCounted Class in Godot 4"</a></li>
+          <li><a href="https://godotengine.org/article/multiplayer-changes-godot-4-0-report-2/">Godot Engine Blog — "Multiplayer in Godot 4.0: RPC syntax, channels, ordering"</a></li>
+          <li><a href="https://docs.godotengine.org/en/stable/tutorials/networking/high_level_multiplayer.html">Godot Engine Docs — "High-Level Multiplayer"</a></li>
+          <li><a href="https://www.strayspark.studio/blog/godot-4-multiplayer-networking-authoritative-server">StraySpark Studio — "Multiplayer Networking in Godot 4: Building an Authoritative Server from Scratch"</a></li>
+          <li><a href="https://generalistprogrammer.com/tutorials/game-networking-fundamentals-complete-multiplayer-guide-2025">Generalist Programmer — "Game Networking Fundamentals: Complete Multiplayer Guide 2025"</a></li>
+          <li><a href="https://godottutorials.com/courses/introduction-to-gdscript/godot-tutorials-gdscript-22/">Godot Tutorials — "Setter &amp; Getter Functions | GDScript Tutorial Ep 22"</a></li>
+          <li><a href="https://github.com/godotengine/godot-proposals/issues/2979">Godot Proposals #2979 — "private/public setters and getters (GDScript properties)"</a></li>
+        </ol>
+      </section>
+
+    </main>
+  </div>
+</body>
+</html>

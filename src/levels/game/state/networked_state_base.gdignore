@@ -1,0 +1,165 @@
+# =============================================================================
+# NETWORKED STATE TEMPLATE — copy this file, do NOT extend it.
+#
+# STEP 1 — Find-and-replace these tokens throughout the file:
+#   MyState     -> YourClassName        (e.g. TurnNumberState)
+#   my_state    -> your_signal_prefix   (e.g. turn_number)
+#   int         -> your value type      (e.g. float, String, bool)
+#
+# STEP 2 — Add signals to signal_bus.gd. Every state needs at minimum:
+#   signal my_state_synced(value: int)
+#   For each request, add a trigger and a failure signal:
+#   signal my_state_increment_requested()
+#   signal my_state_increment_failed()
+#
+# STEP 3 — Keep only the request methods this state needs. Delete the rest.
+#   Not every state needs request_set. A turn counter might only expose
+#   request_increment. An AP tracker might expose request_spend and
+#   request_restore but never a raw request_set.
+# =============================================================================
+class_name MyState
+extends Node
+
+# --- Variables ---
+
+var _value: int
+
+var value: int:
+	get:
+		return _value
+
+# --- Lifecycle ---
+
+func _ready() -> void:
+	# Connect one signal per request method.
+	# Clients trigger requests through SignalBus rather than calling RPCs directly.
+	SignalBus.my_state_increment_requested.connect(_on_my_state_increment_requested)
+
+
+func _exit_tree() -> void:
+	SignalBus.my_state_increment_requested.disconnect(_on_my_state_increment_requested)
+
+
+# --- Signal Callbacks ---
+# Forward each signal to the server via rpc_id(1).
+# Never call request_* directly from a client — that runs locally with no network message sent.
+
+func _on_my_state_increment_requested() -> void:
+	request_increment.rpc_id(1)
+
+# Example with a parameter:
+# func _on_my_state_set_requested(new_value: int) -> void:
+# 	request_set.rpc_id(1, new_value)
+
+
+# --- Public Methods ---
+
+# Server-only direct setter — no @rpc, so cannot be called remotely.
+# Use for authoritative game logic (e.g. game setup, phase transitions).
+func set_value(new_value: int) -> void:
+	if not multiplayer.is_server():
+		Loggit.p("Only the server can set MyState directly", "Error")
+		return
+
+	_apply_set(new_value)
+
+# Requests
+# One method per operation. Each must:
+#   1. Guard    — return early if not the server.
+#   2. Derive   — compute the new value if needed (increment, clamp, etc.).
+#   3. Validate — reject via _validate_* and broadcast failure if invalid.
+#   4. Apply    — call _apply_* to broadcast to all peers.
+
+# Live example: increment (derives new value, validates, then applies)
+@rpc("any_peer", "reliable")
+func request_increment() -> void:
+	if not multiplayer.is_server():
+		Loggit.p("Only the server can increment MyState", "Error")
+		return
+
+	var new_value: int = _value + 1
+
+	if not _validate_set(new_value):
+		_sync_increment_failed.rpc()
+		return
+
+	_apply_set(new_value)
+
+
+# Direct set (client supplies the value — use only when any value is valid or
+# validation is the sole constraint):
+# @rpc("any_peer", "reliable")
+# func request_set(new_value: int) -> void:
+# 	if not multiplayer.is_server():
+# 		Loggit.p("Only the server can set MyState", "Error")
+# 		return
+# 	if not _validate_set(new_value):
+# 		_sync_set_failed.rpc()
+# 		return
+# 	_apply_set(new_value)
+
+
+# Decrement (mirrors increment):
+# @rpc("any_peer", "reliable")
+# func request_decrement() -> void:
+# 	if not multiplayer.is_server():
+# 		Loggit.p("Only the server can decrement MyState", "Error")
+# 		return
+# 	var new_value: int = _value - 1
+# 	if not _validate_set(new_value):
+# 		_sync_decrement_failed.rpc()
+# 		return
+# 	_apply_set(new_value)
+
+
+# Server-only reset (no client trigger needed — called directly by game logic):
+# @rpc("any_peer", "reliable")
+# func request_reset() -> void:
+# 	if not multiplayer.is_server():
+# 		return
+# 	_apply_set(0)
+
+
+# --- Private Methods ---
+
+# Validation
+# Return false to reject a proposed value. The calling request_* will trigger the failure sync.
+# Add one function per logical constraint. Reuse across request methods as needed.
+
+func _validate_set(_new_value: int) -> bool:
+	# Example: if new_value < 0 or new_value > 100: return false
+	return true
+
+# Mutation
+# Called only by request_* on the server.
+# Does NOT set _value directly — _sync_value sets state uniformly on all peers including the server.
+
+func _apply_set(new_value: int) -> void:
+	if not multiplayer.is_server():
+		push_error("Attempted to mutate MyState on a non-server peer.")
+		return
+
+	_sync_value.rpc(new_value)
+
+# Synchronization
+# One _sync_* per broadcast. Always @rpc("authority", "reliable").
+# Sets _value on every peer and notifies local listeners via SignalBus.
+
+@rpc("authority", "reliable")
+func _sync_value(new_value: int) -> void:
+	_value = new_value
+	SignalBus.my_state_synced.emit(new_value)
+
+
+# One failure sync per request method that has a validation step.
+@rpc("authority", "reliable")
+func _sync_increment_failed() -> void:
+	SignalBus.my_state_increment_failed.emit()
+
+# @rpc("authority", "reliable")
+# func _sync_set_failed() -> void:
+# 	SignalBus.my_state_set_failed.emit()
+
+# @rpc("authority", "reliable")
+# func _sync_decrement_failed() -> void:
+# 	SignalBus.my_state_decrement_failed.emit()

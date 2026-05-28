@@ -3,10 +3,10 @@
 [ext_resource type="Script" uid="uid://dlu6kkywvipxy" path="res://src/levels/game/game_manager.gd" id="1_b6y0w"]
 [ext_resource type="Resource" uid="uid://0o8qgwtpnu2f" path="res://resources/decks/test_deck.tres" id="2_n5fbu"]
 [ext_resource type="PackedScene" uid="uid://dnm1lkkfq5gx" path="res://src/world/hex_board/hex_board.tscn" id="3_ewew8"]
+[ext_resource type="PackedScene" uid="uid://cu83dpxikl80g" path="res://src/levels/game/game_state.tscn" id="3_nblc3"]
 [ext_resource type="PackedScene" uid="uid://b8xmcjwsj2" path="res://src/world/table/table.tscn" id="4_ghaey"]
 [ext_resource type="PackedScene" uid="uid://dudx5da1opo8o" path="res://src/deck/deck_view.tscn" id="5_76xvg"]
-[ext_resource type="PackedScene" uid="uid://l0x0uwiw7luy" path="res://src/ui/game_state_preview/game_state_preview.tscn" id="6_n5fbu"]
-[ext_resource type="Script" uid="uid://dgn6k7vjvdxru" path="res://src/ui/game_state_preview/game_state_preview_ui.gd" id="7_3idar"]
+[ext_resource type="PackedScene" uid="uid://chmm0j1cbcqa2" path="res://src/ui/game_overlay/game_overlay_ui.tscn" id="8_85bdw"]
 
 [node name="Game" type="Node3D" unique_id=494198879]
 script = ExtResource("1_b6y0w")
@@ -14,6 +14,8 @@ test_deck = ExtResource("2_n5fbu")
 
 [node name="MultiplayerSpawner" type="MultiplayerSpawner" parent="." unique_id=1471964723]
 spawn_path = NodePath("../Players")
+
+[node name="GameState" parent="." unique_id=393733865 instance=ExtResource("3_nblc3")]
 
 [node name="Players" type="Node" parent="." unique_id=971894374]
 
@@ -35,5 +37,4 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 0, 10)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 0, -10)
 owner_player_id = 1
 
-[node name="GameStatePreview" parent="." unique_id=2067799545 instance=ExtResource("6_n5fbu")]
-script = ExtResource("7_3idar")
+[node name="GameOverlayUi" parent="." unique_id=1299964242 instance=ExtResource("8_85bdw")]

@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Per-Player Networked State Patterns — Research</title>
+  <link rel="stylesheet" href="../assets/style.css">
+</head>
+<body data-type="research">
+  <div class="container">
+    <header class="doc-header">
+      <div class="doc-meta">
+        <span class="badge badge-research">RESEARCH</span>
+        <span class="doc-date">2026-05-27</span>
+      </div>
+      <h1>Per-Player Networked State in Godot 4</h1>
+      <p>How to adapt the <code>NetwrkedState</code> template for state where each player has their own value — and how to sync it correctly for both public and private information.</p>
+    </header>
+    <main>
+
+      <!-- ================================================================ -->
+      <section>
+        <h2>I. The Core Distinction: Scalar vs. Per-Player State</h2>
+        <p>Your current template is built around <strong>scalar state</strong> — one authoritative value shared identically by all clients (<code>_value: int</code>). That works perfectly for <code>TurnNumber</code>, <code>ActivePlayer</code>, and <code>TurnOrder</code>.</p>
+        <p>Per-player state is different: the server holds <em>one value per connected peer</em>, and depending on whether that value is public or private, it gets synced differently.</p>
+
+        <table>
+          <thead>
+            <tr>
+              <th>State Type</th>
+              <th>Server Storage</th>
+              <th>Sync Target</th>
+              <th>Examples in Your Game</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Scalar (global shared)</td>
+              <td><code>_value: T</code></td>
+              <td><code>rpc()</code> → all peers</td>
+              <td>TurnNumber, ActivePlayer, TurnOrder</td>
+            </tr>
+            <tr>
+              <td>Per-player, public</td>
+              <td><code>_values: Dictionary[int, T]</code></td>
+              <td><code>rpc(peer_id, val)</code> → all peers</td>
+              <td>Action Points, Currency/Score</td>
+            </tr>
+            <tr>
+              <td>Per-player, private</td>
+              <td><code>_values: Dictionary[int, T]</code></td>
+              <td><code>rpc_id(peer_id, val)</code> → owner only + optional count broadcast</td>
+              <td>Hand (card contents), Deck contents</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ================================================================ -->
+      <section>
+        <h2>II. Is Dictionary[peer_id → value] the Standard Pattern?</h2>
+        <div class="section accent">
+          <strong>Short answer: Yes. It is the canonical server-side pattern in Godot 4.</strong>
+          <p>The official Godot docs demonstrate exactly this: <code>var players = {}</code> keyed by <code>peer_id</code>. <a href="https://docs.godotengine.org/en/stable/tutorials/networking/high_level_multiplayer.html">[Godot Docs — High Level Multiplayer]</a></p>
+          <p>The StraySpark authoritative server guide uses the same pattern: <code>var player_states: Dictionary = {} # peer_id → PlayerState</code> and retrieves per-request with <code>multiplayer.get_remote_sender_id()</code>. <a href="https://www.strayspark.studio/blog/godot-4-multiplayer-networking-authoritative-server">[StraySpark — Authoritative Server]</a></p>
+          <p>Your own <code>game_state.gd</code> already does this at the non-networked layer: <code>var player_states: Dictionary[int, PlayerState] = {}</code>. The migration is consistent with your existing mental model.</p>
+        </div>
+
+        <h3>The Alternative: Per-Player Nodes (MultiplayerSpawner)</h3>
+        <p>Godot's scene replication system (<code>MultiplayerSpawner</code> + <code>MultiplayerSynchronizer</code>) lets you spawn one node per player and let Godot handle sync automatically via property replication. <a href="https://godotengine.org/article/multiplayer-in-godot-4-0-scene-replication/">[Godot Blog — Scene Replication]</a></p>
+        <p>This is best suited for real-time games with many players where each player entity has transform, physics, and animation state. For your case — a 2-player turn-based card game using custom RPC state nodes — the dictionary approach is the right call for these reasons:</p>
+        <ul>
+          <li>Your architecture is already built around explicit request/apply/sync RPCs, not Godot's auto-sync. Mixing them would add confusion.</li>
+          <li>Spawned nodes require <code>MultiplayerSpawner</code> configuration and authority assignment at runtime — more machinery for no gain.</li>
+          <li>A dictionary centralizes all player state in one place, which is easier to serialize, inspect, and debug.</li>
+          <li>Community consensus for turn-based card games points to plain RPC patterns over scene replication. <a href="https://forum.godotengine.org/t/turn-based-multiplayer-strategies/61636">[Godot Forum — Turn-Based Strategies]</a></li>
+        </ul>
+      </section>
+
+      <!-- ================================================================ -->
+      <section>
+        <h2>III. The Two Per-Player Template Variants</h2>
+        <p>Your template needs two new variants. The structure is identical to the existing template — the only things that change are <strong>storage shape</strong> and <strong>sync target</strong>.</p>
+
+        <h3>Variant A — Public Per-Player State (e.g. Action Points)</h3>
+        <p>Everyone can see every player's AP. The server holds a dict; sync broadcasts the updated peer_id + value to all clients.</p>
+        <pre><code>class_name ActionPointsNetworkedState
+extends Node
+
+# Dictionary[peer_id → ap_value]. Server-side source of truth.
+var _values: Dictionary[int, int] = {}
+
+func get_value(peer_id: int) -> int:
+    return _values.get(peer_id, 0)
+
+# --- Public Methods ---
+
+func set_value(peer_id: int, new_value: int) -> void:
+    if not multiplayer.is_server():
+        push_error("Only the server can set AP directly")
+        return
+    _apply_set(peer_id, new_value)
+
+@rpc("any_peer", "reliable")
+func request_spend(amount: int) -> void:
+    if not multiplayer.is_server():
+        return
+    var sender_id: int = multiplayer.get_remote_sender_id()
+    var current: int = _values.get(sender_id, 0)
+    var new_value: int = current - amount
+    if not _validate_spend(sender_id, amount):
+        _sync_spend_failed.rpc_id(sender_id)
+        return
+    _apply_set(sender_id, new_value)
+
+# --- Private Methods ---
+
+func _validate_spend(peer_id: int, amount: int) -> bool:
+    return amount <= _values.get(peer_id, 0)
+
+func _apply_set(peer_id: int, new_value: int) -> void:
+    if not multiplayer.is_server():
+        return
+    # Broadcast to ALL peers — AP is public information
+    _sync_value.rpc(peer_id, new_value)
+
+# All peers (including server) update their local copy
+@rpc("authority", "reliable")
+func _sync_value(peer_id: int, new_value: int) -> void:
+    _values[peer_id] = new_value
+    SignalBus.action_points_synced.emit(peer_id, new_value)
+
+@rpc("authority", "reliable")
+func _sync_spend_failed() -> void:
+    SignalBus.action_points_spend_failed.emit()</code></pre>
+
+        <div class="section warning">
+          <strong>Key difference from your scalar template:</strong> <code>_sync_value</code> now takes <code>(peer_id: int, new_value: int)</code> as arguments. Every client — including the server — stores the full <code>_values</code> dictionary so local UI can query any player's AP.
+        </div>
+
+        <h3>Variant B — Private Per-Player State (e.g. Hand)</h3>
+        <p>The hand contents are secret. The server holds the full dict; sync sends contents only to the owning peer. Other peers receive only the count (so they can render "3 cards face-down").</p>
+        <pre><code>class_name HandNetworkedState
+extends Node
+
+# Server holds all hands. Clients hold only their own.
+var _values: Dictionary[int, Array] = {}  # peer_id → Array[card_resource_path]
+
+func get_hand(peer_id: int) -> Array:
+    return _values.get(peer_id, [])
+
+# --- Public Methods ---
+
+func set_hand(peer_id: int, cards: Array) -> void:
+    if not multiplayer.is_server():
+        push_error("Only the server can set a hand directly")
+        return
+    _apply_set(peer_id, cards)
+
+@rpc("any_peer", "reliable")
+func request_draw(count: int) -> void:
+    if not multiplayer.is_server():
+        return
+    var sender_id: int = multiplayer.get_remote_sender_id()
+    # ... draw logic, add to _values[sender_id] ...
+    _apply_set(sender_id, _values[sender_id])
+
+# --- Private Methods ---
+
+func _apply_set(peer_id: int, new_cards: Array) -> void:
+    if not multiplayer.is_server():
+        return
+    _values[peer_id] = new_cards
+
+    # Private: send full hand ONLY to the owning peer
+    _sync_hand.rpc_id(peer_id, new_cards)
+
+    # Public: tell all other peers the count only
+    _sync_hand_count.rpc(peer_id, new_cards.size())
+
+# Received only by the owning peer
+@rpc("authority", "reliable")
+func _sync_hand(cards: Array) -> void:
+    # Client stores only their own hand — no peer_id arg needed
+    SignalBus.hand_synced.emit(cards)
+
+# Received by all peers (for face-down rendering)
+@rpc("authority", "reliable")
+func _sync_hand_count(peer_id: int, count: int) -> void:
+    SignalBus.hand_count_synced.emit(peer_id, count)</code></pre>
+
+        <div class="section accent">
+          <strong>Why no peer_id in <code>_sync_hand</code>?</strong> Because it's sent with <code>rpc_id(peer_id, ...)</code>, the recipient is always the owning player. They don't need to be told whose hand it is — it's theirs.
+        </div>
+      </section>
+
+      <!-- ================================================================ -->
+      <section>
+        <h2>IV. The Hidden State Problem — A Worked Example</h2>
+        <p>The most important invariant for card games: <strong>the server must never broadcast private card state to all clients.</strong> A cheating client can read any RPC that arrives at their machine. This is documented explicitly in the Godot forum's card game thread. <a href="https://forum.godotengine.org/t/multiplayer-synchronization-in-a-3d-card-game/106849">[Godot Forum — 3D Card Game Sync]</a></p>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Operation</th>
+              <th>Server Action</th>
+              <th>Sync to Owner</th>
+              <th>Sync to Others</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Draw card</td>
+              <td>Add card to <code>_values[peer_id]</code></td>
+              <td><code>rpc_id(peer_id)</code> with full updated hand</td>
+              <td><code>rpc()</code> with new hand count</td>
+            </tr>
+            <tr>
+              <td>Play card</td>
+              <td>Remove card from <code>_values[peer_id]</code></td>
+              <td><code>rpc_id(peer_id)</code> with updated hand</td>
+              <td><code>rpc()</code> with card identity (it's now revealed) + new count</td>
+            </tr>
+            <tr>
+              <td>Discard hidden</td>
+              <td>Remove card from <code>_values[peer_id]</code></td>
+              <td><code>rpc_id(peer_id)</code> confirming discard</td>
+              <td><code>rpc()</code> with new hand count only</td>
+            </tr>
+            <tr>
+              <td>Initial hand deal</td>
+              <td>Populate <code>_values</code> for all peers</td>
+              <td><code>rpc_id(peer_id)</code> per player with their specific hand</td>
+              <td><code>rpc()</code> with each player's starting count</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="section warning">
+          <strong>Never call:</strong> <code>_sync_hand.rpc(peer_id, cards)</code> — this sends every player's hand to every client. Always use <code>rpc_id</code> for private contents.
+        </div>
+      </section>
+
+      <!-- ================================================================ -->
+      <section>
+        <h2>V. Mapping Your Current State Nodes to the New Pattern</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>State Node</th>
+              <th>Storage Shape</th>
+              <th>Sync Pattern</th>
+              <th>Migration</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>TurnNumberNetworkedState</code></td>
+              <td><code>_value: int</code></td>
+              <td>Scalar → <code>rpc()</code></td>
+              <td>✅ No change needed</td>
+            </tr>
+            <tr>
+              <td><code>TurnOrderNetworkedState</code></td>
+              <td><code>_value: Array[int]</code></td>
+              <td>Scalar → <code>rpc()</code></td>
+              <td>✅ No change needed</td>
+            </tr>
+            <tr>
+              <td><code>ActivePlayerNetworkedState</code></td>
+              <td><code>_value: int</code></td>
+              <td>Scalar → <code>rpc()</code></td>
+              <td>✅ No change needed</td>
+            </tr>
+            <tr>
+              <td><code>ActionPointsNetworkedState</code></td>
+              <td><strong>Needs: <code>Dictionary[int, int]</code></strong></td>
+              <td>Per-player public → <code>rpc(peer_id, val)</code></td>
+              <td>⚠️ Migrate to Variant A</td>
+            </tr>
+            <tr>
+              <td><code>HandNetworkedState</code> (hands.gd)</td>
+              <td><strong>Needs: <code>Dictionary[int, Array]</code></strong></td>
+              <td>Per-player private → <code>rpc_id(owner)</code> + count <code>rpc()</code></td>
+              <td>⚠️ Implement as Variant B</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ================================================================ -->
+      <section>
+        <h2>VI. The 5 Inviolable Rules for Per-Player Networked State</h2>
+        <ol>
+          <li><strong>Dictionary[peer_id → value] is the standard.</strong> It is backed by official Godot docs, multiple community guides, and your own existing <code>GameState</code> design. Use it everywhere state varies per player.</li>
+          <li><strong>Use <code>multiplayer.get_remote_sender_id()</code> — never trust a peer_id argument in a request.</strong> A malicious client can pass any peer_id as an argument. The server always derives identity from the actual sender.</li>
+          <li><strong>Private state must never hit <code>rpc()</code>.</strong> Use <code>rpc_id(target_peer_id, value)</code>. The only thing broadcast to all peers about a private hand is its count.</li>
+          <li><strong>Clients store only what they need.</strong> A client's local <code>HandNetworkedState</code> holds their own hand, period. They don't need a <code>Dictionary</code> client-side — just a local <code>_value: Array</code>.</li>
+          <li><strong>Keep the request/apply/sync seam.</strong> The seam is still valid for per-player state — <code>request_spend(amount)</code> identifies the spender from <code>get_remote_sender_id()</code>, <code>_apply_set(peer_id, val)</code> stores and syncs. No shape change needed on the seam itself.</li>
+        </ol>
+      </section>
+
+      <!-- ================================================================ -->
+      <section>
+        <h2>VII. Sources &amp; Bibliography</h2>
+        <ol class="bibliography">
+          <li><a href="https://docs.godotengine.org/en/stable/tutorials/networking/high_level_multiplayer.html">Godot Engine Docs — High-Level Multiplayer</a> — canonical RPC patterns, <code>players = {}</code> dictionary keyed by peer_id, <code>rpc_id()</code> for targeted sends.</li>
+          <li><a href="https://www.strayspark.studio/blog/godot-4-multiplayer-networking-authoritative-server">StraySpark — Godot 4 Multiplayer Networking: Authoritative Server from Scratch</a> — <code>player_states: Dictionary = {}</code> pattern, <code>get_remote_sender_id()</code> for identity, private damage via <code>rpc_id()</code>.</li>
+          <li><a href="https://gist.github.com/Meshiest/1274c6e2e68960a409698cf75326d4f6">Meshiest — Godot 4 Multiplayer Overview (GitHub Gist)</a> — authority mechanics, <code>set_multiplayer_authority(peer_id)</code>, visibility controls.</li>
+          <li><a href="https://godotengine.org/article/multiplayer-in-godot-4-0-scene-replication/">Godot Blog — Multiplayer in Godot 4.0: Scene Replication</a> — MultiplayerSpawner/Synchronizer pattern, when per-node spawning is appropriate vs. manual RPC.</li>
+          <li><a href="https://forum.godotengine.org/t/multiplayer-synchronization-in-a-3d-card-game/106849">Godot Forum — Multiplayer synchronization in a 3D card game</a> — card game-specific pattern discussion; recommendation to withhold opponent hand values.</li>
+          <li><a href="https://forum.godotengine.org/t/turn-based-multiplayer-strategies/61636">Godot Forum — Turn-Based Multiplayer Strategies</a> — consensus that explicit RPC patterns are preferred over auto-sync for turn-based games.</li>
+          <li><a href="https://forum.godotengine.org/t/understanding-rpc-implementation-in-a-turn-based-multiplayer-game/45563">Godot Forum — Understanding RPC implementation in a turn-based multiplayer game</a> — authority-based state, server-validates-then-syncs flow.</li>
+          <li><a href="https://godotawesome.com/godot-4-multiplayer-networking-guide-2025/">GodotAwesome — Complete Networking Guide</a> — RPC modes, dictionary-vs-scene tradeoff, per-player node organization.</li>
+        </ol>
+      </section>
+
+    </main>
+  </div>
+</body>
+</html>
