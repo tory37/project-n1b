@@ -10,8 +10,6 @@ func enter() -> void:
 
 	for player_id in player_ids:
 		_game_manager.decks.shuffle(player_id)
-		# TODO: Get from a config
-		_game_manager.currencies.add(player_id, 2)
 
 		# TODO: Get from a config
 		var starting_hand_size: int = 5

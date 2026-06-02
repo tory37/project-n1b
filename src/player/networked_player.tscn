@@ -3,9 +3,12 @@
 [ext_resource type="Script" uid="uid://b17xcja45v73k" path="res://src/player/networked_player.gd" id="1_2spp2"]
 [ext_resource type="PackedScene" uid="uid://b7eh3ppy1ue5m" path="res://src/player/seat_component.tscn" id="1_ljied"]
 [ext_resource type="Script" uid="uid://dpfk0x02b8ipw" path="res://src/player/seat_component.gd" id="2_2spp2"]
+[ext_resource type="PackedScene" uid="uid://b248x2016bvq8" path="res://src/player/spirit_points_component.tscn" id="4_tjxu6"]
 
 [node name="NetworkedPlayer" type="Node" unique_id=1640795652]
 script = ExtResource("1_2spp2")
 
 [node name="SeatComponent" parent="." unique_id=1233938176 instance=ExtResource("1_ljied")]
 script = ExtResource("2_2spp2")
+
+[node name="SpiritPointsComponent" parent="." unique_id=560801663 instance=ExtResource("4_tjxu6")]

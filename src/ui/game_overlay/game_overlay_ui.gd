@@ -1,5 +1,4 @@
 extends Node
-## UI component to display AP and Currency for the active player.
 
 @onready var _turn_label: Label = %TurnLabel
 @onready var _active_player_label: Label = %ActivePlayerLabel
@@ -7,14 +6,14 @@ extends Node
 
 @onready var _self_player_number_label: Label = %SelfPlayerNumberLabel
 @onready var _self_id_label: Label = %SelfIdLabel
-@onready var _self_currency_label: Label = %SelfCurrencyLabel
+@onready var _self_spirit_points_label: Label = %SelfSpiritPointsLabel
 @onready var _self_hand_label: Label = %SelfHandLabel
 @onready var _self_deck_label: Label = %SelfDeckLabel
 @onready var _self_discard_label: Label = %SelfDiscardLabel
 
 @onready var _opponent_player_number_label: Label = %OpponentPlayerNumberLabel
 @onready var _opponent_id_label: Label = %OpponentIdLabel
-@onready var _opponent_currency_label: Label = %OpponentCurrencyLabel
+@onready var _opponent_spirit_points_label: Label = %OpponentSpiritPointsLabel
 @onready var _opponent_hand_label: Label = %OpponentHandLabel
 @onready var _opponent_deck_label: Label = %OpponentDeckLabel
 @onready var _opponent_discard_label: Label = %OpponentDiscardLabel
@@ -40,7 +39,6 @@ func _ready() -> void:
 	SignalBus.turn_order_synced.connect(_on_turn_order_synced)
 	SignalBus.active_player_synced.connect(_on_active_player_synced)
 	SignalBus.action_points_synced.connect(_on_action_points_synced)
-	SignalBus.currency_synced.connect(_on_currency_synced)
 	SignalBus.player_hand_synced.connect(_on_player_hand_synced)
 	SignalBus.player_deck_synced.connect(_on_player_deck_synced)
 	SignalBus.player_discard_synced.connect(_on_player_discard_synced)
@@ -55,30 +53,35 @@ func _exit_tree() -> void:
 		_disconnect_all()
 
 
+func _on_player_added(peer_id: int, player: NetworkedPlayer) -> void:
+	Loggit.p("Received player_added signal for peer_id %d" % peer_id, "SeatFlow")
+	if peer_id == multiplayer.get_unique_id():
+		Loggit.p("Connecting to self seat synced signal for peer_id %d" % peer_id, "SeatFlow")
+		player.seat.synced.connect(_on_self_seat_synced)
+		player.spirit_points.synced.connect(_on_self_spirit_points_synced)
+	else:
+		player.seat.synced.connect(_on_opponent_seat_synced)
+		player.spirit_points.synced.connect(_on_opponent_spirit_points_synced)
+
+
 func _disconnect_all() -> void:
 	for player in _player_registry.get_all_players():
 		if player.peer_id == multiplayer.get_unique_id():
 			player.seat.synced.disconnect(_on_self_seat_synced)
+			player.spirit_points.synced.disconnect(_on_self_spirit_points_synced)
 		else:
 			player.seat.synced.disconnect(_on_opponent_seat_synced)
+			player.spirit_points.synced.disconnect(_on_opponent_spirit_points_synced)
 
 	SignalBus.turn_order_synced.disconnect(_on_turn_order_synced)
 	SignalBus.active_player_synced.disconnect(_on_active_player_synced)
 	SignalBus.action_points_synced.disconnect(_on_action_points_synced)
-	SignalBus.currency_synced.disconnect(_on_currency_synced)
 	SignalBus.player_hand_synced.disconnect(_on_player_hand_synced)
 	SignalBus.player_deck_synced.disconnect(_on_player_deck_synced)
 	SignalBus.player_discard_synced.disconnect(_on_player_discard_synced)
 
 
-func _on_player_added(peer_id: int, player: NetworkedPlayer) -> void:
-	if peer_id == multiplayer.get_unique_id():
-		Loggit.p("Connecting to self seat synced signal for peer_id %d" % peer_id, "SeatFlow")
-		player.seat.synced.connect(_on_self_seat_synced)
-	else:
-		player.seat.synced.connect(_on_opponent_seat_synced)
-
-
+# Seat
 func _on_self_seat_synced(seat: int) -> void:
 	Loggit.p("Received self seat synced signal. Seat is now: %d" % seat, "SeatFlow")
 	_self_player_number_label.text = "You: %d" % seat
@@ -87,6 +90,17 @@ func _on_self_seat_synced(seat: int) -> void:
 func _on_opponent_seat_synced(seat: int) -> void:
 	Loggit.p("Received opponent seat synced signal. Seat is now: %d" % seat, "SeatFlow")
 	_opponent_player_number_label.text = "Opponent: %d" % seat
+
+
+# Spirit Points
+func _on_self_spirit_points_synced(spirit_points: int) -> void:
+	Loggit.p("Received self spirit points synced signal. Spirit points are now: %d" % spirit_points, "GameOverlayUI")
+	_self_spirit_points_label.text = "Spirit Points: %d" % spirit_points
+
+
+func _on_opponent_spirit_points_synced(spirit_points: int) -> void:
+	Loggit.p("Received opponent spirit points synced signal. Spirit points are now: %d" % spirit_points, "GameOverlayUI")
+	_opponent_spirit_points_label.text = "Spirit Points: %d" % spirit_points
 
 
 func _on_turn_order_synced(turn_order: Array[int]) -> void:
@@ -118,15 +132,6 @@ func _on_active_player_synced(player_id: int) -> void:
 func _on_action_points_synced(ap: int) -> void:
 	Loggit.p("Received AP synced signal. AP is now: %d" % ap, "GameOverlayUI")
 	_ap_label.text = "AP: %d" % ap
-
-
-func _on_currency_synced(_player_id: int, currency: int) -> void:
-	if _player_id == multiplayer.get_unique_id():
-		Loggit.p("Received currency synced signal. Player 1 currency is now: %d" % currency, "GameOverlayUI")
-		_self_currency_label.text = "Currency: %d" % currency
-	else:
-		Loggit.p("Received currency synced signal. Player 2 currency is now: %d" % currency, "GameOverlayUI")
-		_opponent_currency_label.text = "Currency: %d" % currency
 
 
 func _on_player_hand_synced(_player_id: int, hand: GameCardCollection) -> void:

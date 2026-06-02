@@ -24,8 +24,8 @@ enum GamePhase {
 ## ---- Exports -------------------------------------------------------
 
 # TODO: Make these a resource
-@export var player_scene: PackedScene
-@export var base_income: int = 2
+@export var starting_action_points: int = 0
+@export var starting_spirit_points: int = 0
 @export var pass_turn_starting_ap: int = 3
 
 # TODO: Remove - Test data
@@ -41,6 +41,7 @@ var _phase_constructors: Dictionary = {
 	GamePhase.DRAW_CARD: func(gm): return GamePhaseDrawCard.new(gm),
 	GamePhase.MAIN: func(gm): return GamePhaseMain.new(gm),
 }
+var _ready_peers: Array[int] = []
 
 ## ---- @onready Variables --------------------------------------------
 
@@ -54,7 +55,6 @@ var _phase_constructors: Dictionary = {
 @onready var active_player: ActivePlayerNetworkedState = $GameState/ActivePlayer
 @onready var turn_order: TurnOrderNetworkedState
 @onready var action_points: ActionPointsNetworkedState = $GameState/ActionPoints
-@onready var currencies: CurrencyNetworkedState = $GameState/Currencies
 @onready var hands: GameCardCollectionsNetworkedState = $GameState/Hands
 @onready var decks: GameCardCollectionsNetworkedState = $GameState/Decks
 @onready var discards: GameCardCollectionsNetworkedState = $GameState/Discards
@@ -68,17 +68,11 @@ func _ready() -> void:
 	if multiplayer.is_server():
 		turn_order = $GameState/TurnOrder
 		Loggit.p("GameManager is server", "SeatFlow")
-
-		_initialize_game_state()
-		Loggit.p("Finished initializing game state", "SeatFlow")
-		_setup_players()
-
-		_game_fsm = FiniteStateMachine.new()
-		transition_to_phase.call_deferred(GamePhase.START)
 	else:
-		Loggit.p("My path: " + str(get_path()), "SeatFlow")
-		Loggit.p("Does child exist? " + str(has_node("GameState/TurnOrder")), "SeatFlow")
 		turn_order = $GameState/TurnOrder
+		notify_ready.rpc_id(1)
+
+		
 
 ## ---- Public Methods ------------------------------------------------
 
@@ -129,13 +123,11 @@ func _setup_players() -> void:
 			push_error("Unsupported seat number %d for peer_id %d" % [seat, peer_id])
 			continue
 
-		Loggit.p("Instantiated player.  Does player exist? " + str(player != null), "SeatFlow")
-		Loggit.p("Spawning player node for peer_id %d" % peer_id, "SeatFlow")
-		Loggit.p("Setting seat for player node for peer_id %d" % peer_id, "SeatFlow")
-		player.seat.set_value(seat)
-		Loggit.p("Registering player for peer_id %d" % peer_id, "SeatFlow")
 		_player_registry.add_player(peer_id, player)
-		Loggit.p("Finished setting up player for peer_id %d" % peer_id, "SeatFlow")
+
+		player.seat.set_value(seat)
+		player.spirit_points.set_value(starting_spirit_points)
+		
 		seat += 1
 
 
@@ -158,3 +150,19 @@ func _initialize_game_state() -> void:
 # Apply: Authority State Mutators
 func _apply_teardown_player(_peer_id: int) -> void:
 	return
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func notify_ready() -> void:
+	if not multiplayer.is_server():
+		Loggit.p("Notifying server of ready state", "SeatFlow")
+		return
+
+	_ready_peers.append(multiplayer.get_remote_sender_id())
+	if _ready_peers.size() == multiplayer.get_peers().size():
+		_initialize_game_state()
+		Loggit.p("Finished initializing game state", "SeatFlow")
+		_setup_players()
+		
+		_game_fsm = FiniteStateMachine.new()
+		transition_to_phase.call_deferred(GamePhase.START)

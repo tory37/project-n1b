@@ -4,6 +4,7 @@ extends Node
 var _peer_id: int
 
 @onready var _seat: SeatComponent = $SeatComponent
+@onready var _spirit_points: SpiritPointsComponent = $SpiritPointsComponent
 
 var peer_id: int:
 	get:
@@ -12,6 +13,10 @@ var peer_id: int:
 var seat: SeatComponent:
 	get:
 		return _seat
+
+var spirit_points: SpiritPointsComponent:
+	get:
+		return _spirit_points
 
 
 func set_peer_id(new_peer_id: int) -> void:
