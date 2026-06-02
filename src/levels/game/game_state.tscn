@@ -1,6 +1,5 @@
 [gd_scene format=3 uid="uid://cu83dpxikl80g"]
 
-[ext_resource type="Script" uid="uid://cx0eoq50puom5" path="res://src/levels/game/state/turn_number.gd" id="1_gpm61"]
 [ext_resource type="Script" uid="uid://mkpc3hpn0iph" path="res://src/levels/game/state/active_player.gd" id="2_rhqbi"]
 [ext_resource type="Script" uid="uid://s6tn8d5ojcym" path="res://src/levels/game/state/action_points.gd" id="3_psf6a"]
 [ext_resource type="Script" uid="uid://cdvmv555f8ce1" path="res://src/levels/game/state/turn_order.gd" id="4_524ot"]
@@ -8,10 +7,6 @@
 [ext_resource type="Script" uid="uid://6ewraks3a88d" path="res://src/levels/game/state/game_card_collections.gd" id="5_psf6a"]
 
 [node name="GameState" type="Node" unique_id=393733865]
-
-[node name="TurnNumber" type="Node" parent="." unique_id=369454821]
-script = ExtResource("1_gpm61")
-metadata/_custom_type_script = "uid://cx0eoq50puom5"
 
 [node name="ActivePlayer" type="Node" parent="." unique_id=2079517515]
 script = ExtResource("2_rhqbi")

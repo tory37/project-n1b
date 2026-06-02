@@ -2,6 +2,8 @@
 
 [ext_resource type="Script" uid="uid://dlu6kkywvipxy" path="res://src/levels/game/game_manager.gd" id="1_b6y0w"]
 [ext_resource type="Resource" uid="uid://0o8qgwtpnu2f" path="res://resources/decks/test_deck.tres" id="2_n5fbu"]
+[ext_resource type="PackedScene" uid="uid://ce4f3ejx5se4j" path="res://src/player/networked_player.tscn" id="2_nblc3"]
+[ext_resource type="PackedScene" uid="uid://b4ghprdba615b" path="res://src/player/player_registry.tscn" id="3_85bdw"]
 [ext_resource type="PackedScene" uid="uid://dnm1lkkfq5gx" path="res://src/world/hex_board/hex_board.tscn" id="3_ewew8"]
 [ext_resource type="PackedScene" uid="uid://cu83dpxikl80g" path="res://src/levels/game/game_state.tscn" id="3_nblc3"]
 [ext_resource type="PackedScene" uid="uid://b8xmcjwsj2" path="res://src/world/table/table.tscn" id="4_ghaey"]
@@ -10,14 +12,16 @@
 
 [node name="Game" type="Node3D" unique_id=494198879]
 script = ExtResource("1_b6y0w")
+player_scene = ExtResource("2_nblc3")
 test_deck = ExtResource("2_n5fbu")
 
-[node name="MultiplayerSpawner" type="MultiplayerSpawner" parent="." unique_id=1471964723]
-spawn_path = NodePath("../Players")
+[node name="PlayerRegistry" parent="." unique_id=131796875 instance=ExtResource("3_85bdw")]
+
+[node name="Player1" parent="PlayerRegistry" unique_id=1640795652 instance=ExtResource("2_nblc3")]
+
+[node name="Player2" parent="PlayerRegistry" unique_id=165871332 instance=ExtResource("2_nblc3")]
 
 [node name="GameState" parent="." unique_id=393733865 instance=ExtResource("3_nblc3")]
-
-[node name="Players" type="Node" parent="." unique_id=971894374]
 
 [node name="Camera3D" type="Camera3D" parent="." unique_id=710749813]
 transform = Transform3D(1, 0, 0, 0, 0.6156611, 0.7880111, 0, -0.7880111, 0.6156611, 0, 9, 12.11622)

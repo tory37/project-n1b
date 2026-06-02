@@ -10,7 +10,6 @@ signal add_ap_requested(amount: int)
 # Game State
 signal increment_turn_requested()
 signal increment_turn_requested_failed()
-signal turn_number_synced(turn: int)
 
 signal active_player_synced(player_id: int)
 

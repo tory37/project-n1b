@@ -100,7 +100,7 @@ func _sync_value(new_value: int) -> void:
 
 	if not multiplayer.is_server():
 		Loggit.p("Calling synced signal.", "ActionPointsDebug")
-		SignalBus.turn_number_synced.emit(new_value)
+		SignalBus.action_points_synced.emit(new_value)
 
 
 @rpc("authority", "call_remote", "reliable")

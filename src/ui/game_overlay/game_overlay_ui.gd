@@ -19,10 +19,24 @@ extends Node
 @onready var _opponent_deck_label: Label = %OpponentDeckLabel
 @onready var _opponent_discard_label: Label = %OpponentDiscardLabel
 
+var _player_registry: PlayerRegistry
+
 
 func _ready() -> void:
+	if multiplayer.is_server():
+		return
+
 	Loggit.p("GameOverlayUI ready", "GameOverlayUI")
-	SignalBus.turn_number_synced.connect(_on_turn_number_synced)
+
+	Loggit.p("Finding PlayerRegistry node", "SeatFlow")
+	_player_registry = get_tree().get_first_node_in_group(
+		"player_registry",
+	) as PlayerRegistry
+
+	Loggit.p("Connecting to PlayerRegistry.player_added signal", "SeatFlow")
+
+	_player_registry.player_added.connect(_on_player_added)
+
 	SignalBus.turn_order_synced.connect(_on_turn_order_synced)
 	SignalBus.active_player_synced.connect(_on_active_player_synced)
 	SignalBus.action_points_synced.connect(_on_action_points_synced)
@@ -33,7 +47,21 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
-	SignalBus.turn_number_synced.disconnect(_on_turn_number_synced)
+	if multiplayer.is_server():
+		return
+
+	if _player_registry:
+		_player_registry.player_added.disconnect(_on_player_added)
+		_disconnect_all()
+
+
+func _disconnect_all() -> void:
+	for player in _player_registry.get_all_players():
+		if player.peer_id == multiplayer.get_unique_id():
+			player.seat.synced.disconnect(_on_self_seat_synced)
+		else:
+			player.seat.synced.disconnect(_on_opponent_seat_synced)
+
 	SignalBus.turn_order_synced.disconnect(_on_turn_order_synced)
 	SignalBus.active_player_synced.disconnect(_on_active_player_synced)
 	SignalBus.action_points_synced.disconnect(_on_action_points_synced)
@@ -43,9 +71,22 @@ func _exit_tree() -> void:
 	SignalBus.player_discard_synced.disconnect(_on_player_discard_synced)
 
 
-func _on_turn_number_synced(turn: int) -> void:
-	Loggit.p("Received turn number synced signal. Turn is now: %d" % turn, "GameOverlayUI")
-	_turn_label.text = "Turn: %d" % turn
+func _on_player_added(peer_id: int, player: NetworkedPlayer) -> void:
+	if peer_id == multiplayer.get_unique_id():
+		Loggit.p("Connecting to self seat synced signal for peer_id %d" % peer_id, "SeatFlow")
+		player.seat.synced.connect(_on_self_seat_synced)
+	else:
+		player.seat.synced.connect(_on_opponent_seat_synced)
+
+
+func _on_self_seat_synced(seat: int) -> void:
+	Loggit.p("Received self seat synced signal. Seat is now: %d" % seat, "SeatFlow")
+	_self_player_number_label.text = "You: %d" % seat
+
+
+func _on_opponent_seat_synced(seat: int) -> void:
+	Loggit.p("Received opponent seat synced signal. Seat is now: %d" % seat, "SeatFlow")
+	_opponent_player_number_label.text = "Opponent: %d" % seat
 
 
 func _on_turn_order_synced(turn_order: Array[int]) -> void:
@@ -53,7 +94,7 @@ func _on_turn_order_synced(turn_order: Array[int]) -> void:
 		"Received turn order synced signal. Turn order is now: %s" % turn_order,
 		"GameOverlayUI",
 	)
-	
+
 	var self_player_number: int = turn_order.find(multiplayer.get_unique_id()) + 1
 	var self_id: int = multiplayer.get_unique_id()
 	_self_player_number_label.text = "You: %d" % self_player_number
@@ -64,9 +105,6 @@ func _on_turn_order_synced(turn_order: Array[int]) -> void:
 		var opponent_id: int = turn_order[opponent_player_number - 1]
 		_opponent_player_number_label.text = "Opponent: %d" % opponent_player_number
 		_opponent_id_label.text = "ID: %d" % opponent_id
-
-	
-	
 
 
 func _on_active_player_synced(player_id: int) -> void:

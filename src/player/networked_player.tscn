@@ -1,18 +1,11 @@
 [gd_scene format=3 uid="uid://ce4f3ejx5se4j"]
 
-[sub_resource type="GDScript" id="GDScript_nsvwn"]
-script/source = "extends Node
-
-
-# Called when the node enters the scene tree for the first time.
-func _ready() -> void:
-	pass # Replace with function body.
-
-
-# Called every frame. 'delta' is the elapsed time since the previous frame.
-func _process(delta: float) -> void:
-	pass
-"
+[ext_resource type="Script" uid="uid://b17xcja45v73k" path="res://src/player/networked_player.gd" id="1_2spp2"]
+[ext_resource type="PackedScene" uid="uid://b7eh3ppy1ue5m" path="res://src/player/seat_component.tscn" id="1_ljied"]
+[ext_resource type="Script" uid="uid://dpfk0x02b8ipw" path="res://src/player/seat_component.gd" id="2_2spp2"]
 
 [node name="NetworkedPlayer" type="Node" unique_id=1640795652]
-script = SubResource("GDScript_nsvwn")
+script = ExtResource("1_2spp2")
+
+[node name="SeatComponent" parent="." unique_id=1233938176 instance=ExtResource("1_ljied")]
+script = ExtResource("2_2spp2")

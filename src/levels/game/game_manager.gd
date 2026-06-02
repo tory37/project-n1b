@@ -24,6 +24,7 @@ enum GamePhase {
 ## ---- Exports -------------------------------------------------------
 
 # TODO: Make these a resource
+@export var player_scene: PackedScene
 @export var base_income: int = 2
 @export var pass_turn_starting_ap: int = 3
 
@@ -43,18 +44,20 @@ var _phase_constructors: Dictionary = {
 
 ## ---- @onready Variables --------------------------------------------
 
+@onready var _player_registry: PlayerRegistry = $PlayerRegistry
+
 # State
 
-@onready var turn_number: TurnNumberNetworkedState = $GameState/TurnNumber
+@onready var player_1: NetworkedPlayer = $PlayerRegistry/Player1
+@onready var player_2: NetworkedPlayer = $PlayerRegistry/Player2
+
 @onready var active_player: ActivePlayerNetworkedState = $GameState/ActivePlayer
-@onready var turn_order: TurnOrderNetworkedState = $GameState/TurnOrder
+@onready var turn_order: TurnOrderNetworkedState
 @onready var action_points: ActionPointsNetworkedState = $GameState/ActionPoints
 @onready var currencies: CurrencyNetworkedState = $GameState/Currencies
 @onready var hands: GameCardCollectionsNetworkedState = $GameState/Hands
 @onready var decks: GameCardCollectionsNetworkedState = $GameState/Decks
 @onready var discards: GameCardCollectionsNetworkedState = $GameState/Discards
-
-@onready var spawner: MultiplayerSpawner = $MultiplayerSpawner
 
 ## ---- Static Methods ------------------------------------------------
 
@@ -63,11 +66,19 @@ var _phase_constructors: Dictionary = {
 
 func _ready() -> void:
 	if multiplayer.is_server():
-		Loggit.p("GameManager is server", "Flow")
+		turn_order = $GameState/TurnOrder
+		Loggit.p("GameManager is server", "SeatFlow")
+
+		_initialize_game_state()
+		Loggit.p("Finished initializing game state", "SeatFlow")
+		_setup_players()
 
 		_game_fsm = FiniteStateMachine.new()
-		_initialize_game_state.call_deferred()
 		transition_to_phase.call_deferred(GamePhase.START)
+	else:
+		Loggit.p("My path: " + str(get_path()), "SeatFlow")
+		Loggit.p("Does child exist? " + str(has_node("GameState/TurnOrder")), "SeatFlow")
+		turn_order = $GameState/TurnOrder
 
 ## ---- Public Methods ------------------------------------------------
 
@@ -87,8 +98,8 @@ func draw_cards(player_id: int, count: int) -> void:
 
 	if not decks.can_pop_cards(player_id, count):
 		Loggit.p(
-			"Cannot draw %d cards for player %d: not enough cards in decks" % [count, player_id], 
-			"Error"
+			"Cannot draw %d cards for player %d: not enough cards in decks" % [count, player_id],
+			"Error",
 		)
 		return
 
@@ -99,11 +110,40 @@ func draw_cards(player_id: int, count: int) -> void:
 ## ---- Private Methods -----------------------------------------------
 
 
-func _initialize_game_state() -> void:
-	Loggit.p("Initializing game state", "Flow")
-
+func _setup_players() -> void:
+	Loggit.p("Entering _setup_players", "SeatFlow")
 	if not multiplayer.is_server():
 		return
+
+	Loggit.p("Setting up players", "SeatFlow")
+	var seat = 1
+	for peer_id: int in multiplayer.get_peers():
+		Loggit.p("Instantiating player for peer_id %d at seat %d" % [peer_id, seat], "SeatFlow")
+		var player
+
+		if seat == 1:
+			player = player_1
+		elif seat == 2:
+			player = player_2
+		else:
+			push_error("Unsupported seat number %d for peer_id %d" % [seat, peer_id])
+			continue
+
+		Loggit.p("Instantiated player.  Does player exist? " + str(player != null), "SeatFlow")
+		Loggit.p("Spawning player node for peer_id %d" % peer_id, "SeatFlow")
+		Loggit.p("Setting seat for player node for peer_id %d" % peer_id, "SeatFlow")
+		player.seat.set_value(seat)
+		Loggit.p("Registering player for peer_id %d" % peer_id, "SeatFlow")
+		_player_registry.add_player(peer_id, player)
+		Loggit.p("Finished setting up player for peer_id %d" % peer_id, "SeatFlow")
+		seat += 1
+
+
+func _initialize_game_state() -> void:
+	if not multiplayer.is_server():
+		return
+
+	Loggit.p("Initializing game state", "Flow")
 
 	for peer_id: int in multiplayer.get_peers():
 		Loggit.p("Initializing game state for peer %d" % peer_id, "Flow")

@@ -1,0 +1,7 @@
+[gd_scene format=3 uid="uid://b4ghprdba615b"]
+
+[ext_resource type="Script" uid="uid://gjrb6b2oflfx" path="res://src/player/player_registry.gd" id="1_5kave"]
+
+[node name="PlayerRegistry" type="Node" unique_id=131796875 groups=["player_registry"]]
+script = ExtResource("1_5kave")
+metadata/_custom_type_script = "uid://gjrb6b2oflfx"
