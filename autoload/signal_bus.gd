@@ -27,5 +27,3 @@ signal currency_synced(player_id: int, currency: int)
 signal player_hand_synced(player_id: int, hand: GameCardCollection)
 signal player_deck_synced(player_id: int, deck: GameCardCollection)
 signal player_discard_synced(player_id: int, discard: GameCardCollection)
-
-signal player_number_synced(player_id: int, player_number: int)

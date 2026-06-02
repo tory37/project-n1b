@@ -12,6 +12,14 @@ We have moved away from "vibe coding." Every architectural decision and code imp
 2. **Approval Gate:** Use a distinct "Awaiting approval to proceed with these changes..." message.
 3. **No Batch Commit/Push:** Never combine implementation, linting, and committing into a single autonomous sequence. Each stage requires a fresh review.
 
+## Code Changes Require Explicit Instruction
+
+**MANDATE:** The agent writes plans, guides, and responses to `.html` files. It does NOT write or modify code files (`.gd`, `.tscn`, `.tres`, etc.) unless the user explicitly says **"write the code for this"** in the current message.
+
+- Presenting a diff, summary, or HTML plan is NOT permission to write code.
+- Prior approval in the same conversation does NOT carry forward. Each code-writing step requires a fresh explicit instruction.
+- When in doubt: write to HTML, not to source files.
+
 ## Handling Interjectory Requests
 
 When the user makes a request that is outside the scope of the current feature or story (an "interjectory request"):

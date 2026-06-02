@@ -6,7 +6,7 @@ signal connection_established
 signal connection_failed
 
 const DEFAULT_PORT: int  = 7777
-const MAX_PLAYERS: int = 2
+const MAX_PLAYERS: int = 3
 
 var peer: ENetMultiplayerPeer = null
 var is_server: bool = false

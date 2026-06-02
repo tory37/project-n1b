@@ -49,10 +49,10 @@ var _phase_constructors: Dictionary = {
 @onready var active_player: ActivePlayerNetworkedState = $GameState/ActivePlayer
 @onready var turn_order: TurnOrderNetworkedState = $GameState/TurnOrder
 @onready var action_points: ActionPointsNetworkedState = $GameState/ActionPoints
-@onready var currency: CurrencyNetworkedState = $GameState/Currency
-@onready var hand: GameCardCollectionNetworkedState = $GameState/Hand
-@onready var deck: GameCardCollectionNetworkedState = $GameState/Deck
-@onready var discard: GameCardCollectionNetworkedState = $GameState/Discard
+@onready var currencies: CurrencyNetworkedState = $GameState/Currencies
+@onready var hands: GameCardCollectionsNetworkedState = $GameState/Hands
+@onready var decks: GameCardCollectionsNetworkedState = $GameState/Decks
+@onready var discards: GameCardCollectionsNetworkedState = $GameState/Discards
 
 @onready var spawner: MultiplayerSpawner = $MultiplayerSpawner
 
@@ -62,14 +62,12 @@ var _phase_constructors: Dictionary = {
 
 
 func _ready() -> void:
-	Loggit.p("GameManager ready", "Flow")
-
 	if multiplayer.is_server():
 		Loggit.p("GameManager is server", "Flow")
 
 		_game_fsm = FiniteStateMachine.new()
-		_initialize_game_state()
-		transition_to_phase(GamePhase.START)
+		_initialize_game_state.call_deferred()
+		transition_to_phase.call_deferred(GamePhase.START)
 
 ## ---- Public Methods ------------------------------------------------
 
@@ -87,20 +85,33 @@ func draw_cards(player_id: int, count: int) -> void:
 		Loggit.p("Only the server can draw cards", "Error")
 		return
 
-	var drawn_cards: Array[GameCard] = deck.pop_cards(player_id, count)
-	hand.add_cards(player_id, drawn_cards)
+	if not decks.can_pop_cards(player_id, count):
+		Loggit.p(
+			"Cannot draw %d cards for player %d: not enough cards in decks" % [count, player_id], 
+			"Error"
+		)
+		return
+
+	var drawn_cards: GameCardCollection = decks.pop_back(player_id, count)
+	for card: GameCard in drawn_cards.value:
+		hands.push_back(player_id, card)
 
 ## ---- Private Methods -----------------------------------------------
 
 
 func _initialize_game_state() -> void:
+	Loggit.p("Initializing game state", "Flow")
+
 	if not multiplayer.is_server():
 		return
 
-	for peer_id in [1, multiplayer.get_peers()]:
+	for peer_id: int in multiplayer.get_peers():
+		Loggit.p("Initializing game state for peer %d" % peer_id, "Flow")
 		turn_order.push_value(peer_id)
-		deck.from_card_data(peer_id, test_deck.cards.duplicate())
+		Loggit.p("Initializing deck for peer %d" % peer_id, "Flow")
+		decks.from_card_data(peer_id, test_deck.cards.duplicate())
 
+	Loggit.p("Setting turn number to 1", "Flow")
 	active_player.set_value(turn_order.get_player_at_number(1))
 
 

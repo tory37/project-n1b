@@ -1,4 +1,13 @@
-class_name GameCardCollectionNetworkedState
+# ------------------------------------------------------------------------
+# This is an abstract base class for networked game card collections. 
+# It provides the basic functionality for synchronizing a collection of 
+# cards across the network, but does not implement any specific behavior 
+# for a particular type of collection (e.g., hand, deck, discard pile). 
+# Subclasses should override the `_call_synced_signal` method to emit the 
+# appropriate signal for their specific collection type.
+# ------------------------------------------------------------------------
+
+class_name GameCardCollectionsNetworkedState
 extends Node
 
 # --- Variables ---
@@ -32,7 +41,24 @@ func from_card_data(peer_id: int, card_data_array: Array[CardData]) -> void:
 		push_error("Only the server can set the value directly")
 		return
 
-	var new_collection: GameCardCollection = GameCardCollection.new(card_data_array)
+	var new_collection: GameCardCollection = GameCardCollection.from_card_data_array(
+		card_data_array
+	)
+
+	_sync_to_all(peer_id, new_collection)
+
+
+func shuffle(peer_id: int) -> void:
+	if not multiplayer.is_server():
+		push_error("Only the server can shuffle the collection directly")
+		return
+
+	if not peer_id in _value:
+		push_error("Cannot shuffle non-existent collection for peer_id: %d" % peer_id)
+		return
+
+	var new_collection: GameCardCollection = _value[peer_id].duplicate()
+	new_collection.shuffle()
 
 	_sync_to_all(peer_id, new_collection)
 
@@ -54,8 +80,8 @@ func push_back(peer_id: int, card: GameCard) -> void:
 
 func can_pop_cards(peer_id: int, amount: int) -> bool:
 	if peer_id in _value:
-		return _value[peer_id].size() >= amount
-	
+		return _value[peer_id].count() >= amount
+
 	return false
 
 
@@ -75,7 +101,6 @@ func pop_back(peer_id: int, count: int) -> GameCardCollection:
 
 	return popped_cards
 
-
 # TODO: func reveal_card(peer_id: int, card: GameCard) -> void:
 
 # --- Private Methods ---
@@ -83,14 +108,17 @@ func pop_back(peer_id: int, count: int) -> GameCardCollection:
 
 # TODO: Hoist this up to a static service or something
 func _mask_colletion(collection: GameCardCollection) -> GameCardCollection:
-	return GameCardCollection.new(collection.value.map(
-		func(card: GameCard):
-			if card.revealed:
-				return card
-
+	var mask_card = func(card: GameCard):
+		if card.revealed:
 			return card
-	)
-	)
+		return null
+
+	var new_collection: GameCardCollection = GameCardCollection.new()
+	var new_value: Array[GameCard] = []
+	new_value.assign(collection.value.map(mask_card))
+
+	new_collection.set_value(new_value)
+	return new_collection
 
 
 func _sync_to_all(peer_id: int, new_collection: GameCardCollection) -> void:
@@ -110,4 +138,10 @@ func _sync_value(peer_id: int, new_value: GameCardCollection) -> void:
 	_value[peer_id] = new_value
 
 	if not multiplayer.is_server():
-		SignalBus.deck_synced.emit(peer_id, new_value)
+		_call_synced_signal(peer_id, new_value)
+
+func _call_synced_signal(_peer_id: int, _new_value: GameCardCollection) -> void:
+	push_error(
+		"This method should be overridden in subclasses to emit the appropriate signal" +
+		" for the specific collection type."
+	)		

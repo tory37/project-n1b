@@ -27,12 +27,24 @@ func set_value(peer_id: int, new_value: int) -> void:
 	_sync_value.rpc(peer_id, new_value)
 
 
-func remove_value(peer_id: int) -> void:
+func add(peer_id: int, amount: int) -> void:
 	if not multiplayer.is_server():
-		push_error("Only the server can remove value directly")
+		push_error("Only the server can add value directly")
 		return
 
-	_sync_value.rpc(peer_id, 0)
+	var new_value: int = get_value_for_peer(peer_id) + amount
+
+	_sync_value.rpc(peer_id, new_value)
+
+
+func spend(peer_id: int, amount: int) -> void:
+	if not multiplayer.is_server():
+		push_error("Only the server can spend value directly")
+		return
+
+	var new_value: int = get_value_for_peer(peer_id) - amount
+
+	_sync_value.rpc(peer_id, new_value)
 
 # --- Private Methods ---
 
@@ -41,7 +53,12 @@ func remove_value(peer_id: int) -> void:
 
 @rpc("authority", "call_local", "reliable")
 func _sync_value(peer_id: int, new_value: int) -> void:
+	Loggit.p("Syncing currency for peer %d: %d" % [peer_id, new_value], "CurrencyNetworkedState")
 	_value[peer_id] = new_value
 
 	if not multiplayer.is_server():
+		Loggit.p(
+			"Calling synced signal for peer %d: %d" % [peer_id, new_value], 
+			"CurrencyNetworkedState"
+		)
 		SignalBus.currency_synced.emit(peer_id, new_value)

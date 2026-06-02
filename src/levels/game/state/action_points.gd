@@ -95,9 +95,11 @@ func _validate_gain(amount: int) -> bool:
 
 @rpc("authority", "call_local", "reliable")
 func _sync_value(new_value: int) -> void:
+	Loggit.p("Syncing action points value: %d to Player: %d" % [new_value, multiplayer.get_unique_id()], "ActionPointsDebug")
 	_value = new_value
 
 	if not multiplayer.is_server():
+		Loggit.p("Calling synced signal.", "ActionPointsDebug")
 		SignalBus.turn_number_synced.emit(new_value)
 
 

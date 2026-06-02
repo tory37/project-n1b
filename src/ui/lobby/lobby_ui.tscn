@@ -33,23 +33,6 @@ horizontal_alignment = 1
 [node name="HSeparator" type="HSeparator" parent="CenterContainer/VBoxContainer" unique_id=1624533411]
 layout_mode = 2
 
-[node name="AddressInput" type="LineEdit" parent="CenterContainer/VBoxContainer" unique_id=1945140469]
-custom_minimum_size = Vector2(300, 0)
-layout_mode = 2
-placeholder_text = "Host IP (leave blank for localhost)"
-
-[node name="Buttons" type="HBoxContainer" parent="CenterContainer/VBoxContainer" unique_id=389186779]
-layout_mode = 2
-theme_override_constants/separation = 8
-
-[node name="HostButton" type="Button" parent="CenterContainer/VBoxContainer/Buttons" unique_id=219475327]
-layout_mode = 2
-text = "Host"
-
-[node name="JoinButton" type="Button" parent="CenterContainer/VBoxContainer/Buttons" unique_id=534119170]
-layout_mode = 2
-text = "Join"
-
 [node name="PlayerList" type="ItemList" parent="CenterContainer/VBoxContainer" unique_id=1350100975]
 custom_minimum_size = Vector2(300, 120)
 layout_mode = 2
@@ -57,8 +40,3 @@ layout_mode = 2
 [node name="StatusLabel" type="Label" parent="CenterContainer/VBoxContainer" unique_id=1770012002]
 layout_mode = 2
 horizontal_alignment = 1
-
-[node name="StartButton" type="Button" parent="CenterContainer/VBoxContainer" unique_id=421311847]
-layout_mode = 2
-disabled = true
-text = "Start Game"

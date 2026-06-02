@@ -21,14 +21,14 @@ func set_value(new_value: Array[int]) -> void:
 
 
 func push_value(new_value: int) -> void:
-	if multiplayer.is_server():
-		push_error("Server should not push value")
+	if not multiplayer.is_server():
+		push_error("Only the server can push value")
 		return
 
 	var new_array: Array[int] = _value.duplicate()
 	new_array.append(new_value)
 
-	_sync_value.rpc(new_value)
+	_sync_value.rpc(new_array)
 
 
 func get_next_player_id(current_player_id: int) -> int:
