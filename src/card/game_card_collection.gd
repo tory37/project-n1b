@@ -126,6 +126,31 @@ func pop_front(count: int) -> GameCardCollection:
 	return GameCardCollection.from_game_card_array(popped_cards)
 
 
+func remove_cards(uuids: Array[String]) -> GameCardCollection:
+	var removed_cards: Array[GameCard] = []
+	_cards = _cards.filter(func(card: GameCard) -> bool:
+		if card.uuid in uuids:
+			removed_cards.append(card)
+			return false
+		return true
+	)
+	return GameCardCollection.from_game_card_array(removed_cards)
+
+
+func remove_collection(collection: GameCardCollection) -> GameCardCollection:
+	var uuids_to_remove: Array[String] = []
+	for card in collection.cards:
+		uuids_to_remove.append(card.uuid)
+	return remove_cards(uuids_to_remove)
+
+
+func contains_card(card_to_check: GameCard) -> bool:
+	for card in _cards:
+		if card.uuid == card_to_check.uuid:
+			return true
+	return false
+
+
 func copy() -> GameCardCollection:
 	var new_value: Array[GameCard] = _cards.duplicate()
 	var new_collection: GameCardCollection = GameCardCollection.from_game_card_array(new_value)

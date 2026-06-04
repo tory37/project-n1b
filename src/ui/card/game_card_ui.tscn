@@ -1,0 +1,26 @@
+[gd_scene format=3 uid="uid://bnrvhwfkyla7k"]
+
+[ext_resource type="Script" uid="uid://cslg0p6owor3m" path="res://src/ui/card/game_card_ui.gd" id="1_bfa5p"]
+
+[node name="GameCardUI" type="PanelContainer" unique_id=267681709]
+script = ExtResource("1_bfa5p")
+
+[node name="MarginContainer" type="MarginContainer" parent="." unique_id=445517337]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer" unique_id=1336963387]
+layout_mode = 2
+
+[node name="TitleLabel" type="Label" parent="MarginContainer/VBoxContainer" unique_id=858608698]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Card Title"
+
+[node name="ActionPointsLabel" type="Label" parent="MarginContainer/VBoxContainer" unique_id=1645694658]
+unique_name_in_owner = true
+layout_mode = 2
+text = "AP: X"

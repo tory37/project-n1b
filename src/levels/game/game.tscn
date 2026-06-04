@@ -9,10 +9,10 @@
 [ext_resource type="PackedScene" uid="uid://b8xmcjwsj2" path="res://src/world/table/table.tscn" id="4_ghaey"]
 [ext_resource type="PackedScene" uid="uid://dudx5da1opo8o" path="res://src/deck/deck_view.tscn" id="5_76xvg"]
 [ext_resource type="PackedScene" uid="uid://chmm0j1cbcqa2" path="res://src/ui/game_overlay/game_overlay_ui.tscn" id="8_85bdw"]
+[ext_resource type="PackedScene" uid="uid://5e82kas2q54g" path="res://src/ui/hand/hand_overlay_ui.tscn" id="10_nvxtd"]
 
 [node name="Game" type="Node3D" unique_id=494198879]
 script = ExtResource("1_b6y0w")
-player_scene = ExtResource("2_nblc3")
 test_deck = ExtResource("2_n5fbu")
 
 [node name="PlayerRegistry" parent="." unique_id=131796875 instance=ExtResource("3_85bdw")]
@@ -42,3 +42,5 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 0, -10)
 owner_player_id = 1
 
 [node name="GameOverlayUi" parent="." unique_id=1299964242 instance=ExtResource("8_85bdw")]
+
+[node name="HandOverlay" parent="." unique_id=1894071510 instance=ExtResource("10_nvxtd")]

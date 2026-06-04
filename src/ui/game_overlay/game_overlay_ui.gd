@@ -49,15 +49,15 @@ func _on_player_added(peer_id: int, player: NetworkedPlayer) -> void:
 	if peer_id == multiplayer.get_unique_id():
 		player.seat.synced.connect(_on_self_seat_synced)
 		player.spirit_points.synced.connect(_on_self_spirit_points_synced)
-		player.hand.synced.connect(_on_self_hand_synced)
-		player.deck.synced.connect(_on_self_deck_synced)
-		player.discard.synced.connect(_on_self_discard_synced)
+		player.hand.set_synced.connect(_on_self_hand_synced)
+		player.deck.set_synced.connect(_on_self_deck_synced)
+		player.discard.set_synced.connect(_on_self_discard_synced)
 	else:
 		player.seat.synced.connect(_on_opponent_seat_synced)
 		player.spirit_points.synced.connect(_on_opponent_spirit_points_synced)
-		player.hand.synced.connect(_on_opponent_hand_synced)
-		player.deck.synced.connect(_on_opponent_deck_synced)
-		player.discard.synced.connect(_on_opponent_discard_synced)
+		player.hand.set_synced.connect(_on_opponent_hand_synced)
+		player.deck.set_synced.connect(_on_opponent_deck_synced)
+		player.discard.set_synced.connect(_on_opponent_discard_synced)
 
 
 func _disconnect_all() -> void:
@@ -65,15 +65,15 @@ func _disconnect_all() -> void:
 		if player.peer_id == multiplayer.get_unique_id():
 			player.seat.synced.disconnect(_on_self_seat_synced)
 			player.spirit_points.synced.disconnect(_on_self_spirit_points_synced)
-			player.hand.synced.disconnect(_on_self_hand_synced)
-			player.deck.synced.disconnect(_on_self_deck_synced)
-			player.discard.synced.disconnect(_on_self_discard_synced)
+			player.hand.set_synced.disconnect(_on_self_hand_synced)
+			player.deck.set_synced.disconnect(_on_self_deck_synced)
+			player.discard.set_synced.disconnect(_on_self_discard_synced)
 		else:
 			player.seat.synced.disconnect(_on_opponent_seat_synced)
 			player.spirit_points.synced.disconnect(_on_opponent_spirit_points_synced)
-			player.hand.synced.disconnect(_on_opponent_hand_synced)
-			player.deck.synced.disconnect(_on_opponent_deck_synced)
-			player.discard.synced.disconnect(_on_opponent_discard_synced)
+			player.hand.set_synced.disconnect(_on_opponent_hand_synced)
+			player.deck.set_synced.disconnect(_on_opponent_deck_synced)
+			player.discard.set_synced.disconnect(_on_opponent_discard_synced)
 
 	SignalBus.turn_order_synced.disconnect(_on_turn_order_synced)
 	SignalBus.active_player_synced.disconnect(_on_active_player_synced)
