@@ -8,7 +8,6 @@ var _players: Dictionary[int, NetworkedPlayer] = { }
 
 
 func add_player(peer_id: int, player: NetworkedPlayer) -> void:
-	Loggit.p("Registering player with peer_id %d" % peer_id, "SeatFlow")
 	sync_add_player.rpc(peer_id, player.name)
 
 
@@ -21,13 +20,11 @@ func get_player(peer_id: int) -> NetworkedPlayer:
 
 
 func get_all_players() -> Array[NetworkedPlayer]:
-	Loggit.p("Getting all players from registry. Current players: %s" % _players.keys(), "SeatFlow")
 	return _players.values()
 
 
 @rpc("authority", "call_local", "reliable")
 func sync_add_player(peer_id: int, player_name: String) -> void:
-	Loggit.p("Syncing added player with peer_id %d" % peer_id, "SeatFlow")
 	var player: NetworkedPlayer = get_node(player_name) as NetworkedPlayer
 	_players[peer_id] = player
 	player_added.emit(peer_id, player)

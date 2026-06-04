@@ -3,13 +3,14 @@ extends GamePhaseState
 
 
 func enter() -> void:
-	Loggit.p("Entering GamePhaseStart", "Flow")
-
 	var player_ids: Array[int] = _game_manager.turn_order.value.duplicate()
 
 
 	for player_id in player_ids:
-		_game_manager.decks.shuffle(player_id)
+		var player: NetworkedPlayer = _game_manager.get_player(player_id)
+		var new_deck: GameCardCollection = player.deck.value.copy()
+		new_deck.shuffle()
+		player.deck.set_value(new_deck)
 
 		# TODO: Get from a config
 		var starting_hand_size: int = 5

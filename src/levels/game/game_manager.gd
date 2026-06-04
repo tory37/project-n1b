@@ -55,9 +55,6 @@ var _ready_peers: Array[int] = []
 @onready var active_player: ActivePlayerNetworkedState = $GameState/ActivePlayer
 @onready var turn_order: TurnOrderNetworkedState
 @onready var action_points: ActionPointsNetworkedState = $GameState/ActionPoints
-@onready var hands: GameCardCollectionsNetworkedState = $GameState/Hands
-@onready var decks: GameCardCollectionsNetworkedState = $GameState/Decks
-@onready var discards: GameCardCollectionsNetworkedState = $GameState/Discards
 
 ## ---- Static Methods ------------------------------------------------
 
@@ -67,7 +64,6 @@ var _ready_peers: Array[int] = []
 func _ready() -> void:
 	if multiplayer.is_server():
 		turn_order = $GameState/TurnOrder
-		Loggit.p("GameManager is server", "SeatFlow")
 	else:
 		turn_order = $GameState/TurnOrder
 		notify_ready.rpc_id(1)
@@ -76,6 +72,8 @@ func _ready() -> void:
 
 ## ---- Public Methods ------------------------------------------------
 
+func get_player(peer_id: int) -> NetworkedPlayer:
+	return _player_registry.get_player(peer_id)
 
 func transition_to_phase(phase: GamePhase) -> void:
 	if not multiplayer.is_server():
@@ -87,33 +85,39 @@ func transition_to_phase(phase: GamePhase) -> void:
 
 func draw_cards(player_id: int, count: int) -> void:
 	if not multiplayer.is_server():
-		Loggit.p("Only the server can draw cards", "Error")
+		push_error("Only the server can draw cards")
 		return
 
-	if not decks.can_pop_cards(player_id, count):
-		Loggit.p(
-			"Cannot draw %d cards for player %d: not enough cards in decks" % [count, player_id],
-			"Error",
+	var player = _player_registry.get_player(player_id)
+
+	if not player.deck.value.size() >= count:
+		push_error(
+			"Cannot draw %d cards for player %d: not enough cards in decks" % [count, player_id]
 		)
 		return
 
-	var drawn_cards: GameCardCollection = decks.pop_back(player_id, count)
-	for card: GameCard in drawn_cards.value:
-		hands.push_back(player_id, card)
+	# EXAMPLE DATA MODIFICATION FLOW: 
+	#  We always duplicate, modify, then set to ensure the synced data is 
+	#  properly updated and emits signals.
+	var new_hand: GameCardCollection = player.hand.value.copy()
+	var new_deck: GameCardCollection = player.deck.value.copy()
+	var drawn_cards: GameCardCollection = new_deck.pop_back(count)
+
+	new_hand.push_back_collection(drawn_cards)
+
+	player.hand.set_value(new_hand)
+	player.deck.set_value(new_deck)
 
 ## ---- Private Methods -----------------------------------------------
 
 
 func _setup_players() -> void:
-	Loggit.p("Entering _setup_players", "SeatFlow")
 	if not multiplayer.is_server():
 		return
 
-	Loggit.p("Setting up players", "SeatFlow")
 	var seat = 1
 	for peer_id: int in multiplayer.get_peers():
-		Loggit.p("Instantiating player for peer_id %d at seat %d" % [peer_id, seat], "SeatFlow")
-		var player
+		var player: NetworkedPlayer
 
 		if seat == 1:
 			player = player_1
@@ -127,6 +131,10 @@ func _setup_players() -> void:
 
 		player.seat.set_value(seat)
 		player.spirit_points.set_value(starting_spirit_points)
+		player.hand.set_value(GameCardCollection.new())
+		Loggit.p("Setting up player %d with test deck of %d cards" % [peer_id, test_deck.cards.size()], "CARD_STATE")
+		player.deck.set_value(GameCardCollection.from_card_data_array(test_deck.cards.duplicate()))
+		player.discard.set_value(GameCardCollection.new())
 		
 		seat += 1
 
@@ -135,15 +143,10 @@ func _initialize_game_state() -> void:
 	if not multiplayer.is_server():
 		return
 
-	Loggit.p("Initializing game state", "Flow")
 
 	for peer_id: int in multiplayer.get_peers():
-		Loggit.p("Initializing game state for peer %d" % peer_id, "Flow")
 		turn_order.push_value(peer_id)
-		Loggit.p("Initializing deck for peer %d" % peer_id, "Flow")
-		decks.from_card_data(peer_id, test_deck.cards.duplicate())
 
-	Loggit.p("Setting turn number to 1", "Flow")
 	active_player.set_value(turn_order.get_player_at_number(1))
 
 
@@ -155,13 +158,11 @@ func _apply_teardown_player(_peer_id: int) -> void:
 @rpc("any_peer", "call_remote", "reliable")
 func notify_ready() -> void:
 	if not multiplayer.is_server():
-		Loggit.p("Notifying server of ready state", "SeatFlow")
 		return
 
 	_ready_peers.append(multiplayer.get_remote_sender_id())
 	if _ready_peers.size() == multiplayer.get_peers().size():
 		_initialize_game_state()
-		Loggit.p("Finished initializing game state", "SeatFlow")
 		_setup_players()
 		
 		_game_fsm = FiniteStateMachine.new()

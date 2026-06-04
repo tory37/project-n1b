@@ -25,6 +25,7 @@ NetworkManager="*uid://d1cag63fe204w"
 [debug]
 
 gdscript/warnings/unused_signal=0
+gdscript/warnings/shadowed_variable=0
 
 [dotnet]
 
@@ -37,3 +38,4 @@ enabled=PackedStringArray("res://addons/gut/plugin.cfg")
 [gdscript]
 
 warnings/unused_signal=0
+warnings/shadowed_variable=0

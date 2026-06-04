@@ -12,3 +12,7 @@ func p(message: String, key: String = "") -> void:
 		print("[%s] %s" % [identity, message])
 	else:
 		print("[%s][%s] %s" % [identity, key, message])
+
+
+func error(message: String, key: String = "") -> void:
+	p("ERROR: %s" % message, key)

@@ -83,7 +83,7 @@ func request_gain(amount: int) -> void:
 func _validate_spend(amount: int) -> bool:
 	# TODO: Update the '10' to the value in whatever config we setup
 	if amount > _value + 10:
-		Loggit.p("Cannot spend more AP than available: %d" % amount, "Error")
+		push_error("Cannot spend more AP than available: %d" % amount)
 		return false
 
 	return true
@@ -95,11 +95,9 @@ func _validate_gain(amount: int) -> bool:
 
 @rpc("authority", "call_local", "reliable")
 func _sync_value(new_value: int) -> void:
-	Loggit.p("Syncing action points value: %d to Player: %d" % [new_value, multiplayer.get_unique_id()], "ActionPointsDebug")
 	_value = new_value
 
 	if not multiplayer.is_server():
-		Loggit.p("Calling synced signal.", "ActionPointsDebug")
 		SignalBus.action_points_synced.emit(new_value)
 
 

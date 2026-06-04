@@ -5,6 +5,9 @@ var _peer_id: int
 
 @onready var _seat: SeatComponent = $SeatComponent
 @onready var _spirit_points: SpiritPointsComponent = $SpiritPointsComponent
+@onready var _hand: GameCardCollectionComponent = $HandComponent
+@onready var _deck: GameCardCollectionComponent = $DeckComponent
+@onready var _discard: GameCardCollectionComponent = $DiscardComponent
 
 var peer_id: int:
 	get:
@@ -18,6 +21,18 @@ var spirit_points: SpiritPointsComponent:
 	get:
 		return _spirit_points
 
+var hand: GameCardCollectionComponent:
+	get:
+		return _hand
+
+var deck: GameCardCollectionComponent:
+	get:
+		return _deck
+
+var discard: GameCardCollectionComponent:
+	get:
+		return _discard
+
 
 func set_peer_id(new_peer_id: int) -> void:
 	if not multiplayer.is_server():
@@ -25,3 +40,6 @@ func set_peer_id(new_peer_id: int) -> void:
 		return
 
 	_peer_id = new_peer_id
+
+	hand.setup(new_peer_id)
+	deck.setup(new_peer_id)

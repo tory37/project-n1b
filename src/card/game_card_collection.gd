@@ -1,67 +1,133 @@
 class_name GameCardCollection
-extends RefCounted
+extends Resource
 
-var _value: Array[GameCard] = []
+var _cards: Array[GameCard] = []
 
-var value: Array[GameCard]:
+var cards: Array[GameCard]:
 	get:
-		return _value
+		return _cards
 
 
 static func from_card_data_array(card_data_array: Array[CardData]) -> GameCardCollection:
+	var map = func(card_data: CardData) -> GameCard:
+		var card = GameCard.new()
+		card.data = card_data
+		return card
+
 	var collection: GameCardCollection = GameCardCollection.new()
-	for card_data: CardData in card_data_array:
-		collection.push_back(GameCard.new(card_data))
+	var mapped_cards: Array[GameCard] = []
+	mapped_cards.assign(card_data_array.map(map))
+	collection.push_back_multi(mapped_cards)
 
 	return collection
 
 
 static func from_game_card_array(game_card_array: Array[GameCard]) -> GameCardCollection:
 	var collection: GameCardCollection = GameCardCollection.new()
-	for game_card: GameCard in game_card_array:
-		collection.push_back(game_card)
+	collection.push_back_multi(game_card_array)
 
 	return collection
 
 
-func _init(collection: Array[CardData] = []) -> void:
-	for card_data: CardData in collection:
-		_value.append(GameCard.new(card_data))
+static func mask(to_mask: GameCardCollection) -> GameCardCollection:
+	var masked_cards: GameCardCollection = GameCardCollection.new()
+	for card: GameCard in to_mask.cards:
+		if card.revealed:
+			masked_cards.push_back(card)
+		else:
+			masked_cards.push_back(null)
+
+	return masked_cards
 
 
-func count() -> int:
-	return _value.size()
+
+static func to_dict(collection: GameCardCollection) -> Dictionary:
+	var dict: Dictionary = {}
+	var cards_array: Array[Dictionary] = []
+	for card in collection.cards:
+		cards_array.append(GameCard.to_dict(card))
+	dict["cards"] = cards_array
+	return dict
 
 
-func set_value(new_value: Array[GameCard]) -> void:
-	_value = new_value
+static func from_dict(dict: Dictionary) -> GameCardCollection:
+	var cards_array_dict: Array[Dictionary] 
+	cards_array_dict.assign(dict.get("cards", []))
+	Loggit.p("GCC from_dict: cards_array: %s" % [cards_array_dict], "CARD_STATE")
+	var new_cards: Array[GameCard] = []
+	for card_dict: Dictionary in cards_array_dict:
+		new_cards.append(GameCard.from_dict(card_dict))
+	return GameCardCollection.from_game_card_array(new_cards)
 
 
-func shuffle() -> void:
-	_value.shuffle()
+func size() -> int:
+	return _cards.size()
 
 
-func push_back(card: GameCard) -> void:
-	_value.push_back(card)
+func set_value(new_value: Array[GameCard]) -> GameCardCollection:
+	_cards = new_value
+	return self
 
 
-func push_front(card: GameCard) -> void:
-	_value.push_front(card)
+func shuffle() -> GameCardCollection:
+	_cards.shuffle()
+	return self
+
+
+func push_back(card: GameCard) -> GameCardCollection:
+	_cards.push_back(card)
+	return self
+
+
+func push_back_multi(new_cards: Array[GameCard]) -> GameCardCollection:
+	for card in new_cards:
+		_cards.push_back(card)
+	return self
+
+
+func push_back_collection(collection: GameCardCollection) -> GameCardCollection:
+	for card in collection.cards:
+		_cards.push_back(card)
+	return self
+
+
+func push_front(card: GameCard) -> GameCardCollection:
+	_cards.push_front(card)
+	return self
+
+
+func push_front_multi(new_cards: Array[GameCard]) -> GameCardCollection:
+	for card in new_cards:
+		_cards.push_front(card)
+	return self
+
+
+func push_front_collection(collection: GameCardCollection) -> GameCardCollection:
+	for card in collection.cards:
+		_cards.push_front(card)
+	return self
 
 
 func pop_at(index: int) -> GameCard:
-	return _value.pop_at(index)
+	return _cards.pop_at(index)
 
 
-func pop_back() -> GameCard:
-	return _value.pop_back()
+func pop_back(count: int) -> GameCardCollection:
+	var popped_cards: Array[GameCard] = []
+	for i in range(count):
+		popped_cards.append(_cards.pop_back())
+
+	return GameCardCollection.from_game_card_array(popped_cards)
 
 
-func pop_front() -> GameCard:
-	return _value.pop_front()
+func pop_front(count: int) -> GameCardCollection:
+	var popped_cards: Array[GameCard] = []
+	for i in range(count):
+		popped_cards.append(_cards.pop_front())
+	return GameCardCollection.from_game_card_array(popped_cards)
 
 
-func duplicate() -> GameCardCollection:
-	var new_value: Array[GameCard] = _value.duplicate()
+func copy() -> GameCardCollection:
+	var new_value: Array[GameCard] = _cards.duplicate()
 	var new_collection: GameCardCollection = GameCardCollection.from_game_card_array(new_value)
 	return new_collection

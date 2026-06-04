@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://cdelvepcmc7jf"]
+
+[ext_resource type="Script" uid="uid://bhnciu86cmrxr" path="res://src/player/game_card_collection_component.gd" id="1_w37y7"]
+
+[node name="DeckComponent" type="Node" unique_id=962515402]
+script = ExtResource("1_w37y7")
