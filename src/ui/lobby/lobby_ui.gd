@@ -26,7 +26,7 @@ func auto_host() -> void:
 	if error == OK:
 		Loggit.p("Hosting — waiting for opponent...")
 	else:
-		Loggit.p("Failed to host: %s" % error_string(error))
+		Loggit.error("Failed to host: %s" % error_string(error))
 
 	
 func auto_join() -> void:
@@ -36,7 +36,7 @@ func auto_join() -> void:
 		Loggit.p("Joining game at %s..." % address, "LobbyUI")
 		_status_label.text = "Connecting to %s..." % address
 	else:
-		Loggit.p("Failed to join game: %s" % error_string(error), "LobbyUI")
+		Loggit.error("Failed to join game: %s" % error_string(error), "LobbyUI")
 		_status_label.text = "Failed to connect: %s" % error_string(error)
 
 	

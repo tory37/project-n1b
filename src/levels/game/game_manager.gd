@@ -132,7 +132,6 @@ func _setup_players() -> void:
 		player.seat.set_value(seat)
 		player.spirit_points.set_value(starting_spirit_points)
 		player.hand.set_value(GameCardCollection.new())
-		Loggit.p("Setting up player %d with test deck of %d cards" % [peer_id, test_deck.cards.size()], "CARD_STATE")
 		player.deck.set_value(GameCardCollection.from_card_data_array(test_deck.cards.duplicate()))
 		player.discard.set_value(GameCardCollection.new())
 		

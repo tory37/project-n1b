@@ -53,7 +53,6 @@ static func to_dict(collection: GameCardCollection) -> Dictionary:
 static func from_dict(dict: Dictionary) -> GameCardCollection:
 	var cards_array_dict: Array[Dictionary] 
 	cards_array_dict.assign(dict.get("cards", []))
-	Loggit.p("GCC from_dict: cards_array: %s" % [cards_array_dict], "CARD_STATE")
 	var new_cards: Array[GameCard] = []
 	for card_dict: Dictionary in cards_array_dict:
 		new_cards.append(GameCard.from_dict(card_dict))
