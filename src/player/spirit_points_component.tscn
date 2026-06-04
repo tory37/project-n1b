@@ -1,7 +1,0 @@
-[gd_scene format=3 uid="uid://b248x2016bvq8"]
-
-[ext_resource type="Script" uid="uid://bat7q5nfm5f72" path="res://src/player/spirit_points_component.gd" id="1_uly3p"]
-
-[node name="SpiritPointComponent" type="Node" unique_id=560801663]
-script = ExtResource("1_uly3p")
-metadata/_custom_type_script = "uid://bat7q5nfm5f72"

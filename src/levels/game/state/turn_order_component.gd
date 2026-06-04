@@ -1,4 +1,4 @@
-class_name TurnOrderNetworkedState
+class_name TurnOrderComponent
 extends Node
 
 # --- Variables ---

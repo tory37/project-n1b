@@ -1,4 +1,4 @@
-class_name ActivePlayerNetworkedState
+class_name ActivePlayerComponent
 extends Node
 
 # --- Variables ---

@@ -1,6 +1,0 @@
-[gd_scene format=3 uid="uid://cj0o1w4uenmow"]
-
-[ext_resource type="Script" uid="uid://bhnciu86cmrxr" path="res://src/player/game_card_collection_component.gd" id="1_i66q0"]
-
-[node name="DiscardComponent" type="Node" unique_id=1903803439]
-script = ExtResource("1_i66q0")

@@ -1,4 +1,4 @@
-class_name ActionPointsNetworkedState
+class_name ActionPointsComponent
 extends Node
 
 # --- Variables ---

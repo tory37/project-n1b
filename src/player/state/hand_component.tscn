@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://mhwk1qn3upo6"]
 
-[ext_resource type="Script" uid="uid://bhnciu86cmrxr" path="res://src/player/game_card_collection_component.gd" id="1_e85r5"]
+[ext_resource type="Script" uid="uid://bhnciu86cmrxr" path="res://src/player/state/game_card_collection_component.gd" id="1_e85r5"]
 
 [node name="HandComponent" type="Node" unique_id=1446270622]
 script = ExtResource("1_e85r5")

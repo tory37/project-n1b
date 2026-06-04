@@ -1,23 +1,25 @@
 [gd_scene format=3 uid="uid://ce4f3ejx5se4j"]
 
 [ext_resource type="Script" uid="uid://b17xcja45v73k" path="res://src/player/networked_player.gd" id="1_2spp2"]
-[ext_resource type="PackedScene" uid="uid://b7eh3ppy1ue5m" path="res://src/player/seat_component.tscn" id="1_ljied"]
-[ext_resource type="Script" uid="uid://dpfk0x02b8ipw" path="res://src/player/seat_component.gd" id="2_2spp2"]
-[ext_resource type="PackedScene" uid="uid://b248x2016bvq8" path="res://src/player/spirit_points_component.tscn" id="4_tjxu6"]
-[ext_resource type="PackedScene" uid="uid://mhwk1qn3upo6" path="res://src/player/hand_component.tscn" id="5_nyd55"]
-[ext_resource type="PackedScene" uid="uid://cdelvepcmc7jf" path="res://src/player/deck_component.tscn" id="6_8407e"]
-[ext_resource type="PackedScene" uid="uid://cj0o1w4uenmow" path="res://src/player/discard_component.tscn" id="7_yvta1"]
+[ext_resource type="Script" uid="uid://dpfk0x02b8ipw" path="res://src/player/state/seat_component.gd" id="2_2spp2"]
+[ext_resource type="Script" uid="uid://bat7q5nfm5f72" path="res://src/player/state/spirit_points_component.gd" id="3_tjxu6"]
+[ext_resource type="Script" uid="uid://bhnciu86cmrxr" path="res://src/player/state/game_card_collection_component.gd" id="4_nyd55"]
 
 [node name="NetworkedPlayer" type="Node" unique_id=1640795652]
 script = ExtResource("1_2spp2")
 
-[node name="SeatComponent" parent="." unique_id=1233938176 instance=ExtResource("1_ljied")]
+[node name="SeatComponent" type="Node" parent="." unique_id=1233938176]
 script = ExtResource("2_2spp2")
 
-[node name="SpiritPointsComponent" parent="." unique_id=560801663 instance=ExtResource("4_tjxu6")]
+[node name="SpiritPointsComponent" type="Node" parent="." unique_id=560801663]
+script = ExtResource("3_tjxu6")
+metadata/_custom_type_script = "uid://bat7q5nfm5f72"
 
-[node name="HandComponent" parent="." unique_id=1446270622 instance=ExtResource("5_nyd55")]
+[node name="HandComponent" type="Node" parent="." unique_id=1446270622]
+script = ExtResource("4_nyd55")
 
-[node name="DeckComponent" parent="." unique_id=962515402 instance=ExtResource("6_8407e")]
+[node name="DeckComponent" type="Node" parent="." unique_id=962515402]
+script = ExtResource("4_nyd55")
 
-[node name="DiscardComponent" parent="." unique_id=2052771954 instance=ExtResource("7_yvta1")]
+[node name="DiscardComponent" type="Node" parent="." unique_id=2052771954]
+script = ExtResource("4_nyd55")

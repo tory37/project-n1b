@@ -52,9 +52,9 @@ var _ready_peers: Array[int] = []
 @onready var player_1: NetworkedPlayer = $PlayerRegistry/Player1
 @onready var player_2: NetworkedPlayer = $PlayerRegistry/Player2
 
-@onready var active_player: ActivePlayerNetworkedState = $GameState/ActivePlayer
-@onready var turn_order: TurnOrderNetworkedState
-@onready var action_points: ActionPointsNetworkedState = $GameState/ActionPoints
+@onready var active_player: ActivePlayerComponent = $GameState/ActivePlayer
+@onready var turn_order: TurnOrderComponent
+@onready var action_points: ActionPointsComponent = $GameState/ActionPoints
 
 ## ---- Static Methods ------------------------------------------------
 
