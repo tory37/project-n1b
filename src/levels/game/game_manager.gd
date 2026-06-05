@@ -52,9 +52,10 @@ var _ready_peers: Array[int] = []
 @onready var player_1: NetworkedPlayer = $PlayerRegistry/Player1
 @onready var player_2: NetworkedPlayer = $PlayerRegistry/Player2
 
-@onready var active_player: ActivePlayerComponent = $GameState/ActivePlayer
-@onready var turn_order: TurnOrderComponent
-@onready var action_points: ActionPointsComponent = $GameState/ActionPoints
+@onready var round_number: RoundNumberComponent = $GameState/RoundNumberComponent
+@onready var active_player: ActivePlayerComponent = $GameState/ActivePlayerComponent
+@onready var turn_order: TurnOrderComponent = $GameState/TurnOrderComponent
+@onready var action_points: ActionPointsComponent = $GameState/ActionPointsComponent
 
 ## ---- Static Methods ------------------------------------------------
 
@@ -62,10 +63,7 @@ var _ready_peers: Array[int] = []
 
 
 func _ready() -> void:
-	if multiplayer.is_server():
-		turn_order = $GameState/TurnOrder
-	else:
-		turn_order = $GameState/TurnOrder
+	if not multiplayer.is_server():
 		notify_ready.rpc_id(1)
 
 		

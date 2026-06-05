@@ -1,5 +1,8 @@
 extends Node
 
+# Game State
+signal round_number_synced(new_value: int)
+
 # Board Interaction
 signal tile_clicked(axial: Vector2i)
 signal deck_clicked(deck_owner_id: int)

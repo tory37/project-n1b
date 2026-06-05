@@ -8,4 +8,4 @@ extends Node
 
 func setup() -> void:
 	_name_label.text = card.data.title
-	_action_points_label.text = str(card.data.ap_cost)
+	_action_points_label.text = "AP Cost: " + str(card.data.ap_cost)

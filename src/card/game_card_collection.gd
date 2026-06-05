@@ -73,6 +73,13 @@ func shuffle() -> GameCardCollection:
 	return self
 
 
+func get_card_by_uuid(uuid: String) -> GameCard:
+	for card in _cards:
+		if card.uuid == uuid:
+			return card
+	return null
+
+
 func push_back(card: GameCard) -> GameCardCollection:
 	_cards.push_back(card)
 	return self

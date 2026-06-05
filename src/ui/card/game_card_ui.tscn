@@ -3,6 +3,9 @@
 [ext_resource type="Script" uid="uid://cslg0p6owor3m" path="res://src/ui/card/game_card_ui.gd" id="1_bfa5p"]
 
 [node name="GameCardUI" type="PanelContainer" unique_id=267681709]
+custom_minimum_size = Vector2(120, 150)
+offset_right = 508.0
+offset_bottom = 66.0
 script = ExtResource("1_bfa5p")
 
 [node name="MarginContainer" type="MarginContainer" parent="." unique_id=445517337]

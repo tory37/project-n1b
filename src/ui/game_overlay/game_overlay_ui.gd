@@ -1,6 +1,6 @@
 extends Node
 
-@onready var _turn_label: Label = %TurnLabel
+@onready var _round_number_label: Label = %RoundNumberLabel
 @onready var _active_player_label: Label = %ActivePlayerLabel
 @onready var _ap_label: Label = %ApLabel
 
@@ -31,6 +31,7 @@ func _ready() -> void:
 
 	_player_registry.player_added.connect(_on_player_added)
 
+	SignalBus.round_number_synced.connect(_on_round_number_synced)
 	SignalBus.turn_order_synced.connect(_on_turn_order_synced)
 	SignalBus.active_player_synced.connect(_on_active_player_synced)
 	SignalBus.action_points_synced.connect(_on_action_points_synced)
@@ -50,8 +51,14 @@ func _on_player_added(peer_id: int, player: NetworkedPlayer) -> void:
 		player.seat.synced.connect(_on_self_seat_synced)
 		player.spirit_points.synced.connect(_on_self_spirit_points_synced)
 		player.hand.set_synced.connect(_on_self_hand_synced)
+		player.hand.cards_added_synced.connect(_on_self_hand_cards_added)
+		player.hand.cards_removed_synced.connect(_on_self_hand_cards_removed)
 		player.deck.set_synced.connect(_on_self_deck_synced)
+		player.deck.cards_added_synced.connect(_on_self_deck_cards_added)
+		player.deck.cards_removed_synced.connect(_on_self_deck_cards_removed)
 		player.discard.set_synced.connect(_on_self_discard_synced)
+		player.discard.cards_added_synced.connect(_on_self_discard_cards_added)
+		player.discard.cards_removed_synced.connect(_on_self_discard_cards_removed)
 	else:
 		player.seat.synced.connect(_on_opponent_seat_synced)
 		player.spirit_points.synced.connect(_on_opponent_spirit_points_synced)
@@ -82,11 +89,11 @@ func _disconnect_all() -> void:
 
 # Seat
 func _on_self_seat_synced(seat: int) -> void:
-	_self_player_number_label.text = "You: %d" % seat
+	_self_player_number_label.text = "You are player: %d" % seat
 
 
 func _on_opponent_seat_synced(seat: int) -> void:
-	_opponent_player_number_label.text = "Opponent: %d" % seat
+	_opponent_player_number_label.text = "Opponent is player: %d" % seat
 
 
 # Spirit Points
@@ -103,6 +110,16 @@ func _on_self_hand_synced(hand: GameCardCollection) -> void:
 	_self_hand_label.text = "Hand Count: %s" % hand.cards.size()
 
 
+func _on_self_hand_cards_added(added_cards: GameCardCollection) -> void:
+	var current_count: int = int(_self_hand_label.text.split(": ")[1])
+	_self_hand_label.text = "Hand Count: %d" % (current_count + added_cards.cards.size())
+
+
+func _on_self_hand_cards_removed(removed_uuids: Array[String]) -> void:
+	var current_count: int = int(_self_hand_label.text.split(": ")[1])
+	_self_hand_label.text = "Hand Count: %d" % (current_count - removed_uuids.size())
+
+
 func _on_opponent_hand_synced(hand: GameCardCollection) -> void:
 	_opponent_hand_label.text = "Hand Count: %s" % hand.cards.size()
 
@@ -110,6 +127,16 @@ func _on_opponent_hand_synced(hand: GameCardCollection) -> void:
 # Deck
 func _on_self_deck_synced(deck: GameCardCollection) -> void:
 	_self_deck_label.text = "Deck Count: %s" % deck.cards.size()
+
+
+func _on_self_deck_cards_added(added_cards: GameCardCollection) -> void:
+	var current_count: int = int(_self_deck_label.text.split(": ")[1])
+	_self_deck_label.text = "Deck Count: %d" % (current_count + added_cards.cards.size())
+
+
+func _on_self_deck_cards_removed(removed_uuids: Array[String]) -> void:
+	var current_count: int = int(_self_deck_label.text.split(": ")[1])
+	_self_deck_label.text = "Deck Count: %d" % (current_count - removed_uuids.size())
 
 
 func _on_opponent_deck_synced(deck: GameCardCollection) -> void:
@@ -121,8 +148,23 @@ func _on_self_discard_synced(discard: GameCardCollection) -> void:
 	_self_discard_label.text = "Discard Count: %s" % discard.cards.size()
 
 
+func _on_self_discard_cards_added(added_cards: GameCardCollection) -> void:
+	var current_count: int = int(_self_discard_label.text.split(": ")[1])
+	_self_discard_label.text = "Discard Count: %d" % (current_count + added_cards.cards.size())
+
+
+func _on_self_discard_cards_removed(removed_uuids: Array[String]) -> void:
+	var current_count: int = int(_self_discard_label.text.split(": ")[1])
+	_self_discard_label.text = "Discard Count: %d" % (current_count - removed_uuids.size())
+
+
 func _on_opponent_discard_synced(discard: GameCardCollection) -> void:
 	_opponent_discard_label.text = "Discard Count: %s" % discard.cards.size()
+
+
+# Round Number
+func _on_round_number_synced(round_number: int) -> void:
+	_round_number_label.text = "Round: %d" % round_number
 
 # Turn Order
 
@@ -130,13 +172,13 @@ func _on_opponent_discard_synced(discard: GameCardCollection) -> void:
 func _on_turn_order_synced(turn_order: Array[int]) -> void:
 	var self_player_number: int = turn_order.find(multiplayer.get_unique_id()) + 1
 	var self_id: int = multiplayer.get_unique_id()
-	_self_player_number_label.text = "You: %d" % self_player_number
+	_self_player_number_label.text = "You are: %d" % self_player_number
 	_self_id_label.text = "ID: %d" % self_id
 
 	if turn_order.size() > 1:
 		var opponent_player_number: int = 2 if self_player_number == 1 else 1
 		var opponent_id: int = turn_order[opponent_player_number - 1]
-		_opponent_player_number_label.text = "Opponent: %d" % opponent_player_number
+		_opponent_player_number_label.text = "Opponent is: %d" % opponent_player_number
 		_opponent_id_label.text = "ID: %d" % opponent_id
 
 # Active Player

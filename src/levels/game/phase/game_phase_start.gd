@@ -3,6 +3,9 @@ extends GamePhaseState
 
 
 func enter() -> void:
+	_game_manager.round_number.increment()
+	_game_manager.action_points.set_value(0)
+
 	var player_ids: Array[int] = _game_manager.turn_order.value.duplicate()
 
 

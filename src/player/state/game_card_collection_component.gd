@@ -28,8 +28,13 @@ func setup(peer_id: int) -> void:
 
 
 func set_value(new_value: GameCardCollection) -> void:
-	Loggit.p("Setting %s for peer %d to %d cards" % [debug_key, _peer_id, new_value.cards.size()], "CARD_STATE")
+	Loggit.p("Setting %s for peer %d to %d cards" % [debug_key, _peer_id, new_value.cards.size()], debug_key)
 	var old_value = _value
+
+	var ids_in_order: Array[String] = []
+
+	for card in new_value.cards:
+		ids_in_order.append(card.uuid)
 
 	var added_cards = GameCardCollection.new()
 	var removed_cards = GameCardCollection.new()
@@ -38,13 +43,13 @@ func set_value(new_value: GameCardCollection) -> void:
 		if not old_value.contains_card(card):
 			added_cards.push_back(card)
 
-	Loggit.p("Added %s: %d" % [debug_key, added_cards.cards.size()], "CARD_STATE")
+	Loggit.p("Added %s: %d" % [debug_key, added_cards.cards.size()], debug_key)
 
 	for card in old_value.cards:
 		if not new_value.contains_card(card):
 			removed_cards.push_back(card)
 
-	Loggit.p("Removed %s: %d" % [debug_key, removed_cards.cards.size()], "CARD_STATE")
+	Loggit.p("Removed %s: %d" % [debug_key, removed_cards.cards.size()], debug_key)
 
 	if not multiplayer.is_server():
 		push_error("Only the server can set value directly")
@@ -63,6 +68,9 @@ func set_value(new_value: GameCardCollection) -> void:
 		_sync_cards_removed.rpc_id(1, removed_uuids)
 		_sync_cards_removed.rpc_id(_peer_id, removed_uuids)
 
+	_sync_order.rpc_id(1, ids_in_order)
+	_sync_order.rpc_id(_peer_id, ids_in_order)
+
 	# Since cards will often be masked for opponents, there's no good
 	# way to only send the diffs.  So we just sync the whole collection
 	# specifically to them on modification
@@ -73,10 +81,20 @@ func set_value(new_value: GameCardCollection) -> void:
 
 # --- Private Methods ---
 
+@rpc("any_peer", "call_local", "reliable")
+func _sync_order(ids_in_order: Array[String]) -> void:
+	var new_cards: Array[GameCard] = []
+	for id in ids_in_order:
+		var card = _value.get_card_by_uuid(id)
+		if card != null:
+			new_cards.append(card)
 
-@rpc("any_peer", "call_remote", "reliable")
+	_value.set_value(new_cards)
+
+
+@rpc("any_peer", "call_local", "reliable")
 func _sync_value(new_value: Dictionary) -> void:
-	Loggit.p("Got sync value rpc. Updating %s for peer %d to %d cards" % [debug_key, _peer_id, new_value.get("cards", []).size()], "CARD_STATE")
+	Loggit.p("Got sync value rpc. Updating %s for peer %d to %d cards" % [debug_key, _peer_id, new_value.get("cards", []).size()], debug_key)
 	_value = GameCardCollection.from_dict(new_value)
 
 	if not multiplayer.is_server():
@@ -85,7 +103,7 @@ func _sync_value(new_value: Dictionary) -> void:
 
 @rpc("authority", "call_local", "reliable")
 func _sync_cards_added(added_cards: Dictionary, push_back: bool = true) -> void:
-	Loggit.p("Got sync add rpc. Updating %s for peer %d with %d cards" % [debug_key, _peer_id, added_cards.get("cards", []).size()], "CARD_STATE")
+	Loggit.p("Got sync add rpc. Updating %s for peer %d with %d cards" % [debug_key, _peer_id, added_cards.get("cards", []).size()], debug_key)
 	var added_cards_collection = GameCardCollection.from_dict(added_cards)
 	if push_back:
 		_value.push_back_collection(added_cards_collection)
@@ -96,6 +114,6 @@ func _sync_cards_added(added_cards: Dictionary, push_back: bool = true) -> void:
 
 @rpc("authority", "call_local", "reliable")
 func _sync_cards_removed(uuids: Array[String]) -> void:
-	Loggit.p("Got sync remove rpc. Updating %s for peer %d by removing %d cards" % [debug_key, _peer_id, uuids.size()], "CARD_STATE")
+	Loggit.p("Got sync remove rpc. Updating %s for peer %d by removing %d cards" % [debug_key, _peer_id, uuids.size()], debug_key)
 	_value.remove_cards(uuids)
 	cards_removed_synced.emit(uuids)

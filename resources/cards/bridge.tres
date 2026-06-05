@@ -4,6 +4,6 @@
 
 [resource]
 script = ExtResource("1_4ujvm")
-title = "Brige"
+title = "Bridge"
 ap_cost = 3
 metadata/_custom_type_script = "uid://bschx8np3tdoh"
