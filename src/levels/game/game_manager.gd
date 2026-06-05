@@ -129,6 +129,7 @@ func _setup_players() -> void:
 
 		_player_registry.add_player(peer_id, player)
 
+		player.set_peer_id(peer_id)
 		player.seat.set_value(seat)
 		player.spirit_points.set_value(starting_spirit_points)
 		player.hand.set_value(GameCardCollection.new())

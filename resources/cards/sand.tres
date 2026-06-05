@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="CardData" format=3 uid="uid://dx6qwox0buhoo"]
+
+[ext_resource type="Script" uid="uid://bschx8np3tdoh" path="res://src/card/card_data.gd" id="1_srsry"]
+
+[resource]
+script = ExtResource("1_srsry")
+title = "Sand"
+ap_cost = 2
+metadata/_custom_type_script = "uid://bschx8np3tdoh"

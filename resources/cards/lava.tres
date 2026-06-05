@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="CardData" format=3 uid="uid://dwwq85j80axp7"]
+
+[ext_resource type="Script" uid="uid://bschx8np3tdoh" path="res://src/card/card_data.gd" id="1_t8jqf"]
+
+[resource]
+script = ExtResource("1_t8jqf")
+title = "Lava"
+ap_cost = 2
+metadata/_custom_type_script = "uid://bschx8np3tdoh"

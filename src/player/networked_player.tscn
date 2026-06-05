@@ -17,9 +17,12 @@ metadata/_custom_type_script = "uid://bat7q5nfm5f72"
 
 [node name="HandComponent" type="Node" parent="." unique_id=1446270622]
 script = ExtResource("4_nyd55")
+debug_key = "Hand"
 
 [node name="DeckComponent" type="Node" parent="." unique_id=962515402]
 script = ExtResource("4_nyd55")
+debug_key = "Deck"
 
 [node name="DiscardComponent" type="Node" parent="." unique_id=2052771954]
 script = ExtResource("4_nyd55")
+debug_key = "Discard"
