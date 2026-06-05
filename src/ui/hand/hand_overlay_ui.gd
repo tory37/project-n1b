@@ -1,6 +1,7 @@
 extends Node
 
 @export var card_ui_scene: PackedScene
+@export var card_draw_animation_speed: float = 1.0
 
 @onready var _card_container: Node = %CardContainer
 
@@ -53,6 +54,7 @@ func _on_cards_added(added_cards: GameCardCollection) -> void:
 		_card_container.add_child(card_ui_instance)
 		card_ui_instance.card = card
 		card_ui_instance.setup()
+		await get_tree().create_timer(card_draw_animation_speed).timeout
 
 
 func _on_cards_removed(uuids: Array[String]) -> void:

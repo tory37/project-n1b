@@ -7,6 +7,7 @@
 layer = 2
 script = ExtResource("1_2rpv6")
 card_ui_scene = ExtResource("2_iar12")
+card_draw_animation_speed = 0.25
 
 [node name="Panel" type="Panel" parent="." unique_id=1183102651]
 custom_minimum_size = Vector2(240, 0)
