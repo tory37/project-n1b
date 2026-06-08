@@ -1,8 +1,7 @@
 class_name NetworkedPlayer
 extends Node
 
-var _peer_id: int
-
+@onready var _peer_id: int = multiplayer.get_unique_id()
 @onready var _seat: SeatComponent = $SeatComponent
 @onready var _spirit_points: SpiritPointsComponent = $SpiritPointsComponent
 @onready var _hand: GameCardCollectionComponent = $HandComponent
@@ -41,5 +40,3 @@ func set_peer_id(new_peer_id: int) -> void:
 
 	_peer_id = new_peer_id
 
-	hand.setup(new_peer_id)
-	deck.setup(new_peer_id)

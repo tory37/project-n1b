@@ -21,6 +21,7 @@ Loggit="*uid://c5gwi1urox4s1"
 SignalBus="*res://autoload/signal_bus.gd"
 LocalSession="*uid://dfsu0gf33r722"
 NetworkManager="*uid://d1cag63fe204w"
+CardRegistry="*uid://bfforxw60l5tl"
 
 [debug]
 

@@ -9,6 +9,7 @@ var cards: Array[GameCard]:
 
 
 static func from_card_data_array(card_data_array: Array[CardData]) -> GameCardCollection:
+	Loggit.p("Creating GameCardCollection from CardData array with %d cards" % card_data_array.size(), "DeckDebug")
 	var map = func(card_data: CardData) -> GameCard:
 		var card = GameCard.new()
 		card.data = card_data
@@ -18,6 +19,8 @@ static func from_card_data_array(card_data_array: Array[CardData]) -> GameCardCo
 	var mapped_cards: Array[GameCard] = []
 	mapped_cards.assign(card_data_array.map(map))
 	collection.push_back_multi(mapped_cards)
+
+	Loggit.p("Created GameCardCollection with %d cards" % collection.cards.size(), "DeckDebug")
 
 	return collection
 
@@ -35,27 +38,34 @@ static func mask(to_mask: GameCardCollection) -> GameCardCollection:
 		if card.revealed:
 			masked_cards.push_back(card)
 		else:
-			masked_cards.push_back(null)
+			var masked_card = GameCard.new()
+			masked_card.mask_card()
+			masked_cards.push_back(masked_card)
 
 	return masked_cards
 
 
-
 static func to_dict(collection: GameCardCollection) -> Dictionary:
-	var dict: Dictionary = {}
-	var cards_array: Array[Dictionary] = []
-	for card in collection.cards:
-		cards_array.append(GameCard.to_dict(card))
-	dict["cards"] = cards_array
+	Loggit.p("Serializing GameCardCollection with %d cards" % collection.cards.size())
+	var dict: Dictionary = { }
+	var serialized_cards: Array[Dictionary] = []
+	for game_card: GameCard in collection.cards:
+		serialized_cards.append(GameCard.to_dict(game_card))
+
+	dict["cards"] = serialized_cards
 	return dict
 
 
 static func from_dict(dict: Dictionary) -> GameCardCollection:
-	var cards_array_dict: Array[Dictionary] 
-	cards_array_dict.assign(dict.get("cards", []))
+	Loggit.p("Deserializing GameCardCollection from dict with cards: %s" % str(dict.get("cards", [])))
+	var serialized_cards: Array[Dictionary] = []
+	serialized_cards.assign(dict.get("cards", []))
+
 	var new_cards: Array[GameCard] = []
-	for card_dict: Dictionary in cards_array_dict:
-		new_cards.append(GameCard.from_dict(card_dict))
+	for serialized_card: Dictionary in serialized_cards:
+		var deserialized_card = GameCard.from_dict(serialized_card)
+		new_cards.append(deserialized_card)
+
 	return GameCardCollection.from_game_card_array(new_cards)
 
 
@@ -135,11 +145,12 @@ func pop_front(count: int) -> GameCardCollection:
 
 func remove_cards(uuids: Array[String]) -> GameCardCollection:
 	var removed_cards: Array[GameCard] = []
-	_cards = _cards.filter(func(card: GameCard) -> bool:
-		if card.uuid in uuids:
-			removed_cards.append(card)
-			return false
-		return true
+	_cards = _cards.filter(
+		func(card: GameCard) -> bool:
+			if card.uuid in uuids:
+				removed_cards.append(card)
+				return false
+			return true
 	)
 	return GameCardCollection.from_game_card_array(removed_cards)
 

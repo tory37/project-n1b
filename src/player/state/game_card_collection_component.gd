@@ -5,7 +5,7 @@
 class_name GameCardCollectionComponent
 extends Node
 
-@export var debug_key: String = ""
+@export var debug_key: String = "DeckDebug"
 
 signal set_synced(new_value: GameCardCollection)
 signal cards_added_synced(added_cards: GameCardCollection)
@@ -22,13 +22,20 @@ var value: GameCardCollection:
 
 # --- Lifecycle ---
 
+func _ready() -> void:
+	_peer_id = multiplayer.get_unique_id()
 
-func setup(peer_id: int) -> void:
-	_peer_id = peer_id
 
+func setup(peer_id: int, initial_collection: GameCardCollection) -> void:
+	set_peer_id(peer_id)
+	set_value(initial_collection)
+
+func set_peer_id(peer_id: int) -> void:
+	_sync_peer_id(peer_id)
 
 func set_value(new_value: GameCardCollection) -> void:
-	Loggit.p("Setting %s for peer %d to %d cards" % [debug_key, _peer_id, new_value.cards.size()], debug_key)
+	Loggit.p("In set value. ", "DeckDebug")
+	Loggit.p("Setting %s for peer %d to %d cards" % [debug_key, _peer_id, new_value.cards.size()], "DeckDebug")
 	var old_value = _value
 
 	var ids_in_order: Array[String] = []
@@ -68,6 +75,7 @@ func set_value(new_value: GameCardCollection) -> void:
 		_sync_cards_removed.rpc_id(1, removed_uuids)
 		_sync_cards_removed.rpc_id(_peer_id, removed_uuids)
 
+	Loggit.p("Syncing order of %s with %d cards" % [debug_key, new_value.cards.size()], "DeckDebug")
 	_sync_order.rpc_id(1, ids_in_order)
 	_sync_order.rpc_id(_peer_id, ids_in_order)
 
@@ -77,24 +85,28 @@ func set_value(new_value: GameCardCollection) -> void:
 	for peer: int in multiplayer.get_peers():
 		if peer != 1 and peer != _peer_id:
 			var masked_value: GameCardCollection = GameCardCollection.mask(new_value)
+			Loggit.p("Syncing masked value of %s to peer %d with %d cards" % [debug_key, peer, masked_value.cards.size()], "DeckDebug")
 			_sync_value.rpc_id(peer, GameCardCollection.to_dict(masked_value))
 
 # --- Private Methods ---
+
+@rpc("any_peer", "call_local", "reliable")
+func _sync_peer_id(peer_id: int) -> void:
+	_peer_id = peer_id
 
 @rpc("any_peer", "call_local", "reliable")
 func _sync_order(ids_in_order: Array[String]) -> void:
 	var new_cards: Array[GameCard] = []
 	for id in ids_in_order:
 		var card = _value.get_card_by_uuid(id)
-		if card != null:
-			new_cards.append(card)
+		new_cards.append(card)
 
 	_value.set_value(new_cards)
 
 
 @rpc("any_peer", "call_local", "reliable")
 func _sync_value(new_value: Dictionary) -> void:
-	Loggit.p("Got sync value rpc. Updating %s for peer %d to %d cards" % [debug_key, _peer_id, new_value.get("cards", []).size()], debug_key)
+	Loggit.p("Got sync value rpc. Updating %s for peer %d to %d cards" % [debug_key, _peer_id, new_value.get("cards", []).size()], "DeckDebug")
 	_value = GameCardCollection.from_dict(new_value)
 
 	if not multiplayer.is_server():
@@ -103,7 +115,7 @@ func _sync_value(new_value: Dictionary) -> void:
 
 @rpc("authority", "call_local", "reliable")
 func _sync_cards_added(added_cards: Dictionary, push_back: bool = true) -> void:
-	Loggit.p("Got sync add rpc. Updating %s for peer %d with %d cards" % [debug_key, _peer_id, added_cards.get("cards", []).size()], debug_key)
+	Loggit.p("Got sync add rpc. Updating %s for peer %d with %d cards" % [debug_key, _peer_id, added_cards.get("cards", []).size()], "DeckDebug")
 	var added_cards_collection = GameCardCollection.from_dict(added_cards)
 	if push_back:
 		_value.push_back_collection(added_cards_collection)
@@ -114,6 +126,6 @@ func _sync_cards_added(added_cards: Dictionary, push_back: bool = true) -> void:
 
 @rpc("authority", "call_local", "reliable")
 func _sync_cards_removed(uuids: Array[String]) -> void:
-	Loggit.p("Got sync remove rpc. Updating %s for peer %d by removing %d cards" % [debug_key, _peer_id, uuids.size()], debug_key)
+	Loggit.p("Got sync remove rpc. Updating %s for peer %d by removing %d cards" % [debug_key, _peer_id, uuids.size()], "DeckDebug")
 	_value.remove_cards(uuids)
 	cards_removed_synced.emit(uuids)

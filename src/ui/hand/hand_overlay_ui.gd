@@ -4,13 +4,19 @@ extends Node
 @export var card_draw_animation_speed: float = 1.0
 
 @onready var _card_container: Node = %CardContainer
+@onready var _play_card_button: Button = %PlayCardButton
 
 var _player_registry: PlayerRegistry
+
+var clicked_card: GameCardUI = null
 
 
 func _ready() -> void:
 	if multiplayer.is_server():
 		return
+
+	# _play_card_button.pressed.connect(_on_play_card_button_pressed)
+	_play_card_button.disabled = true
 
 	_player_registry = get_tree().get_first_node_in_group(
 		"player_registry",
@@ -50,10 +56,16 @@ func _on_hand_synced(hand: GameCardCollection) -> void:
 
 func _on_cards_added(added_cards: GameCardCollection) -> void:
 	for card: GameCard in added_cards.cards:
+		if not card.data:
+			Loggit.p("Card data not found for card with UUID: " + card.uuid, "HandDebug")
+		else:
+			Loggit.p("Adding card to hand overlay: " + card.data.title, "HandDebug")
 		var card_ui_instance = card_ui_scene.instantiate() as GameCardUI
 		_card_container.add_child(card_ui_instance)
 		card_ui_instance.card = card
 		card_ui_instance.setup()
+		card_ui_instance.hide_selected()
+		card_ui_instance.clicked.connect(_on_card_ui_clicked)
 		await get_tree().create_timer(card_draw_animation_speed).timeout
 
 
@@ -62,3 +74,19 @@ func _on_cards_removed(uuids: Array[String]) -> void:
 		var card_ui = child as GameCardUI
 		if card_ui.card and card_ui.card.uuid in uuids:
 			child.queue_free()
+
+func _on_card_ui_clicked(card_ui: GameCardUI) -> void:
+	clicked_card = card_ui
+	_play_card_button.disabled = false
+	
+	for child in _card_container.get_children():
+		var other_card_ui = child as GameCardUI
+		if other_card_ui != card_ui:
+			other_card_ui.hide_selected()
+
+	clicked_card.show_selected()
+
+# func _on_play_card_button_pressed() -> void:
+# 	if clicked_card:
+# 		SignalBus.card_played.
+# 		SignalBus.play_card_requested.emit(clicked_card.card.uuid)

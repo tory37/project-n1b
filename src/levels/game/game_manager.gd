@@ -63,22 +63,24 @@ var _ready_peers: Array[int] = []
 
 
 func _ready() -> void:
+	_game_fsm = FiniteStateMachine.new()
+	
 	if not multiplayer.is_server():
 		notify_ready.rpc_id(1)
 
-		
-
 ## ---- Public Methods ------------------------------------------------
+
 
 func get_player(peer_id: int) -> NetworkedPlayer:
 	return _player_registry.get_player(peer_id)
+
 
 func transition_to_phase(phase: GamePhase) -> void:
 	if not multiplayer.is_server():
 		push_error("Only the server can transition phases")
 		return
 
-	_game_fsm.change_state(_phase_constructors[phase].call(self))
+	sync_fsm_state.rpc(phase)
 
 
 func draw_cards(player_id: int, count: int) -> void:
@@ -90,7 +92,7 @@ func draw_cards(player_id: int, count: int) -> void:
 
 	if not player.deck.value.size() >= count:
 		push_error(
-			"Cannot draw %d cards for player %d: not enough cards in decks" % [count, player_id]
+			"Cannot draw %d cards for player %d: not enough cards in decks" % [count, player_id],
 		)
 		return
 
@@ -101,10 +103,21 @@ func draw_cards(player_id: int, count: int) -> void:
 	var new_deck: GameCardCollection = player.deck.value.copy()
 	var drawn_cards: GameCardCollection = new_deck.pop_back(count)
 
+	Loggit.p("Drawing %d cards for player %d" % [count, player_id], "DrawDebug")
+
 	new_hand.push_back_collection(drawn_cards)
 
 	player.hand.set_value(new_hand)
 	player.deck.set_value(new_deck)
+
+
+# TODO: Extend this to check "requirements" in the card data.
+# TODO: Implement "requirements" in the card data.
+func validate_card_play(card: CardData) -> bool:
+	if action_points.value + 10 < card.ap_cost:
+		return true
+
+	return false
 
 ## ---- Private Methods -----------------------------------------------
 
@@ -130,17 +143,16 @@ func _setup_players() -> void:
 		player.set_peer_id(peer_id)
 		player.seat.set_value(seat)
 		player.spirit_points.set_value(starting_spirit_points)
-		player.hand.set_value(GameCardCollection.new())
-		player.deck.set_value(GameCardCollection.from_card_data_array(test_deck.cards.duplicate()))
-		player.discard.set_value(GameCardCollection.new())
-		
+		player.hand.setup(peer_id, GameCardCollection.new())
+		player.deck.setup(peer_id, GameCardCollection.from_card_data_array(test_deck.cards.duplicate()))
+		player.discard.setup(peer_id, GameCardCollection.new())
+
 		seat += 1
 
 
 func _initialize_game_state() -> void:
 	if not multiplayer.is_server():
 		return
-
 
 	for peer_id: int in multiplayer.get_peers():
 		turn_order.push_value(peer_id)
@@ -162,6 +174,10 @@ func notify_ready() -> void:
 	if _ready_peers.size() == multiplayer.get_peers().size():
 		_initialize_game_state()
 		_setup_players()
-		
-		_game_fsm = FiniteStateMachine.new()
+
 		transition_to_phase.call_deferred(GamePhase.START)
+
+
+@rpc("any_peer", "call_local", "reliable")
+func sync_fsm_state(phase: GamePhase) -> void:
+	_game_fsm.change_state(_phase_constructors[phase].call(self))
