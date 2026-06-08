@@ -1,5 +1,7 @@
 extends Node
 
+@export var card_ui_scene: PackedScene
+
 @onready var _round_number_label: Label = %RoundNumberLabel
 @onready var _active_player_label: Label = %ActivePlayerLabel
 @onready var _ap_label: Label = %ApLabel
@@ -18,6 +20,8 @@ extends Node
 @onready var _opponent_deck_label: Label = %OpponentDeckLabel
 @onready var _opponent_discard_label: Label = %OpponentDiscardLabel
 
+@onready var _resolving_card_container: Node = $ResolvingCardPanel/Container
+
 var _player_registry: PlayerRegistry
 
 
@@ -35,6 +39,8 @@ func _ready() -> void:
 	SignalBus.turn_order_synced.connect(_on_turn_order_synced)
 	SignalBus.active_player_synced.connect(_on_active_player_synced)
 	SignalBus.action_points_synced.connect(_on_action_points_synced)
+	SignalBus.card_started_resolving.connect(_on_card_started_resolving)
+	SignalBus.card_finished_resolving.connect(_on_card_finished_resolving)
 
 
 func _exit_tree() -> void:
@@ -195,3 +201,16 @@ func _on_active_player_synced(player_id: int) -> void:
 
 func _on_action_points_synced(ap: int) -> void:
 	_ap_label.text = "AP: %d" % ap
+
+
+# Card Resolution
+
+func _on_card_started_resolving(card_data: CardData) -> void:
+	var card_ui_instance = card_ui_scene.instantiate() as GameCardUI
+	_resolving_card_container.add_child(card_ui_instance)
+	card_ui_instance.card = card_data
+	card_ui_instance.setup()
+	card_ui_instance.hide_selected()
+
+func _on_card_finished_resolving() -> void:
+	_resolving_card_container.clear()	

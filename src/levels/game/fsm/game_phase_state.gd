@@ -4,5 +4,5 @@ extends FiniteState
 
 var _game_manager: GameManager = null
 
-func _init(game_manager: GameManager) -> void:
+func setup(game_manager: GameManager) -> void:
 	_game_manager = game_manager

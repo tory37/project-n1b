@@ -15,6 +15,7 @@ enum GamePhase {
 	START,
 	DRAW_CARD,
 	MAIN,
+	RESOLVING_CARD,
 }
 
 ## ---- Constants -----------------------------------------------------
@@ -36,11 +37,6 @@ enum GamePhase {
 ## ---- Private Variables ---------------------------------------------
 
 var _game_fsm: FiniteStateMachine = null
-var _phase_constructors: Dictionary = {
-	GamePhase.START: func(gm): return GamePhaseStart.new(gm),
-	GamePhase.DRAW_CARD: func(gm): return GamePhaseDrawCard.new(gm),
-	GamePhase.MAIN: func(gm): return GamePhaseMain.new(gm),
-}
 var _ready_peers: Array[int] = []
 
 ## ---- @onready Variables --------------------------------------------
@@ -56,6 +52,11 @@ var _ready_peers: Array[int] = []
 @onready var active_player: ActivePlayerComponent = $GameState/ActivePlayerComponent
 @onready var turn_order: TurnOrderComponent = $GameState/TurnOrderComponent
 @onready var action_points: ActionPointsComponent = $GameState/ActionPointsComponent
+var _phase_nodes: Dictionary
+
+var phase_nodes: Dictionary:
+	get:
+		return _phase_nodes
 
 ## ---- Static Methods ------------------------------------------------
 
@@ -64,7 +65,20 @@ var _ready_peers: Array[int] = []
 
 func _ready() -> void:
 	_game_fsm = FiniteStateMachine.new()
-	
+
+	# We don't use as here, because it breaks and returns Nil.  known godot bug.
+	_phase_nodes = {
+		GamePhase.START: $FSM/Start,
+		GamePhase.DRAW_CARD: $FSM/DrawCard,
+		GamePhase.MAIN: $FSM/Main,
+		GamePhase.RESOLVING_CARD: $FSM/ResolvingCard,
+	}
+
+	_phase_nodes[GamePhase.START].setup(self)
+	_phase_nodes[GamePhase.DRAW_CARD].setup(self)
+	_phase_nodes[GamePhase.MAIN].setup(self)
+	_phase_nodes[GamePhase.RESOLVING_CARD].setup(self)
+
 	if not multiplayer.is_server():
 		notify_ready.rpc_id(1)
 
@@ -180,4 +194,4 @@ func notify_ready() -> void:
 
 @rpc("any_peer", "call_local", "reliable")
 func sync_fsm_state(phase: GamePhase) -> void:
-	_game_fsm.change_state(_phase_constructors[phase].call(self))
+	_game_fsm.change_state(_phase_nodes[phase])

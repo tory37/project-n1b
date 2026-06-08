@@ -7,15 +7,14 @@ extends Node
 @onready var _play_card_button: Button = %PlayCardButton
 
 var _player_registry: PlayerRegistry
-
-var clicked_card: GameCardUI = null
+var _selected_card: GameCardUI = null
 
 
 func _ready() -> void:
 	if multiplayer.is_server():
 		return
 
-	# _play_card_button.pressed.connect(_on_play_card_button_pressed)
+	_play_card_button.pressed.connect(_on_play_card_button_pressed)
 	_play_card_button.disabled = true
 
 	_player_registry = get_tree().get_first_node_in_group(
@@ -76,7 +75,7 @@ func _on_cards_removed(uuids: Array[String]) -> void:
 			child.queue_free()
 
 func _on_card_ui_clicked(card_ui: GameCardUI) -> void:
-	clicked_card = card_ui
+	_selected_card = card_ui
 	_play_card_button.disabled = false
 	
 	for child in _card_container.get_children():
@@ -84,9 +83,15 @@ func _on_card_ui_clicked(card_ui: GameCardUI) -> void:
 		if other_card_ui != card_ui:
 			other_card_ui.hide_selected()
 
-	clicked_card.show_selected()
+	_selected_card.show_selected()
+
+
+func _on_play_card_button_pressed() -> void:
+	Loggit.p("Play card button pressed for card: " + _selected_card.card.data.title, "PlayDebug")
+	if _selected_card and _selected_card.card:
+		SignalBus.play_card_requested.emit(_selected_card.card.uuid)
 
 # func _on_play_card_button_pressed() -> void:
-# 	if clicked_card:
+# 	if _selected_card:
 # 		SignalBus.card_played.
-# 		SignalBus.play_card_requested.emit(clicked_card.card.uuid)
+# 		SignalBus.play_card_requested.emit(_selected_card.card.uuid)

@@ -25,7 +25,9 @@ signal turn_order_synced(turn_order: Array[int])
 
 
 # Cards
+signal card_started_resolving(card_data: CardData)
+signal card_finished_resolving(card_data: CardData)
 signal play_card_requested(card_uuid: String)
 signal card_played(card_uuid: String, player_id: int)
-signal card_play_failed(card_uuid: String, player_id: int, reason: String)
+signal card_play_failed(card_uuid: String, reason: String)
 

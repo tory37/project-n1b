@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://chmm0j1cbcqa2"]
 
 [ext_resource type="Script" uid="uid://cg30iaa5bim34" path="res://src/ui/game_overlay/game_overlay_ui.gd" id="1_wa8wg"]
+[ext_resource type="PackedScene" uid="uid://bnrvhwfkyla7k" path="res://src/ui/card/game_card_ui.tscn" id="2_o5elm"]
 
 [node name="GameOverlayUi" type="CanvasLayer" unique_id=1299964242]
 layer = 2
@@ -104,3 +105,17 @@ text = "Deck: "
 unique_name_in_owner = true
 layout_mode = 2
 text = "Discard: "
+
+[node name="ResolvingCardPanel" type="Panel" parent="." unique_id=294779866]
+offset_left = 1063.0
+offset_top = 1.0
+offset_right = 1150.0
+offset_bottom = 72.0
+
+[node name="Container" type="HBoxContainer" parent="ResolvingCardPanel" unique_id=2042362669]
+layout_mode = 0
+offset_right = 120.0
+offset_bottom = 150.0
+
+[node name="GameCardUI" parent="ResolvingCardPanel/Container" unique_id=267681709 instance=ExtResource("2_o5elm")]
+layout_mode = 2

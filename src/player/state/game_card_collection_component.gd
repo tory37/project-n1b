@@ -33,6 +33,9 @@ func setup(peer_id: int, initial_collection: GameCardCollection) -> void:
 func set_peer_id(peer_id: int) -> void:
 	_sync_peer_id(peer_id)
 
+func get_card_by_uuid(uuid: String) -> GameCard:
+	return _value.get_card_by_uuid(uuid)
+
 func set_value(new_value: GameCardCollection) -> void:
 	Loggit.p("In set value. ", "DeckDebug")
 	Loggit.p("Setting %s for peer %d to %d cards" % [debug_key, _peer_id, new_value.cards.size()], "DeckDebug")

@@ -6,14 +6,32 @@
 [ext_resource type="PackedScene" uid="uid://b4ghprdba615b" path="res://src/player/player_registry.tscn" id="3_85bdw"]
 [ext_resource type="PackedScene" uid="uid://dnm1lkkfq5gx" path="res://src/world/hex_board/hex_board.tscn" id="3_ewew8"]
 [ext_resource type="PackedScene" uid="uid://cu83dpxikl80g" path="res://src/levels/game/game_state.tscn" id="3_nblc3"]
+[ext_resource type="Script" uid="uid://csttcn8h0vbpt" path="res://src/levels/game/fsm/start.gd" id="3_pew6l"]
 [ext_resource type="PackedScene" uid="uid://b8xmcjwsj2" path="res://src/world/table/table.tscn" id="4_ghaey"]
+[ext_resource type="Script" uid="uid://s4krx3wohlge" path="res://src/levels/game/fsm/draw_cards.gd" id="4_vddbj"]
 [ext_resource type="PackedScene" uid="uid://dudx5da1opo8o" path="res://src/deck/deck_view.tscn" id="5_76xvg"]
+[ext_resource type="Script" uid="uid://ctvhlrslvekht" path="res://src/levels/game/fsm/main.gd" id="5_tw6tv"]
+[ext_resource type="Script" uid="uid://dsynl8p4u7uyv" path="res://src/levels/game/fsm/resolving_card.gd" id="6_l56g8"]
 [ext_resource type="PackedScene" uid="uid://chmm0j1cbcqa2" path="res://src/ui/game_overlay/game_overlay_ui.tscn" id="8_85bdw"]
 [ext_resource type="PackedScene" uid="uid://5e82kas2q54g" path="res://src/ui/hand/hand_overlay_ui.tscn" id="10_nvxtd"]
 
 [node name="Game" type="Node3D" unique_id=494198879]
 script = ExtResource("1_b6y0w")
 test_deck = ExtResource("2_n5fbu")
+
+[node name="FSM" type="Node" parent="." unique_id=1295367284]
+
+[node name="Start" type="Node" parent="FSM" unique_id=740684457]
+script = ExtResource("3_pew6l")
+
+[node name="DrawCard" type="Node" parent="FSM" unique_id=938414194]
+script = ExtResource("4_vddbj")
+
+[node name="Main" type="Node" parent="FSM" unique_id=1437838053]
+script = ExtResource("5_tw6tv")
+
+[node name="ResolvingCard" type="Node" parent="FSM" unique_id=1662585583]
+script = ExtResource("6_l56g8")
 
 [node name="PlayerRegistry" parent="." unique_id=131796875 instance=ExtResource("3_85bdw")]
 

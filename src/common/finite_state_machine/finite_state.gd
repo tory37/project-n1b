@@ -1,5 +1,5 @@
 class_name FiniteState
-extends RefCounted
+extends Node
 
 
 func enter() -> void:

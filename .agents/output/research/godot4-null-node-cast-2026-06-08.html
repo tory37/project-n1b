@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Godot 4 — Null Node Cast Research</title>
+  <link rel="stylesheet" href="../assets/style.css">
+</head>
+<body data-type="research">
+  <div class="container">
+    <header class="doc-header">
+      <div class="doc-meta">
+        <span class="badge badge-research">RESEARCH</span>
+        <span class="doc-date">2026-06-08</span>
+      </div>
+      <h1>Why <code>$Node as CustomClass</code> Returns Null in Godot 4</h1>
+    </header>
+    <main>
+
+      <section>
+        <h2>I. The Problem</h2>
+        <p>In <code>game_manager.gd</code>, the following pattern returns <code>null</code> at runtime despite the node existing in the scene tree and its script correctly extending <code>GamePhaseState</code>:</p>
+        <pre><code>_phase_nodes = {
+    GamePhase.START: $FSM/Start as GamePhaseState,  # null
+    ...
+}</code></pre>
+        <p>The error: <strong>"can't call setup on Nil"</strong> — meaning the dictionary value is null by the time <code>.setup()</code> is called. This persisted after moving initialization from <code>@onready</code> into <code>_ready()</code> directly.</p>
+      </section>
+
+      <section>
+        <h2>II. Root Causes Found</h2>
+
+        <div class="finding-card warning">
+          <div class="finding-header">
+            <span class="badge badge-warning">LIKELY CAUSE 1</span>
+            <span class="finding-title">The <code>as</code> keyword cast is a known Godot 4 bug</span>
+          </div>
+          <div class="finding-body">
+            <p>Godot issue <a href="https://github.com/godotengine/godot/issues/41777">#41777</a> documents that casting a node to a custom <code>class_name</code> type using the <code>as</code> keyword returns <code>null</code> — both in <code>@onready</code> declarations and in <code>_ready()</code> body assignments. The node IS found by <code>$</code>; it's the <code>as</code> cast step that silently fails.</p>
+            <p class="finding-file">Affects: both <code>@onready var x: T = $Path as T</code> and <code>var x = $Path as T</code> in <code>_ready()</code></p>
+            <p><strong>Key observation:</strong> The bug does NOT occur when you cast to the built-in <code>Node</code> type. It specifically fails with <code>class_name</code>-declared types. The fix is to remove the <code>as</code> keyword and let GDScript's type inference handle the assignment.</p>
+            <p><strong>Evidence:</strong> Class cache (<code>.godot/global_script_class_cache.cfg</code>) was inspected — all entries are correct. <code>GamePhaseState</code> is registered at the new path, no stale entries from the deleted <code>phase/</code> folder. The inheritance chain is valid. This rules out cache corruption and points squarely at the <code>as</code> cast.</p>
+          </div>
+        </div>
+
+        <div class="finding-card critical">
+          <div class="finding-header">
+            <span class="badge badge-critical">BUG 2</span>
+            <span class="finding-title">Wrong script overrides in <code>game.tscn</code> — two nodes have phase scripts</span>
+          </div>
+          <div class="finding-body">
+            <p>Two nodes in <code>game.tscn</code> have accidental FSM script overrides, likely from an errant drag in the editor:</p>
+            <table>
+              <thead><tr><th>Node</th><th>Wrong Script Assigned</th><th>Expected</th></tr></thead>
+              <tbody>
+                <tr><td><code>Table</code> (Node3D instanced scene)</td><td><code>main.gd</code> (GamePhaseMain)</td><td>No script override</td></tr>
+                <tr><td><code>GameOverlayUi</code> (instanced scene)</td><td><code>draw_cards.gd</code> (GamePhaseDrawCard)</td><td>No script override</td></tr>
+              </tbody>
+            </table>
+            <p>This means there are two live instances of <code>GamePhaseMain</code> and <code>GamePhaseDrawCard</code> in the scene tree — one on the FSM nodes (correct) and one on unrelated nodes (wrong). These wrong instances have <code>_game_manager = null</code> (never had <code>.setup()</code> called) and will cause null-reference errors if FSM transitions ever reach them.</p>
+            <p class="finding-file">Lines 53–54 and 63–64 in <code>game.tscn</code></p>
+          </div>
+        </div>
+
+        <div class="finding-card critical">
+          <div class="finding-header">
+            <span class="badge badge-critical">BUG 3</span>
+            <span class="finding-title">My previous edit introduced a broken node path</span>
+          </div>
+          <div class="finding-body">
+            <p>In the first fix attempt, I changed <code>$FSM/ResolvingCard</code> to <code>$FSM/PlayingCard</code> based on an incorrect grep result from an older version of the scene. The <em>current</em> <code>game.tscn</code> on disk has the node correctly named <code>ResolvingCard</code>. This means my edit broke the fourth entry in the dictionary.</p>
+            <p class="finding-file"><code>game_manager.gd</code> line 73 — currently says <code>$FSM/PlayingCard</code>, must be <code>$FSM/ResolvingCard</code></p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>III. Confidence Assessment</h2>
+        <div class="section accent">
+          <p><strong>Cause 1 (as-cast bug):</strong> <em>High Probability.</em> Confirmed by Godot issue #41777, which documents this exact pattern. What is not yet confirmed is whether this is the ONLY cause — a targeted debug print (see Section V) would definitively separate "node not found" from "cast returning null."</p>
+          <p><strong>Cause 2 (wrong script overrides):</strong> <em>Confirmed as a bug</em> by direct file inspection, though not confirmed as the cause of the null dictionary values. Must be fixed regardless.</p>
+          <p><strong>Cause 3 (PlayingCard path):</strong> <em>Confirmed</em> by reading the current scene file. Definitely broken by my edit.</p>
+        </div>
+      </section>
+
+      <section>
+        <h2>IV. The Fix</h2>
+        <p>Three changes are required:</p>
+
+        <div class="phase-card">
+          <div class="phase-header">
+            <span class="phase-number">1</span>
+            <span class="phase-title">Remove <code>as</code> casts — use plain <code>get_node</code> assignment</span>
+          </div>
+          <div class="phase-steps">
+            <p>Change <code>Dictionary[GamePhase, GamePhaseState]</code> to an untyped <code>Dictionary</code> and remove all <code>as GamePhaseState</code> casts. The runtime type is still correct — the nodes <em>are</em> <code>GamePhaseState</code> instances.</p>
+            <pre><code>var _phase_nodes: Dictionary  # drop typed params to avoid secondary issues
+
+func _ready() -> void:
+    _game_fsm = FiniteStateMachine.new()
+    _phase_nodes = {
+        GamePhase.START:          $FSM/Start,
+        GamePhase.DRAW_CARD:      $FSM/DrawCard,
+        GamePhase.MAIN:           $FSM/Main,
+        GamePhase.RESOLVING_CARD: $FSM/ResolvingCard,
+    }
+    _phase_nodes[GamePhase.START].setup(self)
+    _phase_nodes[GamePhase.DRAW_CARD].setup(self)
+    _phase_nodes[GamePhase.MAIN].setup(self)
+    _phase_nodes[GamePhase.RESOLVING_CARD].setup(self)</code></pre>
+            <p>If type safety on the dict is important, store the refs as plain <code>Node</code> references first and cast later when consuming them — not at assignment time.</p>
+          </div>
+        </div>
+
+        <div class="phase-card">
+          <div class="phase-header">
+            <span class="phase-number">2</span>
+            <span class="phase-title">Remove wrong script overrides from <code>game.tscn</code></span>
+          </div>
+          <div class="phase-steps">
+            <p>In the Godot editor, select the <code>Table</code> node in <code>game.tscn</code> and detach the script (Inspector → Script → right-click → Detach Script). Do the same for <code>GameOverlayUi</code>. These nodes should have no script override; their behaviour comes from their instanced scenes.</p>
+          </div>
+        </div>
+
+        <div class="phase-card">
+          <div class="phase-header">
+            <span class="phase-number">3</span>
+            <span class="phase-title">(Already reverted by fix 1) — <code>ResolvingCard</code> path</span>
+          </div>
+          <div class="phase-steps">
+            <p>The rewrite in step 1 restores <code>$FSM/ResolvingCard</code>, overwriting my earlier incorrect change to <code>$FSM/PlayingCard</code>.</p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>V. Debug Confirmation (Optional)</h2>
+        <p>If the null persists after applying the fix, add these prints at the top of <code>_ready()</code> to split the two possible failure modes:</p>
+        <pre><code>var start_raw = $FSM/Start
+print("raw node: ", start_raw)                              # null = path wrong
+print("is GamePhaseState: ", start_raw is GamePhaseState)  # false = cast would fail
+print("script: ", start_raw.get_script() if start_raw else "N/A")</code></pre>
+        <ul>
+          <li>If <code>start_raw</code> is <code>null</code> → the path is wrong or scene didn't load; verify in editor's Remote Debugger scene tree.</li>
+          <li>If <code>start_raw</code> is not null but <code>is GamePhaseState</code> is false → engine-level type identity issue; try clearing <code>.godot/</code> cache and reimporting.</li>
+          <li>If both look correct → issue is in typed Dictionary coercion; confirm the untyped approach works.</li>
+        </ul>
+      </section>
+
+      <section class="bibliography">
+        <h2>Sources</h2>
+        <ol>
+          <li><a href="https://github.com/godotengine/godot/issues/41777">Godot Issue #41777 — Node null if casting as custom type using onready</a></li>
+          <li><a href="https://github.com/godotengine/godot/issues/88042">Godot Issue #88042 — Accessing exported node variables from extended script returns null</a></li>
+          <li><a href="https://forum.godotengine.org/t/godot-permanently-caching-outdated-script-file-paths/101729">Godot Forum — Permanently caching outdated script file paths</a></li>
+          <li><a href="https://github.com/godotengine/godot/issues/83059">Godot Issue #83059 — Dictionary shows as null in Stack Trace</a></li>
+          <li><a href="https://godotforums.org/d/36147-casting-a-node-to-a-custom-class">Godot Forums — Casting a Node to a Custom Class</a></li>
+          <li><code>.godot/global_script_class_cache.cfg</code> — direct inspection (no stale entries)</li>
+          <li><code>src/levels/game/game.tscn</code> — direct inspection (wrong script overrides found)</li>
+        </ol>
+      </section>
+
+    </main>
+  </div>
+</body>
+</html>
