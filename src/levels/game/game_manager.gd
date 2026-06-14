@@ -94,7 +94,7 @@ func transition_to_phase(phase: GamePhase) -> void:
 		push_error("Only the server can transition phases")
 		return
 
-	sync_fsm_state.rpc(phase)
+	_game_fsm.change_state(_phase_nodes[phase])
 
 
 func draw_cards(player_id: int, count: int) -> void:
@@ -128,7 +128,7 @@ func draw_cards(player_id: int, count: int) -> void:
 # TODO: Extend this to check "requirements" in the card data.
 # TODO: Implement "requirements" in the card data.
 func validate_card_play(card: CardData) -> bool:
-	if action_points.value + 10 < card.ap_cost:
+	if action_points.value + 10 >= card.ap_cost:
 		return true
 
 	return false
@@ -190,8 +190,3 @@ func notify_ready() -> void:
 		_setup_players()
 
 		transition_to_phase.call_deferred(GamePhase.START)
-
-
-@rpc("any_peer", "call_local", "reliable")
-func sync_fsm_state(phase: GamePhase) -> void:
-	_game_fsm.change_state(_phase_nodes[phase])

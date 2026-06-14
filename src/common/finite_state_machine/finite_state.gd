@@ -2,7 +2,7 @@ class_name FiniteState
 extends Node
 
 
-func enter() -> void:
+func enter(_payload: Variant) -> void:
 	pass
 
 

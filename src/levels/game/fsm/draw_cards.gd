@@ -2,7 +2,9 @@ class_name GamePhaseDrawCard
 extends GamePhaseState
 
 
-func enter() -> void:
+func enter(_payload: Variant) -> void:
+	if not multiplayer.is_server():
+		return
 
 	var active_player_id: int = _game_manager.active_player.value
 

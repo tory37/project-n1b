@@ -1,5 +1,8 @@
 extends Node
 
+# Notications
+signal notification_fired(message: String)
+
 # Game State
 signal round_number_synced(new_value: int)
 

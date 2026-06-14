@@ -6,6 +6,7 @@
 [node name="GameOverlayUi" type="CanvasLayer" unique_id=1299964242]
 layer = 2
 script = ExtResource("1_wa8wg")
+card_ui_scene = ExtResource("2_o5elm")
 
 [node name="Panel" type="PanelContainer" parent="." unique_id=572058940]
 custom_minimum_size = Vector2(240, 0)
@@ -107,15 +108,52 @@ layout_mode = 2
 text = "Discard: "
 
 [node name="ResolvingCardPanel" type="Panel" parent="." unique_id=294779866]
-offset_left = 1063.0
-offset_top = 1.0
-offset_right = 1150.0
-offset_bottom = 72.0
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -87.0
+offset_bottom = 71.0
+grow_horizontal = 0
 
-[node name="Container" type="HBoxContainer" parent="ResolvingCardPanel" unique_id=2042362669]
+[node name="Container" type="VBoxContainer" parent="ResolvingCardPanel" unique_id=1643224477]
 layout_mode = 0
-offset_right = 120.0
-offset_bottom = 150.0
+offset_right = 125.0
+offset_bottom = 177.0
+
+[node name="Label" type="Label" parent="ResolvingCardPanel/Container" unique_id=45229127]
+layout_mode = 2
+text = "Resolving:"
 
 [node name="GameCardUI" parent="ResolvingCardPanel/Container" unique_id=267681709 instance=ExtResource("2_o5elm")]
 layout_mode = 2
+
+[node name="NotificationPanel" type="Panel" parent="." unique_id=600181383]
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -301.0
+offset_top = 50.0
+offset_right = 299.0
+offset_bottom = 90.0
+grow_horizontal = 2
+size_flags_vertical = 0
+
+[node name="Margin" type="MarginContainer" parent="NotificationPanel" unique_id=1435103447]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="Label" type="Label" parent="NotificationPanel/Margin" unique_id=1163787320]
+layout_mode = 2
+size_flags_vertical = 1
+text = "This is where notifications are shown when things happen"
+horizontal_alignment = 1
+
+[node name="Timer" type="Timer" parent="NotificationPanel" unique_id=99974236]
