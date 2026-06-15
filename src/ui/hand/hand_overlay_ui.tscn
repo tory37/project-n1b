@@ -38,6 +38,7 @@ layout_mode = 2
 
 [node name="PlayCardButton" type="Button" parent="." unique_id=411213928]
 unique_name_in_owner = true
+visible = false
 offset_left = 1028.0
 offset_top = 384.0
 offset_right = 1109.0

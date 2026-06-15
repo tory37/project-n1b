@@ -7,6 +7,7 @@
 [ext_resource type="PackedScene" uid="uid://dnm1lkkfq5gx" path="res://src/world/hex_board/hex_board.tscn" id="3_ewew8"]
 [ext_resource type="PackedScene" uid="uid://cu83dpxikl80g" path="res://src/levels/game/game_state.tscn" id="3_nblc3"]
 [ext_resource type="Script" uid="uid://csttcn8h0vbpt" path="res://src/levels/game/fsm/start.gd" id="3_pew6l"]
+[ext_resource type="Script" uid="uid://bntl18jwnihbp" path="res://src/levels/game/messages/message_manager.gd" id="3_vddbj"]
 [ext_resource type="PackedScene" uid="uid://b8xmcjwsj2" path="res://src/world/table/table.tscn" id="4_ghaey"]
 [ext_resource type="Script" uid="uid://s4krx3wohlge" path="res://src/levels/game/fsm/draw_cards.gd" id="4_vddbj"]
 [ext_resource type="PackedScene" uid="uid://dudx5da1opo8o" path="res://src/deck/deck_view.tscn" id="5_76xvg"]
@@ -18,6 +19,9 @@
 [node name="Game" type="Node3D" unique_id=494198879]
 script = ExtResource("1_b6y0w")
 test_deck = ExtResource("2_n5fbu")
+
+[node name="MessageManager" type="Node" parent="." unique_id=943498981]
+script = ExtResource("3_vddbj")
 
 [node name="FSM" type="Node" parent="." unique_id=1295367284]
 

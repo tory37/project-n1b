@@ -28,6 +28,8 @@ signal turn_order_synced(turn_order: Array[int])
 
 
 # Cards
+signal play_card_enabled()
+signal play_card_disabled()
 signal card_started_resolving(card_data: CardData)
 signal card_finished_resolving(card_data: CardData)
 signal play_card_requested(card_uuid: String)

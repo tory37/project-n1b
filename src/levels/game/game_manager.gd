@@ -91,7 +91,7 @@ func get_player(peer_id: int) -> NetworkedPlayer:
 	return _player_registry.get_player(peer_id)
 
 
-func transition_to_phase(phase: GamePhase, payload: Variant = {}) -> void:
+func transition_to_phase(phase: GamePhase, payload: Variant = { }) -> void:
 	if not multiplayer.is_server():
 		push_error("Only the server can transition phases")
 		return
@@ -173,10 +173,7 @@ func _initialize_game_state() -> void:
 	for peer_id: int in multiplayer.get_peers():
 		turn_order.push_value(peer_id)
 
-	active_player.set_value(turn_order.get_player_at_number(1))
 
-
-# Apply: Authority State Mutators
 func _apply_teardown_player(_peer_id: int) -> void:
 	return
 
@@ -197,10 +194,10 @@ func notify_ready() -> void:
 func _on_notification_fired(message: String) -> void:
 	_emit_game_notification.rpc(message)
 
+
 @rpc("any_peer", "call_remote", "reliable")
 func _emit_game_notification(message: String) -> void:
 	if multiplayer.is_server():
 		return
-		
-	SignalBus.notification_fired.emit(message)
 
+	SignalBus.notification_fired.emit(message)

@@ -9,13 +9,18 @@ extends Node
 var _player_registry: PlayerRegistry
 var _selected_card: GameCardUI = null
 
+var _can_play_card: bool = false
+
 
 func _ready() -> void:
 	if multiplayer.is_server():
 		return
 
+	SignalBus.play_card_enabled.connect(_on_play_card_enabled)
+	SignalBus.play_card_disabled.connect(_on_play_card_disabled)
+
 	_play_card_button.pressed.connect(_on_play_card_button_pressed)
-	_play_card_button.disabled = true
+	_play_card_button.hide()
 
 	_player_registry = get_tree().get_first_node_in_group(
 		"player_registry",
@@ -23,10 +28,15 @@ func _ready() -> void:
 
 	_player_registry.player_added.connect(_on_player_added)
 
+	_play_card_button.hide()
+
 
 func _exit_tree() -> void:
 	if multiplayer.is_server():
 		return
+
+	SignalBus.play_card_enabled.disconnect(_on_play_card_enabled)
+	SignalBus.play_card_disabled.disconnect(_on_play_card_disabled)
 
 	if _player_registry:
 		_player_registry.player_added.disconnect(_on_player_added)
@@ -75,8 +85,13 @@ func _on_cards_removed(uuids: Array[String]) -> void:
 			child.queue_free()
 
 func _on_card_ui_clicked(card_ui: GameCardUI) -> void:
+	if _selected_card == card_ui:
+		_selected_card.hide_selected()
+		_selected_card = null
+		_play_card_button.hide()
+		return
+
 	_selected_card = card_ui
-	_play_card_button.disabled = false
 	
 	for child in _card_container.get_children():
 		var other_card_ui = child as GameCardUI
@@ -85,13 +100,19 @@ func _on_card_ui_clicked(card_ui: GameCardUI) -> void:
 
 	_selected_card.show_selected()
 
+	if (_can_play_card):
+		_play_card_button.show()
+
 
 func _on_play_card_button_pressed() -> void:
 	Loggit.p("Play card button pressed for card: " + _selected_card.card.data.title, "PlayDebug")
 	if _selected_card and _selected_card.card:
 		SignalBus.play_card_requested.emit(_selected_card.card.uuid)
 
-# func _on_play_card_button_pressed() -> void:
-# 	if _selected_card:
-# 		SignalBus.card_played.
-# 		SignalBus.play_card_requested.emit(_selected_card.card.uuid)
+
+func _on_play_card_enabled() -> void:
+	_can_play_card = true
+
+func _on_play_card_disabled() -> void:
+	_can_play_card = false
+	_play_card_button.hide()

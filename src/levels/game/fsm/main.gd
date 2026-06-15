@@ -7,12 +7,17 @@ func enter(_payload: Variant) -> void:
 
 	_state_entered.rpc()
 
+	var current_player_id: int = _game_manager.active_player.value
+	_player_card_play_enabled.rpc_id(current_player_id, true)
+
 
 func exit() -> void:
 	if not multiplayer.is_server():
 		return
 
 	_state_exited.rpc()
+	var current_player_id: int = _game_manager.active_player.value
+	_player_card_play_enabled.rpc_id(current_player_id, false)
 
 # Play Card
 
@@ -63,6 +68,7 @@ func _try_play_card(uuid: String) -> void:
 
 	# If we reach here, the card play is valid. Proceed with applying the card's effects.
 
+
 @rpc("any_peer", "call_remote", "reliable")
 func _state_entered() -> void:
 	Loggit.p("Entered GamePhaseMain", "DrawDebug")
@@ -71,6 +77,7 @@ func _state_entered() -> void:
 
 	SignalBus.play_card_requested.connect(_on_play_card_requested)
 
+
 @rpc("any_peer", "call_remote", "reliable")
 func _state_exited() -> void:
 	if multiplayer.is_server():
@@ -78,7 +85,6 @@ func _state_exited() -> void:
 
 	SignalBus.play_card_requested.disconnect(_on_play_card_requested)
 
-	
 
 @rpc("any_peer", "call_remote", "reliable")
 func _card_played(peer_id: int, card_uuid: String) -> void:
@@ -88,3 +94,10 @@ func _card_played(peer_id: int, card_uuid: String) -> void:
 @rpc("any_peer", "call_remote", "reliable")
 func _card_play_failed(card_uuid: String, reason: String) -> void:
 	SignalBus.card_play_failed.emit(card_uuid, reason)
+
+@rpc("any_peer", "call_remote", "reliable")
+func _player_card_play_enabled(enabled: bool) -> void:
+	if enabled:
+		SignalBus.play_card_enabled.emit()
+	else:
+		SignalBus.play_card_disabled.emit()

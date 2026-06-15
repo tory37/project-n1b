@@ -26,4 +26,7 @@ func enter(_payload: Variant) -> void:
 		Loggit.p("Dealing starting hand of %d cards to player %d" % [starting_hand_size, player_id], "DrawDebug")
 		_game_manager.draw_cards(player_id, starting_hand_size)
 
+	
+	_game_manager.active_player.set_value(_game_manager.turn_order.get_player_at_number(1))
+
 	_game_manager.transition_to_phase(GameManager.GamePhase.DRAW_CARD)
