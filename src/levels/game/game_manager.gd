@@ -64,22 +64,24 @@ var phase_nodes: Dictionary:
 
 
 func _ready() -> void:
-	_game_fsm = FiniteStateMachine.new()
+	if multiplayer.is_server():
+		_game_fsm = FiniteStateMachine.new()
 
-	# We don't use as here, because it breaks and returns Nil.  known godot bug.
-	_phase_nodes = {
-		GamePhase.START: $FSM/Start,
-		GamePhase.DRAW_CARD: $FSM/DrawCard,
-		GamePhase.MAIN: $FSM/Main,
-		GamePhase.RESOLVING_CARD: $FSM/ResolvingCard,
-	}
+		# We don't use as here, because it breaks and returns Nil.  known godot bug.
+		_phase_nodes = {
+			GamePhase.START: $FSM/Start,
+			GamePhase.DRAW_CARD: $FSM/DrawCard,
+			GamePhase.MAIN: $FSM/Main,
+			GamePhase.RESOLVING_CARD: $FSM/ResolvingCard,
+		}
 
-	_phase_nodes[GamePhase.START].setup(self)
-	_phase_nodes[GamePhase.DRAW_CARD].setup(self)
-	_phase_nodes[GamePhase.MAIN].setup(self)
-	_phase_nodes[GamePhase.RESOLVING_CARD].setup(self)
+		_phase_nodes[GamePhase.START].setup(self)
+		_phase_nodes[GamePhase.DRAW_CARD].setup(self)
+		_phase_nodes[GamePhase.MAIN].setup(self)
+		_phase_nodes[GamePhase.RESOLVING_CARD].setup(self)
 
-	if not multiplayer.is_server():
+		SignalBus.notification_fired.connect(_on_notification_fired)
+	else:
 		notify_ready.rpc_id(1)
 
 ## ---- Public Methods ------------------------------------------------
@@ -89,12 +91,12 @@ func get_player(peer_id: int) -> NetworkedPlayer:
 	return _player_registry.get_player(peer_id)
 
 
-func transition_to_phase(phase: GamePhase) -> void:
+func transition_to_phase(phase: GamePhase, payload: Variant = {}) -> void:
 	if not multiplayer.is_server():
 		push_error("Only the server can transition phases")
 		return
 
-	_game_fsm.change_state(_phase_nodes[phase])
+	_game_fsm.change_state(_phase_nodes[phase], payload)
 
 
 func draw_cards(player_id: int, count: int) -> void:
@@ -190,3 +192,15 @@ func notify_ready() -> void:
 		_setup_players()
 
 		transition_to_phase.call_deferred(GamePhase.START)
+
+
+func _on_notification_fired(message: String) -> void:
+	_emit_game_notification.rpc(message)
+
+@rpc("any_peer", "call_remote", "reliable")
+func _emit_game_notification(message: String) -> void:
+	if multiplayer.is_server():
+		return
+		
+	SignalBus.notification_fired.emit(message)
+

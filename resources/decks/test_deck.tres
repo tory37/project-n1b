@@ -1,13 +1,10 @@
 [gd_resource type="Resource" script_class="DeckData" format=3 uid="uid://0o8qgwtpnu2f"]
 
 [ext_resource type="Script" uid="uid://btylqewlg66nt" path="res://src/deck/deck_data.gd" id="1_h8tla"]
-[ext_resource type="Resource" uid="uid://d1gn1vjp7ji7s" path="res://resources/cards/water.tres" id="1_nrlu6"]
 [ext_resource type="Script" uid="uid://bschx8np3tdoh" path="res://src/card/card_data.gd" id="1_wfsrl"]
-[ext_resource type="Resource" uid="uid://ry387m3q5e16" path="res://resources/cards/flame_thrower.tres" id="3_vrr6u"]
-[ext_resource type="Resource" uid="uid://dx6qwox0buhoo" path="res://resources/cards/sand.tres" id="4_gh6hw"]
-[ext_resource type="Resource" uid="uid://dqmrfabku004" path="res://resources/cards/bridge.tres" id="5_yi8xq"]
+[ext_resource type="Resource" uid="uid://bipt8wr44othn" path="res://resources/cards/test_card_1.tres" id="2_8oap4"]
 
 [resource]
 script = ExtResource("1_h8tla")
-cards = Array[ExtResource("1_wfsrl")]([ExtResource("1_nrlu6"), ExtResource("1_nrlu6"), ExtResource("1_nrlu6"), ExtResource("1_nrlu6"), ExtResource("1_nrlu6"), ExtResource("3_vrr6u"), ExtResource("3_vrr6u"), ExtResource("3_vrr6u"), ExtResource("3_vrr6u"), ExtResource("4_gh6hw"), ExtResource("4_gh6hw"), ExtResource("4_gh6hw"), ExtResource("4_gh6hw"), ExtResource("5_yi8xq"), ExtResource("5_yi8xq"), ExtResource("5_yi8xq"), ExtResource("5_yi8xq")])
+cards = Array[ExtResource("1_wfsrl")]([ExtResource("2_8oap4"), ExtResource("2_8oap4"), ExtResource("2_8oap4"), ExtResource("2_8oap4"), ExtResource("2_8oap4"), ExtResource("2_8oap4"), ExtResource("2_8oap4"), ExtResource("2_8oap4")])
 metadata/_custom_type_script = "uid://btylqewlg66nt"

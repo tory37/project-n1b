@@ -1,0 +1,30 @@
+[gd_resource type="Resource" script_class="CardData" format=3 uid="uid://bipt8wr44othn"]
+
+[ext_resource type="Script" uid="uid://dfa1jvau8tpai" path="res://src/card/effects/base_card_effect.gd" id="1_jr7g3"]
+[ext_resource type="Script" uid="uid://dq7wfojkdwrf2" path="res://src/card/effects/notify_with_delay.gd" id="2_ljypc"]
+[ext_resource type="Script" uid="uid://bschx8np3tdoh" path="res://src/card/card_data.gd" id="2_tswjq"]
+
+[sub_resource type="Resource" id="Resource_po083"]
+script = ExtResource("2_ljypc")
+message = "Effect 1 Executed"
+payload_key = "Effect 1"
+metadata/_custom_type_script = "uid://dq7wfojkdwrf2"
+
+[sub_resource type="Resource" id="Resource_08q2k"]
+script = ExtResource("2_ljypc")
+message = "Effect 2 Executed"
+payload_key = "Effect 2"
+metadata/_custom_type_script = "uid://dq7wfojkdwrf2"
+
+[sub_resource type="Resource" id="Resource_yi3pt"]
+script = ExtResource("2_ljypc")
+message = "Effect 3 Executed"
+payload_key = "Effect 3"
+metadata/_custom_type_script = "uid://dq7wfojkdwrf2"
+
+[resource]
+script = ExtResource("2_tswjq")
+unique_id = "test_card_1"
+title = "Notify With Delay"
+effects = Array[ExtResource("1_jr7g3")]([SubResource("Resource_po083"), SubResource("Resource_08q2k"), SubResource("Resource_yi3pt")])
+metadata/_custom_type_script = "uid://bschx8np3tdoh"

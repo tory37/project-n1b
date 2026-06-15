@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://cg30iaa5bim34" path="res://src/ui/game_overlay/game_overlay_ui.gd" id="1_wa8wg"]
 [ext_resource type="PackedScene" uid="uid://bnrvhwfkyla7k" path="res://src/ui/card/game_card_ui.tscn" id="2_o5elm"]
+[ext_resource type="Script" uid="uid://bwr711cfag2ep" path="res://src/ui/notification/notification_ui.gd" id="3_jbl86"]
 
 [node name="GameOverlayUi" type="CanvasLayer" unique_id=1299964242]
 layer = 2
@@ -137,6 +138,7 @@ offset_right = 299.0
 offset_bottom = 90.0
 grow_horizontal = 2
 size_flags_vertical = 0
+script = ExtResource("3_jbl86")
 
 [node name="Margin" type="MarginContainer" parent="NotificationPanel" unique_id=1435103447]
 layout_mode = 1

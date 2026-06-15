@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Suite Clean Sweep — Techdebt</title>
+  <link rel="stylesheet" href="../../assets/style.css">
+</head>
+<body data-type="techdebt">
+  <div class="container">
+    <header class="doc-header">
+      <div class="doc-meta">
+        <span class="badge badge-techdebt">TECHDEBT</span>
+        <span class="doc-date">2026-06-14</span>
+      </div>
+      <h1>Test Suite Clean Sweep</h1>
+    </header>
+    <main>
+
+      <section>
+        <h2>Audit Summary</h2>
+        <p>
+          The test suite was written against a now-defunct <code>GameManager</code> monolith and the old
+          <code>PlayerState</code> / <code>PlayerSeat</code> types. The codebase has since migrated to a
+          component architecture with networked RPC state and no <code>PlayerSeat</code> enum. Six test
+          files exist; three need to be rewritten entirely, two need targeted fixes, and one
+          (<code>test_hex_utils.gd</code>) is still valid as-is.
+        </p>
+      </section>
+
+      <section>
+        <h2>File-by-File Findings</h2>
+
+        <div class="finding-card warning">
+          <div class="finding-header">
+            <span class="badge badge-warning">FIX</span>
+            <span class="finding-title">test_finite_state_machine.gd</span>
+          </div>
+          <div class="finding-body">
+            <p>
+              <code>FiniteState.enter()</code> now has the signature <code>enter(_payload: Variant)</code>.
+              The inner <code>TrackedState</code> class overrides it with no parameters, which causes a runtime
+              call error when <code>FiniteStateMachine.change_state()</code> invokes <code>enter(payload)</code>.
+            </p>
+            <p><strong>Fix:</strong> Update <code>TrackedState.enter()</code> to <code>func enter(_payload: Variant) -> void:</code>. No other changes needed — the FSM logic itself is unchanged.</p>
+          </div>
+        </div>
+
+        <div class="finding-card warning">
+          <div class="finding-header">
+            <span class="badge badge-warning">REWRITE</span>
+            <span class="finding-title">test_signal_bus.gd</span>
+          </div>
+          <div class="finding-body">
+            <p>
+              All four tests reference signals that no longer exist (<code>player_switched</code>,
+              <code>ap_moved</code>). The new <code>SignalBus</code> has 16 signals; the tests cover 0 of them.
+            </p>
+            <p><strong>New coverage:</strong> Assert existence and correct emission of every signal in
+              the current SignalBus. No setup is required — SignalBus is an autoload.</p>
+          </div>
+        </div>
+
+        <div class="finding-card warning">
+          <div class="finding-header">
+            <span class="badge badge-warning">FIX</span>
+            <span class="finding-title">test_local_session.gd</span>
+          </div>
+          <div class="finding-body">
+            <p>
+              All tests reference <code>PlayerSeat.PLAYER_ONE</code> / <code>PLAYER_TWO</code>, an enum
+              that no longer exists. <code>LocalSession.local_player_id</code> is now a plain <code>int</code>
+              defaulting to <code>0</code>.
+            </p>
+            <p><strong>Fix:</strong> Replace every <code>PlayerSeat.PLAYER_ONE</code> with <code>1</code>
+              and <code>PlayerSeat.PLAYER_TWO</code> with <code>2</code>. Update the default-value test to
+              expect <code>0</code> (the actual default), and set <code>local_player_id = 1</code> in
+              <code>before_each</code>.</p>
+          </div>
+        </div>
+
+        <div class="finding-card critical">
+          <div class="finding-header">
+            <span class="badge badge-critical">REPLACE</span>
+            <span class="finding-title">test_player_game_state.gd</span>
+          </div>
+          <div class="finding-body">
+            <p>
+              Tests a <code>PlayerState</code> class (<code>deck_to_hand()</code>,
+              <code>use_card_from_hand()</code>) that no longer exists. Player state is now split into
+              <code>GameCardCollectionComponent</code> nodes inside <code>NetworkedPlayer</code>.
+            </p>
+            <p>
+              <strong>Replacement:</strong> Rename to <code>test_game_card_collection.gd</code> and
+              test <code>GameCardCollection</code> (a pure <code>Resource</code> — no scene tree required).
+              This class contains all the card-moving logic that was previously in <code>PlayerState</code>.
+            </p>
+          </div>
+        </div>
+
+        <div class="finding-card critical">
+          <div class="finding-header">
+            <span class="badge badge-critical">REPLACE</span>
+            <span class="finding-title">test_game_manager.gd</span>
+          </div>
+          <div class="finding-body">
+            <p>
+              Every test references properties and methods that no longer exist on
+              <code>GameManager</code> (<code>ap</code>, <code>active_player</code>,
+              <code>player_state</code>, <code>max_ap_value</code>, <code>base_income</code>,
+              <code>turn_phase_fsm</code>, <code>_on_*_requested()</code> handlers, <code>PlayerSeat</code>
+              enum). The new <code>GameManager</code> delegates all state to component nodes and requires a
+              full Godot scene tree — it cannot be unit-tested in isolation.
+            </p>
+            <p>
+              <strong>Replacement strategy:</strong> Delete the monolithic file and create four focused
+              test files — one per state component that <em>can</em> be tested:
+            </p>
+            <ul>
+              <li><code>test_action_points_component.gd</code></li>
+              <li><code>test_active_player_component.gd</code></li>
+              <li><code>test_turn_order_component.gd</code></li>
+              <li><code>test_round_number_component.gd</code></li>
+            </ul>
+            <p>
+              Each component extends <code>Node</code> and uses <code>multiplayer.is_server()</code>
+              guards. In a GUT context with no multiplayer peer, Godot treats the local peer as server
+              (peer ID = 1), so all server-gated paths execute. RPC functions decorated with
+              <code>"call_local"</code> execute locally without a network peer. Tests will call methods
+              directly and assert on <code>.value</code>.
+            </p>
+          </div>
+        </div>
+
+        <div class="finding-card positive">
+          <div class="finding-header">
+            <span class="badge badge-complete">OK</span>
+            <span class="finding-title">test_hex_utils.gd</span>
+          </div>
+          <div class="finding-body">
+            <p>
+              All tests are valid. <code>HexUtils</code> API is unchanged. No action needed.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Implementation Phases</h2>
+
+        <div class="phase-card">
+          <div class="phase-header">
+            <span class="phase-number">1</span>
+            <span class="phase-title">Fix test_finite_state_machine.gd</span>
+          </div>
+          <ol class="phase-steps">
+            <li>Update <code>TrackedState.enter()</code> signature to <code>func enter(_payload: Variant) -> void:</code></li>
+          </ol>
+          <div class="test-criteria">
+            <strong>Verify:</strong> Run suite — all 5 FSM tests pass.
+          </div>
+        </div>
+
+        <div class="phase-card">
+          <div class="phase-header">
+            <span class="phase-number">2</span>
+            <span class="phase-title">Fix test_local_session.gd</span>
+          </div>
+          <ol class="phase-steps">
+            <li>Replace <code>PlayerSeat.PLAYER_ONE</code> with <code>1</code> and <code>PlayerSeat.PLAYER_TWO</code> with <code>2</code></li>
+            <li>Update <code>before_each</code> to set <code>LocalSession.local_player_id = 1</code></li>
+            <li>Add a test: <code>test_default_local_player_id_is_zero</code> that resets and checks <code>== 0</code></li>
+          </ol>
+          <div class="test-criteria">
+            <strong>Verify:</strong> All 3+ LocalSession tests pass.
+          </div>
+        </div>
+
+        <div class="phase-card">
+          <div class="phase-header">
+            <span class="phase-number">3</span>
+            <span class="phase-title">Rewrite test_signal_bus.gd</span>
+          </div>
+          <ol class="phase-steps">
+            <li>Replace all content — assert <code>has_signal</code> for each of the 16 signals in the new SignalBus</li>
+            <li>For signals with parameters, add an emit + assert-with-params test for representative ones:
+              <code>notification_fired</code>, <code>active_player_synced</code>,
+              <code>action_points_synced</code>, <code>play_card_requested</code></li>
+          </ol>
+          <div class="test-criteria">
+            <strong>Verify:</strong> All signal existence and emission tests pass.
+          </div>
+        </div>
+
+        <div class="phase-card">
+          <div class="phase-header">
+            <span class="phase-number">4</span>
+            <span class="phase-title">Replace test_player_game_state.gd → test_game_card_collection.gd</span>
+          </div>
+          <ol class="phase-steps">
+            <li>Delete <code>test_player_game_state.gd</code> (and its <code>.uid</code>)</li>
+            <li>Create <code>test_game_card_collection.gd</code> covering:</li>
+            <ul>
+              <li><strong>push_back / size:</strong> adding cards increases size</li>
+              <li><strong>pop_back(n):</strong> removes n from back, returns a collection of n</li>
+              <li><strong>pop_front(n):</strong> removes n from front</li>
+              <li><strong>push_back_collection:</strong> merges two collections</li>
+              <li><strong>contains_card:</strong> true/false by uuid</li>
+              <li><strong>get_card_by_uuid:</strong> returns correct card or null</li>
+              <li><strong>remove_cards:</strong> removes by uuid array</li>
+              <li><strong>copy:</strong> returns independent copy (mutations don't bleed)</li>
+              <li><strong>mask:</strong> revealed cards pass through; hidden cards lose data</li>
+              <li><strong>from_card_data_array:</strong> each CardData wraps into a GameCard</li>
+            </ul>
+          </ol>
+          <div class="test-criteria">
+            <strong>Verify:</strong> All GameCardCollection tests pass.
+          </div>
+        </div>
+
+        <div class="phase-card">
+          <div class="phase-header">
+            <span class="phase-number">5</span>
+            <span class="phase-title">Replace test_game_manager.gd → 4 component test files</span>
+          </div>
+          <ol class="phase-steps">
+            <li>Delete <code>test_game_manager.gd</code> (and its <code>.uid</code>)</li>
+            <li>Create <code>test_action_points_component.gd</code>:
+              <ul>
+                <li><code>can_request_spend</code> true at boundary, false over boundary</li>
+                <li><code>request_spend</code> decrements <code>value</code> when valid</li>
+                <li><code>request_spend</code> does not change <code>value</code> when invalid</li>
+                <li><code>request_gain</code> increments <code>value</code></li>
+                <li><code>request_gain</code> clamps at 10</li>
+              </ul>
+            </li>
+            <li>Create <code>test_active_player_component.gd</code>:
+              <ul>
+                <li><code>set_value(1)</code> → <code>value == 1</code></li>
+                <li><code>set_value(2)</code> → <code>value == 2</code></li>
+                <li><code>set_value(0)</code> is invalid — value unchanged</li>
+              </ul>
+            </li>
+            <li>Create <code>test_turn_order_component.gd</code>:
+              <ul>
+                <li><code>push_value</code> appends to order</li>
+                <li><code>get_next_player_id</code> returns next in sequence</li>
+                <li><code>get_next_player_id</code> wraps from last back to first</li>
+                <li><code>get_player_number</code> returns 1-based index</li>
+                <li><code>get_player_at_number</code> returns player at 1-based position</li>
+                <li>Out-of-bounds returns -1</li>
+              </ul>
+            </li>
+            <li>Create <code>test_round_number_component.gd</code>:
+              <ul>
+                <li><code>increment</code> increases <code>value</code> by 1</li>
+                <li><code>decrement</code> decreases <code>value</code> by 1</li>
+                <li>Chained increment/decrement returns to start</li>
+              </ul>
+            </li>
+          </ol>
+          <div class="test-criteria">
+            <strong>Verify:</strong> All component tests pass.
+          </div>
+        </div>
+
+      </section>
+
+      <section>
+        <h2>Notes on Multiplayer in Unit Tests</h2>
+        <div class="section accent">
+          <p>
+            Components extend <code>Node</code> and use <code>multiplayer.is_server()</code> guards and
+            <code>@rpc(..., "call_local", ...)</code> sync functions. In GUT's offline context:
+          </p>
+          <ul>
+            <li><strong>is_server() → true</strong> — Godot treats local-only as server (peer ID 1). All server-gated paths execute.</li>
+            <li><strong>.rpc() with "call_local"</strong> — executes locally. No network peer required.</li>
+            <li><strong>Signal emission</strong> — <code>_sync_value</code> functions gate on <code>if not is_server()</code> before emitting to SignalBus. In tests, signals won't fire via the RPC path. Test <em>values</em>, not signal emissions, for these components.</li>
+            <li><strong>add_child_autofree</strong> — use this to give Node components a valid tree context.</li>
+          </ul>
+          <p>
+            If RPC calls generate noise warnings during test runs, that's expected. They don't indicate test failures.
+          </p>
+        </div>
+      </section>
+
+      <section>
+        <h2>Files Affected</h2>
+        <div class="files-list">
+          <span class="file-chip">tests/unit/test_finite_state_machine.gd</span>
+          <span class="file-chip">tests/unit/test_signal_bus.gd</span>
+          <span class="file-chip">tests/unit/test_local_session.gd</span>
+          <span class="file-chip">tests/unit/test_player_game_state.gd → DELETE</span>
+          <span class="file-chip">tests/unit/test_game_card_collection.gd → NEW</span>
+          <span class="file-chip">tests/unit/test_game_manager.gd → DELETE</span>
+          <span class="file-chip">tests/unit/test_action_points_component.gd → NEW</span>
+          <span class="file-chip">tests/unit/test_active_player_component.gd → NEW</span>
+          <span class="file-chip">tests/unit/test_turn_order_component.gd → NEW</span>
+          <span class="file-chip">tests/unit/test_round_number_component.gd → NEW</span>
+          <span class="file-chip">tests/unit/test_hex_utils.gd — NO CHANGE</span>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</body>
+</html>
