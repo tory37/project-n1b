@@ -31,18 +31,18 @@ func _resolve_next_effect() -> void:
 		_game_manager.transition_to_phase(GameManager.GamePhase.MAIN)
 		return
 
-	var effect: Effect = _card.effects[_effect_index]
+	var effect: Action = _card.effects[_effect_index]
 
-	effect.effect_completed.connect(_on_effect_completed)
-	effect.effect_cancelled.connect(_on_effect_completed)
+	effect.completed.connect(_on_completed)
+	effect.cancelled.connect(_on_completed)
 
 	effect.execute(_accumulated_payload)
 
 
-func _on_effect_completed(new_payload: Dictionary = {}) -> void:
-	var current_effect: Effect = _card.effects[_effect_index]
-	current_effect.effect_completed.disconnect(_on_effect_completed)
-	current_effect.effect_cancelled.disconnect(_on_effect_completed)
+func _on_completed(new_payload: Dictionary = {}) -> void:
+	var current_effect: Action = _card.effects[_effect_index]
+	current_effect.completed.disconnect(_on_completed)
+	current_effect.cancelled.disconnect(_on_completed)
 
 	_effect_index += 1
 
@@ -51,10 +51,10 @@ func _on_effect_completed(new_payload: Dictionary = {}) -> void:
 	_resolve_next_effect()
 
 
-func _on_effect_cancelled() -> void:
-	var current_effect: Effect = _card.effects[_effect_index]
-	current_effect.effect_completed.disconnect(_on_effect_completed)
-	current_effect.effect_cancelled.disconnect(_on_effect_cancelled)
+func _on_cancelled() -> void:
+	var current_effect: Action = _card.effects[_effect_index]
+	current_effect.completed.disconnect(_on_completed)
+	current_effect.cancelled.disconnect(_on_cancelled)
 
 	# TODO: Reverse the chain?
 

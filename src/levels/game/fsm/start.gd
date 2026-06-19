@@ -1,19 +1,30 @@
 class_name GamePhaseStart
 extends GamePhaseState
 
+@export var next_phase: GameManager.GamePhase
 
 func enter(_payload: Variant) -> void:
 	Loggit.p("In GamePhaseStart._on_server_enter", "DrawDebug")
 	if not multiplayer.is_server():
 		return
 
-	Loggit.p("Setting up new round. Incrementing round number and shuffling decks.", "DrawDebug")
+	_increment_round_number()
+	_reset_action_points()
+	_setup_players()
+	_set_first_player_as_active()
+	_transition_to_next_phase()
 
+
+func _increment_round_number() -> void:
 	_game_manager.round_number.increment()
+
+
+func _reset_action_points() -> void:
 	_game_manager.action_points.set_value(0)
 
-	var player_ids: Array[int] = _game_manager.turn_order.value.duplicate()
 
+func _setup_players() -> void:
+	var player_ids: Array[int] = _game_manager.turn_order.value.duplicate()
 
 	for player_id in player_ids:
 		var player: NetworkedPlayer = _game_manager.get_player(player_id)
@@ -26,7 +37,10 @@ func enter(_payload: Variant) -> void:
 		Loggit.p("Dealing starting hand of %d cards to player %d" % [starting_hand_size, player_id], "DrawDebug")
 		_game_manager.draw_cards(player_id, starting_hand_size)
 
-	
+
+func _set_first_player_as_active() -> void:
 	_game_manager.active_player.set_value(_game_manager.turn_order.get_player_at_number(1))
 
-	_game_manager.transition_to_phase(GameManager.GamePhase.DRAW_CARD)
+
+func _transition_to_next_phase() -> void:
+	_game_manager.transition_to_phase(next_phase)

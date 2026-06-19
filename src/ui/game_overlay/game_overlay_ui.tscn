@@ -159,4 +159,4 @@ text = "This is where notifications are shown when things happen"
 horizontal_alignment = 1
 
 [node name="Timer" type="Timer" parent="NotificationPanel" unique_id=99974236]
-wait_time = 2.425
+wait_time = 3.0

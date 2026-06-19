@@ -5,7 +5,7 @@ extends Resource
 @export var title: String = "Default Card Title"
 @export var ap_cost: int = 1
 @export var card_type: CardType = CardType.ONE_SHOT
-@export var effects: Array[Effect] = []
+@export var effects: Array[Action] = []
 
 enum CardType {
 	LAND,
