@@ -1,5 +1,5 @@
-class_name FiniteState
-extends Node
+class_name FiniteStateResource
+extends Resource
 
 
 func enter(_payload: Variant) -> void:

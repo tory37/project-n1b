@@ -1,11 +1,11 @@
-class_name GamePhaseStart
-extends GamePhaseState
+class_name StartPhase
+extends GamePhase
 
-@export var next_phase: GameManager.GamePhase
+@export var on_completion_phase: GamePhase
 
 func enter(_payload: Variant) -> void:
-	Loggit.p("In GamePhaseStart._on_server_enter", "DrawDebug")
-	if not multiplayer.is_server():
+	Loggit.p("In StartPhase._on_server_enter", "DrawDebug")
+	if not _game_manager.multiplayer.is_server():
 		return
 
 	_increment_round_number()
@@ -43,4 +43,4 @@ func _set_first_player_as_active() -> void:
 
 
 func _transition_to_next_phase() -> void:
-	_game_manager.transition_to_phase(next_phase)
+	_game_manager.transition_to_phase(on_completion_phase)

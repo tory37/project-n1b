@@ -5,7 +5,7 @@ class TrackedState extends FiniteState:
 	var entered: bool = false
 	var exited: bool = false
 
-	func _init(fsm: FiniteStateMachine) -> void:
+	func _init(fsm: FiniteStateMachineNode) -> void:
 		super(fsm)
 
 	func enter() -> void:
@@ -15,11 +15,11 @@ class TrackedState extends FiniteState:
 		exited = true
 
 
-var _fsm: FiniteStateMachine
+var _fsm: FiniteStateMachineNode
 
 
 func before_each() -> void:
-	_fsm = FiniteStateMachine.new()
+	_fsm = FiniteStateMachineNode.new()
 
 
 func after_each() -> void:

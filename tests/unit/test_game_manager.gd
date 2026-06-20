@@ -5,15 +5,15 @@ var _gm: GameManager
 
 func before_each() -> void:
 	_gm = GameManager.new()
-	_gm.turn_phase_fsm = FiniteStateMachine.new()
-	_gm.turn_phase_fsm.change_state(GamePhaseMain.new(_gm.turn_phase_fsm))
+	_gm.turn_phase_fsm = FiniteStateMachineNode.new()
+	_gm.turn_phase_fsm.change_state(MainPhase.new(_gm.turn_phase_fsm))
 
 
 func after_each() -> void:
-	# Transition so GamePhaseDrawCard.exit() fires and disconnects its signal
+	# Transition so DrawPhase.exit() fires and disconnects its signal
 	if _gm and _gm.turn_phase_fsm:
-		_gm.turn_phase_fsm.change_state(GamePhaseMain.new(_gm.turn_phase_fsm))
-		# FiniteStateMachine._current_state → FiniteState._fsm is a circular ref.
+		_gm.turn_phase_fsm.change_state(MainPhase.new(_gm.turn_phase_fsm))
+		# FiniteStateMachineNode._current_state → FiniteState._fsm is a circular ref.
 		# Null _current_state to break it so both RefCounted objects can be freed.
 		_gm.turn_phase_fsm._current_state = null
 	if _gm:

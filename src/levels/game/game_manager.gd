@@ -10,19 +10,13 @@ extends Node
 
 ## ---- Enums ---------------------------------------------------------
 
-enum GamePhase {
-	WAITING_FOR_PLAYERS,
-	START,
-	DRAW_CARD,
-	MAIN,
-	RESOLVING_CARD,
-}
-
 ## ---- Constants -----------------------------------------------------
 
 ## ---- Static Variables ----------------------------------------------
 
 ## ---- Exports -------------------------------------------------------
+
+@export var initial_phase: GamePhase
 
 # TODO: Make these a resource
 @export var starting_action_points: int = 0
@@ -36,7 +30,7 @@ enum GamePhase {
 
 ## ---- Private Variables ---------------------------------------------
 
-var _game_fsm: FiniteStateMachine = null
+var _game_fsm: FiniteStateMachineNode = null
 var _ready_peers: Array[int] = []
 
 ## ---- @onready Variables --------------------------------------------
@@ -48,15 +42,10 @@ var _ready_peers: Array[int] = []
 @onready var player_1: NetworkedPlayer = $PlayerRegistry/Player1
 @onready var player_2: NetworkedPlayer = $PlayerRegistry/Player2
 
-@onready var round_number: RoundNumberComponent = $GameState/RoundNumberComponent
-@onready var active_player: ActivePlayerComponent = $GameState/ActivePlayerComponent
-@onready var turn_order: TurnOrderComponent = $GameState/TurnOrderComponent
-@onready var action_points: ActionPointsComponent = $GameState/ActionPointsComponent
-var _phase_nodes: Dictionary
-
-var phase_nodes: Dictionary:
-	get:
-		return _phase_nodes
+@onready var round_number: RoundNumberComponent = $State/RoundNumberComponent
+@onready var active_player: ActivePlayerComponent = $State/ActivePlayerComponent
+@onready var turn_order: TurnOrderComponent = $State/TurnOrderComponent
+@onready var action_points: ActionPointsComponent = $State/ActionPointsComponent
 
 ## ---- Static Methods ------------------------------------------------
 
@@ -65,20 +54,7 @@ var phase_nodes: Dictionary:
 
 func _ready() -> void:
 	if multiplayer.is_server():
-		_game_fsm = FiniteStateMachine.new()
-
-		# We don't use as here, because it breaks and returns Nil.  known godot bug.
-		_phase_nodes = {
-			GamePhase.START: $FSM/Start,
-			GamePhase.DRAW_CARD: $FSM/DrawCard,
-			GamePhase.MAIN: $FSM/Main,
-			GamePhase.RESOLVING_CARD: $FSM/ResolvingCard,
-		}
-
-		_phase_nodes[GamePhase.START].setup(self)
-		_phase_nodes[GamePhase.DRAW_CARD].setup(self)
-		_phase_nodes[GamePhase.MAIN].setup(self)
-		_phase_nodes[GamePhase.RESOLVING_CARD].setup(self)
+		_game_fsm = FiniteStateMachineNode.new()
 
 		SignalBus.notification_fired.connect(_on_notification_fired)
 	else:
@@ -96,7 +72,7 @@ func transition_to_phase(phase: GamePhase, payload: Variant = { }) -> void:
 		push_error("Only the server can transition phases")
 		return
 
-	_game_fsm.change_state(_phase_nodes[phase], payload)
+	_game_fsm.change_state(phase, payload)
 
 
 func draw_cards(player_id: int, count: int) -> void:
@@ -188,7 +164,7 @@ func notify_ready() -> void:
 		_initialize_game_state()
 		_setup_players()
 
-		transition_to_phase.call_deferred(GamePhase.START)
+		transition_to_phase.call_deferred(initial_phase)
 
 
 func _on_notification_fired(message: String) -> void:

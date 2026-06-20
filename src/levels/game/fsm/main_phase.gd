@@ -1,8 +1,10 @@
-class_name GamePhaseMain
-extends GamePhaseState
+class_name MainPhase
+extends GamePhase
+
+@export var on_card_played_phase: GamePhase
 
 func enter(_payload: Variant) -> void:
-	if not multiplayer.is_server():
+	if not _game_manager.multiplayer.is_server():
 		return
 
 	_state_entered.rpc()
@@ -12,7 +14,7 @@ func enter(_payload: Variant) -> void:
 
 
 func exit() -> void:
-	if not multiplayer.is_server():
+	if not _game_manager.multiplayer.is_server():
 		return
 
 	_state_exited.rpc()
@@ -31,12 +33,12 @@ func _on_play_card_requested(uuid: String) -> void:
 func _try_play_card(uuid: String) -> void:
 	Loggit.p("Trying to play card with UUID before check: %s" % uuid, "PlayDebug")
 
-	if not multiplayer.is_server():
+	if not _game_manager.multiplayer.is_server():
 		return
 
 	Loggit.p("Trying to play card with UUID after check: %s" % uuid, "PlayDebug")
 
-	var caller_id: int = multiplayer.get_remote_sender_id()
+	var caller_id: int = _game_manager.multiplayer.get_remote_sender_id()
 
 	Loggit.p("Caller ID for play card request: %d" % caller_id, "PlayDebug")
 
@@ -57,11 +59,11 @@ func _try_play_card(uuid: String) -> void:
 	if _game_manager.validate_card_play(card_data):
 		Loggit.p("Card play validated for card %s with UUID %s" % [card_data.title, uuid], "PlayDebug")
 		# _card_played.rpc(_game_manager.multiplayer.get_remote_sender_id(), card_uuid)
-		_game_manager.transition_to_phase(GameManager.GamePhase.RESOLVING_CARD, card_data)
+		_game_manager.transition_to_phase(on_card_played_phase, card_data)
 	else:
 		Loggit.p("Card play failed validation for card %s with UUID %s" % [card_data.title, uuid], "PlayDebug")
 		_card_play_failed.rpc_id(
-			multiplayer.get_remote_sender_id(),
+			_game_manager.multiplayer.get_remote_sender_id(),
 			game_card.uuid,
 			"Not enough action points",
 		)
@@ -71,8 +73,8 @@ func _try_play_card(uuid: String) -> void:
 
 @rpc("any_peer", "call_remote", "reliable")
 func _state_entered() -> void:
-	Loggit.p("Entered GamePhaseMain", "DrawDebug")
-	if multiplayer.is_server():
+	Loggit.p("Entered MainPhase", "DrawDebug")
+	if _game_manager.multiplayer.is_server():
 		return
 
 	SignalBus.play_card_requested.connect(_on_play_card_requested)
@@ -80,7 +82,7 @@ func _state_entered() -> void:
 
 @rpc("any_peer", "call_remote", "reliable")
 func _state_exited() -> void:
-	if multiplayer.is_server():
+	if _game_manager.multiplayer.is_server():
 		return
 
 	SignalBus.play_card_requested.disconnect(_on_play_card_requested)
@@ -94,6 +96,7 @@ func _card_played(peer_id: int, card_uuid: String) -> void:
 @rpc("any_peer", "call_remote", "reliable")
 func _card_play_failed(card_uuid: String, reason: String) -> void:
 	SignalBus.card_play_failed.emit(card_uuid, reason)
+
 
 @rpc("any_peer", "call_remote", "reliable")
 func _player_card_play_enabled(enabled: bool) -> void:

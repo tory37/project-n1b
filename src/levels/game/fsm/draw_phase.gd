@@ -1,11 +1,11 @@
-class_name GamePhaseDrawCard
-extends GamePhaseState
+class_name DrawPhase
+extends GamePhase
 
-@export var next_phase: GameManager.GamePhase
+@export var on_completion_phase: GamePhase
 
 
 func enter(_payload: Variant) -> void:
-	if not multiplayer.is_server():
+	if not _game_manager.multiplayer.is_server():
 		return
 
 	var active_player_id: int = _game_manager.active_player.value
@@ -20,4 +20,4 @@ func enter(_payload: Variant) -> void:
 		push_error("Player %d cannot draw a card. Skipping draw phase." % active_player_id)
 
 
-	_game_manager.transition_to_phase(next_phase)
+	_game_manager.transition_to_phase(on_completion_phase)

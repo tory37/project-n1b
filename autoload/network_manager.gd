@@ -54,7 +54,7 @@ func join_game(address: String, port: int = DEFAULT_PORT) -> Error:
 
 func disconnect_game() -> void:
 	if peer:
-		peer.close_connection()
+		peer.close()
 		peer = null
 
 	multiplayer.multiplayer_peer = null

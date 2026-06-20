@@ -1,10 +1,10 @@
-class_name FiniteStateMachine
+class_name FiniteStateMachineResource
 extends RefCounted
 
-var _current_state: FiniteState = null
+var _current_state: FiniteStateResource = null
 
 
-func change_state(next: FiniteState, payload: Variant = null) -> void:
+func change_state(next: FiniteStateResource, payload: Variant = null) -> void:
 	if _current_state:
 		_current_state.exit()
 

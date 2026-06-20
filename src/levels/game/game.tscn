@@ -6,38 +6,41 @@
 [ext_resource type="PackedScene" uid="uid://b4ghprdba615b" path="res://src/player/player_registry.tscn" id="3_85bdw"]
 [ext_resource type="PackedScene" uid="uid://dnm1lkkfq5gx" path="res://src/world/hex_board/hex_board.tscn" id="3_ewew8"]
 [ext_resource type="PackedScene" uid="uid://cu83dpxikl80g" path="res://src/levels/game/game_state.tscn" id="3_nblc3"]
-[ext_resource type="Script" uid="uid://csttcn8h0vbpt" path="res://src/levels/game/fsm/start.gd" id="3_pew6l"]
 [ext_resource type="Script" uid="uid://bntl18jwnihbp" path="res://src/levels/game/messages/message_manager.gd" id="3_vddbj"]
 [ext_resource type="PackedScene" uid="uid://b8xmcjwsj2" path="res://src/world/table/table.tscn" id="4_ghaey"]
-[ext_resource type="Script" uid="uid://s4krx3wohlge" path="res://src/levels/game/fsm/draw_card.gd" id="4_vddbj"]
 [ext_resource type="PackedScene" uid="uid://dudx5da1opo8o" path="res://src/deck/deck_view.tscn" id="5_76xvg"]
-[ext_resource type="Script" uid="uid://ctvhlrslvekht" path="res://src/levels/game/fsm/main.gd" id="5_tw6tv"]
-[ext_resource type="Script" uid="uid://dsynl8p4u7uyv" path="res://src/levels/game/fsm/resolving_card.gd" id="6_l56g8"]
 [ext_resource type="PackedScene" uid="uid://chmm0j1cbcqa2" path="res://src/ui/game_overlay/game_overlay_ui.tscn" id="8_85bdw"]
 [ext_resource type="PackedScene" uid="uid://5e82kas2q54g" path="res://src/ui/hand/hand_overlay_ui.tscn" id="10_nvxtd"]
+[ext_resource type="Script" uid="uid://csttcn8h0vbpt" path="res://src/levels/game/fsm/start_phase.gd" id="11_start"]
+[ext_resource type="Script" uid="uid://s4krx3wohlge" path="res://src/levels/game/fsm/draw_phase.gd" id="12_draw"]
+[ext_resource type="Script" uid="uid://ctvhlrslvekht" path="res://src/levels/game/fsm/main_phase.gd" id="13_main"]
+[ext_resource type="Script" uid="uid://dsynl8p4u7uyv" path="res://src/levels/game/fsm/resolving_card_phase.gd" id="14_resolving"]
 
-[node name="Game" type="Node3D" unique_id=494198879]
+[node name="Game" type="Node3D" unique_id=494198879 node_paths=PackedStringArray("initial_phase")]
 script = ExtResource("1_b6y0w")
+initial_phase = NodePath("Phases/Start")
 test_deck = ExtResource("2_n5fbu")
+
+[node name="Phases" type="Node" parent="." unique_id=325646165]
+
+[node name="Start" type="Node" parent="Phases" unique_id=740684457 node_paths=PackedStringArray("on_completion_phase")]
+script = ExtResource("11_start")
+on_completion_phase = NodePath("../Draw")
+
+[node name="Draw" type="Node" parent="Phases" unique_id=938414194 node_paths=PackedStringArray("on_completion_phase")]
+script = ExtResource("12_draw")
+on_completion_phase = NodePath("../Main")
+
+[node name="Main" type="Node" parent="Phases" unique_id=1437838053 node_paths=PackedStringArray("on_card_played_phase")]
+script = ExtResource("13_main")
+on_card_played_phase = NodePath("../ResolvingCard")
+
+[node name="ResolvingCard" type="Node" parent="Phases" unique_id=1662585583 node_paths=PackedStringArray("on_complete_phase")]
+script = ExtResource("14_resolving")
+on_complete_phase = NodePath("../Main")
 
 [node name="MessageManager" type="Node" parent="." unique_id=943498981]
 script = ExtResource("3_vddbj")
-
-[node name="FSM" type="Node" parent="." unique_id=1295367284]
-
-[node name="Start" type="Node" parent="FSM" unique_id=740684457]
-script = ExtResource("3_pew6l")
-next_phase = 2
-
-[node name="DrawCard" type="Node" parent="FSM" unique_id=938414194]
-script = ExtResource("4_vddbj")
-next_phase = 3
-
-[node name="Main" type="Node" parent="FSM" unique_id=1437838053]
-script = ExtResource("5_tw6tv")
-
-[node name="ResolvingCard" type="Node" parent="FSM" unique_id=1662585583]
-script = ExtResource("6_l56g8")
 
 [node name="PlayerRegistry" parent="." unique_id=131796875 instance=ExtResource("3_85bdw")]
 
@@ -45,7 +48,7 @@ script = ExtResource("6_l56g8")
 
 [node name="Player2" parent="PlayerRegistry" unique_id=165871332 instance=ExtResource("2_nblc3")]
 
-[node name="GameState" parent="." unique_id=393733865 instance=ExtResource("3_nblc3")]
+[node name="State" parent="." unique_id=393733865 instance=ExtResource("3_nblc3")]
 
 [node name="Camera3D" type="Camera3D" parent="." unique_id=710749813]
 transform = Transform3D(1, 0, 0, 0, 0.6156611, 0.7880111, 0, -0.7880111, 0.6156611, 0, 9, 12.11622)

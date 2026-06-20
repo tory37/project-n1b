@@ -1,9 +1,9 @@
 [gd_scene format=3 uid="uid://cu83dpxikl80g"]
 
-[ext_resource type="Script" uid="uid://bsa4jeftav8yd" path="res://src/levels/game/state/round_number_component.gd" id="1_rhqbi"]
-[ext_resource type="Script" uid="uid://mkpc3hpn0iph" path="res://src/levels/game/state/active_player_component.gd" id="2_rhqbi"]
-[ext_resource type="Script" uid="uid://s6tn8d5ojcym" path="res://src/levels/game/state/action_points_component.gd" id="3_psf6a"]
-[ext_resource type="Script" uid="uid://cdvmv555f8ce1" path="res://src/levels/game/state/turn_order_component.gd" id="4_524ot"]
+[ext_resource type="Script" uid="uid://bsa4jeftav8yd" path="res://src/levels/game/components/round_number_component.gd" id="1_rhqbi"]
+[ext_resource type="Script" uid="uid://mkpc3hpn0iph" path="res://src/levels/game/components/active_player_component.gd" id="2_rhqbi"]
+[ext_resource type="Script" uid="uid://s6tn8d5ojcym" path="res://src/levels/game/components/action_points_component.gd" id="3_psf6a"]
+[ext_resource type="Script" uid="uid://cdvmv555f8ce1" path="res://src/levels/game/components/turn_order_component.gd" id="4_524ot"]
 
 [node name="GameState" type="Node" unique_id=393733865]
 

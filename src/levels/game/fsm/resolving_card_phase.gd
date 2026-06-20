@@ -1,5 +1,7 @@
-class_name GamePhaseResolvingCard
-extends GamePhaseState
+class_name ResolvingCardPhase
+extends GamePhase
+
+@export var on_complete_phase: GamePhase
 
 var _card: CardData = null
 var _accumulated_payload: Dictionary = {}
@@ -7,7 +9,7 @@ var _effect_index: int = 0
 
 
 func enter(card_to_resolve: Variant) -> void:
-	Loggit.p("Entering GamePhaseResolvingCard with card", "DrawDebug")
+	Loggit.p("Entering ResolvingCardPhase with card", "DrawDebug")
 	_card = card_to_resolve as CardData
 	_accumulated_payload = {}
 	_effect_index = 0
@@ -28,7 +30,7 @@ func _resolve_next_effect() -> void:
 
 	if _card.effects.size() <= _effect_index:
 		Loggit.p("Finished resolving card %s. Transitioning back to main phase." % _card.title, "DrawDebug")
-		_game_manager.transition_to_phase(GameManager.GamePhase.MAIN)
+		_game_manager.transition_to_phase(on_complete_phase)
 		return
 
 	var effect: Action = _card.effects[_effect_index]
