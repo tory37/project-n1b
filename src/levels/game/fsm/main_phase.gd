@@ -7,7 +7,7 @@ func enter(_payload: Variant) -> void:
 	if not _game_manager.multiplayer.is_server():
 		return
 
-	_state_entered.rpc()
+	_phase_entered.rpc()
 
 	var current_player_id: int = _game_manager.active_player.value
 	_player_card_play_enabled.rpc_id(current_player_id, true)
@@ -72,7 +72,7 @@ func _try_play_card(uuid: String) -> void:
 
 
 @rpc("any_peer", "call_remote", "reliable")
-func _state_entered() -> void:
+func _phase_entered() -> void:
 	Loggit.p("Entered MainPhase", "DrawDebug")
 	if _game_manager.multiplayer.is_server():
 		return

@@ -16,7 +16,7 @@ extends Node
 
 ## ---- Exports -------------------------------------------------------
 
-@export var initial_phase: GamePhase
+@export var entry_phase: GamePhase
 
 # TODO: Make these a resource
 @export var starting_action_points: int = 0
@@ -27,15 +27,16 @@ extends Node
 @export var test_deck: DeckData
 
 ## ---- Public Variables ----------------------------------------------
+var ready_peers: Array[int] = []
+
 
 ## ---- Private Variables ---------------------------------------------
 
 var _game_fsm: FiniteStateMachineNode = null
-var _ready_peers: Array[int] = []
 
 ## ---- @onready Variables --------------------------------------------
 
-@onready var _player_registry: PlayerRegistry = $PlayerRegistry
+@onready var player_registry: PlayerRegistry = $PlayerRegistry
 
 # State
 
@@ -57,14 +58,14 @@ func _ready() -> void:
 		_game_fsm = FiniteStateMachineNode.new()
 
 		SignalBus.notification_fired.connect(_on_notification_fired)
-	else:
-		notify_ready.rpc_id(1)
+
+		transition_to_phase(entry_phase)
 
 ## ---- Public Methods ------------------------------------------------
 
 
 func get_player(peer_id: int) -> NetworkedPlayer:
-	return _player_registry.get_player(peer_id)
+	return player_registry.get_player(peer_id)
 
 
 func transition_to_phase(phase: GamePhase, payload: Variant = { }) -> void:
@@ -80,7 +81,7 @@ func draw_cards(player_id: int, count: int) -> void:
 		push_error("Only the server can draw cards")
 		return
 
-	var player = _player_registry.get_player(player_id)
+	var player = player_registry.get_player(player_id)
 
 	if not player.deck.value.size() >= count:
 		push_error(
@@ -112,59 +113,6 @@ func validate_card_play(card: CardData) -> bool:
 	return false
 
 ## ---- Private Methods -----------------------------------------------
-
-
-func _setup_players() -> void:
-	if not multiplayer.is_server():
-		return
-
-	var seat = 1
-	for peer_id: int in multiplayer.get_peers():
-		var player: NetworkedPlayer
-
-		if seat == 1:
-			player = player_1
-		elif seat == 2:
-			player = player_2
-		else:
-			push_error("Unsupported seat number %d for peer_id %d" % [seat, peer_id])
-			continue
-
-		_player_registry.add_player(peer_id, player)
-
-		player.set_peer_id(peer_id)
-		player.seat.set_value(seat)
-		player.spirit_points.set_value(starting_spirit_points)
-		player.hand.setup(peer_id, GameCardCollection.new())
-		player.deck.setup(peer_id, GameCardCollection.from_card_data_array(test_deck.cards.duplicate()))
-		player.discard.setup(peer_id, GameCardCollection.new())
-
-		seat += 1
-
-
-func _initialize_game_state() -> void:
-	if not multiplayer.is_server():
-		return
-
-	for peer_id: int in multiplayer.get_peers():
-		turn_order.push_value(peer_id)
-
-
-func _apply_teardown_player(_peer_id: int) -> void:
-	return
-
-
-@rpc("any_peer", "call_remote", "reliable")
-func notify_ready() -> void:
-	if not multiplayer.is_server():
-		return
-
-	_ready_peers.append(multiplayer.get_remote_sender_id())
-	if _ready_peers.size() == multiplayer.get_peers().size():
-		_initialize_game_state()
-		_setup_players()
-
-		transition_to_phase.call_deferred(initial_phase)
 
 
 func _on_notification_fired(message: String) -> void:
