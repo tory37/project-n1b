@@ -5,7 +5,7 @@ extends GamePhase
 
 
 func enter(_payload: Variant) -> void:
-	if not _game_manager.multiplayer.is_server():
+	if not multiplayer.is_server():
 		return
 
 	var active_player_id: int = _game_manager.active_player.value

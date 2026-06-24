@@ -5,7 +5,7 @@ extends GamePhase
 
 func enter(_payload: Variant) -> void:
 	Loggit.p("In StartPhase._on_server_enter", "DrawDebug")
-	if not _game_manager.multiplayer.is_server():
+	if not multiplayer.is_server():
 		return
 
 	_increment_round_number()

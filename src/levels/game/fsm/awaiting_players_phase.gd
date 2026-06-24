@@ -5,12 +5,18 @@ extends GamePhase
 
 var ready_peers: Array[int] = []
 
+func _ready() -> void:
+	super._ready()
+	
+	if not multiplayer.is_server():
+		notify_ready.rpc_id(1)
+
+
 func enter(_payload: Variant) -> void:
-	if not _game_manager.multiplayer.is_server():
+	if not multiplayer.is_server():
 		return
 
 	multiplayer.peer_connected.connect(_on_peer_connected)
-	_request_ready_check.rpc()
 
 
 func exit() -> void: 
