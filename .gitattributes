@@ -1,0 +1,16 @@
+# Normalize all text files to LF on commit (Godot writes LF; avoid CRLF churn on Windows)
+* text=auto eol=lf
+
+# Treat binary assets as binary to prevent corruption
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.ttf binary
+*.otf binary
+*.wav binary
+*.mp3 binary
+*.ogg binary
+*.glb binary
+*.gltf binary
