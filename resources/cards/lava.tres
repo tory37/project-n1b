@@ -1,6 +1,22 @@
 [gd_resource type="Resource" script_class="CardData" format=3 uid="uid://dwwq85j80axp7"]
 
+[ext_resource type="Script" uid="uid://dq7wfojkdwrf2" path="res://src/actions/notify_with_delay.gd" id="1_m16fi"]
 [ext_resource type="Script" uid="uid://bschx8np3tdoh" path="res://src/card/card_data.gd" id="1_t8jqf"]
+[ext_resource type="Script" uid="uid://c7q6c0fd8tn5m" path="res://src/common/finite_state_machine/finite_state_machine.gd" id="2_ke2kb"]
+
+[sub_resource type="Resource" id="Resource_bmjw5"]
+script = ExtResource("1_m16fi")
+message = "Well done!"
+
+[sub_resource type="Resource" id="Resource_jbj5t"]
+script = ExtResource("1_m16fi")
+message = "You played the Lava card!"
+on_complete_state = SubResource("Resource_bmjw5")
+
+[sub_resource type="Resource" id="Resource_rph4b"]
+script = ExtResource("2_ke2kb")
+entry_state = SubResource("Resource_jbj5t")
+metadata/_custom_type_script = "uid://c7q6c0fd8tn5m"
 
 [resource]
 script = ExtResource("1_t8jqf")
@@ -8,4 +24,5 @@ unique_id = "lava"
 title = "Lava"
 ap_cost = 2
 card_type = 0
+fsm = SubResource("Resource_rph4b")
 metadata/_custom_type_script = "uid://bschx8np3tdoh"

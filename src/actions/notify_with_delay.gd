@@ -13,9 +13,8 @@ func enter(payload: Variant) -> void:
 		current_payload = payload
 
 	Loggit.p("Executing NotifyWithDelayAction with message '%s' and delay of %f seconds. Payload: %s" % [message, delay_seconds, current_payload], "ActionDebug")
-	SignalBus.notification_fired.emit(message + ": Started")
+	SignalBus.notification_fired.emit(message)
 	await (Engine.get_main_loop() as SceneTree).create_timer(delay_seconds).timeout
-	SignalBus.notification_fired.emit(message + ": Completed")
 
 	var new_payload := current_payload.duplicate()
 	new_payload[payload_key] = message

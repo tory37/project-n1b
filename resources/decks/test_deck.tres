@@ -2,9 +2,10 @@
 
 [ext_resource type="Script" uid="uid://btylqewlg66nt" path="res://src/deck/deck_data.gd" id="1_h8tla"]
 [ext_resource type="Script" uid="uid://bschx8np3tdoh" path="res://src/card/card_data.gd" id="1_wfsrl"]
-[ext_resource type="Resource" uid="uid://bipt8wr44othn" path="res://resources/cards/test_card_1.tres" id="2_8oap4"]
+[ext_resource type="Resource" uid="uid://dqmrfabku004" path="res://resources/cards/bridge.tres" id="2_5rsmi"]
+[ext_resource type="Resource" uid="uid://dwwq85j80axp7" path="res://resources/cards/lava.tres" id="3_dq5un"]
 
 [resource]
 script = ExtResource("1_h8tla")
-cards = Array[ExtResource("1_wfsrl")]([ExtResource("2_8oap4"), ExtResource("2_8oap4"), ExtResource("2_8oap4"), ExtResource("2_8oap4"), ExtResource("2_8oap4"), ExtResource("2_8oap4"), ExtResource("2_8oap4"), ExtResource("2_8oap4")])
+cards = Array[ExtResource("1_wfsrl")]([ExtResource("2_5rsmi"), ExtResource("2_5rsmi"), ExtResource("2_5rsmi"), ExtResource("2_5rsmi"), ExtResource("3_dq5un"), ExtResource("3_dq5un"), ExtResource("3_dq5un"), ExtResource("3_dq5un")])
 metadata/_custom_type_script = "uid://btylqewlg66nt"

@@ -32,9 +32,12 @@ const ABSTRACT_BASES: PackedStringArray = ["FiniteState", "Action"]
 @onready var _save_button: Button = %SaveButton
 @onready var _load_button: Button = %LoadButton
 @onready var _delete_button: Button = %DeleteButton
+@onready var _auto_save_check: CheckButton = %AutoSaveCheck
+@onready var _unsaved_banner: PanelContainer = %UnsavedBanner
 
 var _fsm: FiniteStateMachine
 var _host_object: Object                  # the object that owns _fsm (Resource or Node)
+var _is_dirty := false                    # graph mutated since the last successful save
 var _node_by_state: Dictionary = {}        # FiniteState -> GraphNode
 var _state_by_node_name: Dictionary = {}   # StringName -> FiniteState
 
@@ -53,8 +56,10 @@ func _ready() -> void:
 	_print_button.pressed.connect(_on_print_pressed)
 	_save_button.pressed.connect(_on_save_pressed)
 	_delete_button.pressed.connect(_on_delete_selected_pressed)
+	_auto_save_check.toggled.connect(_on_auto_save_toggled)
 	# Loading is now driven by the inspector ("Edit Graph"), not a file path.
 	_load_button.visible = false
+	_update_unsaved_banner()
 	_refresh_status()
 
 
@@ -69,6 +74,8 @@ func open_fsm(fsm: FiniteStateMachine, host: Object = null) -> void:
 	_host_label.text = _host_display_name()
 	if _fsm != null and _fsm.entry_state != null:
 		_rebuild_node(_fsm.entry_state, 0, {})
+	# A freshly bound graph reflects what's on disk — start clean.
+	_mark_clean()
 	_refresh_status()
 
 
@@ -98,6 +105,7 @@ func _on_add_root_pressed() -> void:
 		var state: FiniteState = load(script_path).new()
 		_fsm.entry_state = state
 		_build_node_for(state, Vector2(40.0, 40.0))
+		_mark_dirty()
 		_refresh_status()
 	)
 
@@ -109,6 +117,7 @@ func _on_add_successor_pressed(source_state: FiniteState, property_name: StringN
 		var source_node: GraphNode = _node_by_state[source_state]
 		_build_node_for(new_state, source_node.position_offset + NODE_SPACING)
 		_draw_edge(source_state, property_name, new_state)
+		_mark_dirty()
 		_refresh_status()
 	)
 
@@ -172,7 +181,9 @@ func _build_value_editor(state: FiniteState, property: Dictionary) -> Control:
 		TYPE_BOOL:
 			var check := CheckBox.new()
 			check.button_pressed = state.get(property_name)
-			check.toggled.connect(func(value: bool) -> void: state.set(property_name, value))
+			check.toggled.connect(func(value: bool) -> void:
+				state.set(property_name, value)
+				_mark_dirty())
 			return check
 		TYPE_INT:
 			var int_spin := SpinBox.new()
@@ -181,7 +192,9 @@ func _build_value_editor(state: FiniteState, property: Dictionary) -> Control:
 			int_spin.min_value = -99999
 			int_spin.max_value = 99999
 			int_spin.value = state.get(property_name)
-			int_spin.value_changed.connect(func(value: float) -> void: state.set(property_name, int(value)))
+			int_spin.value_changed.connect(func(value: float) -> void:
+				state.set(property_name, int(value))
+				_mark_dirty())
 			return int_spin
 		TYPE_FLOAT:
 			var float_spin := SpinBox.new()
@@ -189,13 +202,17 @@ func _build_value_editor(state: FiniteState, property: Dictionary) -> Control:
 			float_spin.min_value = -99999
 			float_spin.max_value = 99999
 			float_spin.value = state.get(property_name)
-			float_spin.value_changed.connect(func(value: float) -> void: state.set(property_name, value))
+			float_spin.value_changed.connect(func(value: float) -> void:
+				state.set(property_name, value)
+				_mark_dirty())
 			return float_spin
 		TYPE_STRING, TYPE_STRING_NAME:
 			var line := LineEdit.new()
 			line.custom_minimum_size.x = 140.0
 			line.text = str(state.get(property_name))
-			line.text_changed.connect(func(value: String) -> void: state.set(property_name, value))
+			line.text_changed.connect(func(value: String) -> void:
+				state.set(property_name, value)
+				_mark_dirty())
 			return line
 		_:
 			var unsupported := Label.new()
@@ -254,6 +271,7 @@ func _on_connection_request(from_node: StringName, from_port: int, to_node: Stri
 
 	source_state.set(property_name, target_state)
 	_graph.connect_node(from_node, from_port, to_node, to_port)
+	_mark_dirty()
 	_refresh_status()
 
 
@@ -263,6 +281,7 @@ func _on_disconnection_request(from_node: StringName, from_port: int, to_node: S
 	if from_port >= 0 and from_port < pin_names.size():
 		source_state.set(pin_names[from_port], null)
 	_graph.disconnect_node(from_node, from_port, to_node, to_port)
+	_mark_dirty()
 	_refresh_status()
 
 
@@ -273,6 +292,7 @@ func _on_disconnection_request(from_node: StringName, from_port: int, to_node: S
 func _on_delete_nodes_request(node_names: Array) -> void:
 	for node_name in node_names:
 		_delete_state_node(node_name)
+	_mark_dirty()
 	_refresh_status()
 
 
@@ -326,18 +346,32 @@ func _delete_state_node(node_name: StringName) -> void:
 ## export (host is e.g. a CardData), saving the host writes the sub-resource
 ## inline; when the machine is inspected on its own, host IS the machine.
 func _on_save_pressed() -> void:
+	_save_if_possible(false)
+
+
+## Writes the graph to disk and clears the dirty state on success. `silent` mutes
+## the console/warning chatter — used by auto-save, which fires on every edit and
+## would otherwise spam (e.g. for scene-embedded graphs that can't save here).
+## Returns true only when something was actually written.
+func _save_if_possible(silent: bool) -> bool:
 	if _fsm == null or _fsm.entry_state == null:
-		print("[FSM] nothing to save (no entry state)")
-		return
+		if not silent:
+			print("[FSM] nothing to save (no entry state)")
+		return false
 	var target := _save_target()
 	if target == null:
-		push_warning("[FSM] graph is embedded in a scene — save the scene (Ctrl+S) to persist it.")
-		return
+		if not silent:
+			push_warning("[FSM] graph is embedded in a scene — save the scene (Ctrl+S) to persist it.")
+		return false
 	var error := ResourceSaver.save(target, target.resource_path)
-	if error == OK:
+	if error != OK:
+		if not silent:
+			push_error("[FSM] save failed (%d) for %s" % [error, target.resource_path])
+		return false
+	if not silent:
 		print("[FSM] saved %s" % target.resource_path)
-	else:
-		push_error("[FSM] save failed (%d) for %s" % [error, target.resource_path])
+	_mark_clean()
+	return true
 
 
 ## What to write to disk: the FSM's own file if it lives standalone; otherwise the
@@ -354,6 +388,32 @@ func _save_target() -> Resource:
 func _is_disk_path(path: String) -> bool:
 	# Embedded sub-resources carry a "owner.tscn::Type_xxxx" path — not a real file.
 	return not path.is_empty() and not path.contains("::")
+
+
+# --- Dirty state / auto-save -------------------------------------------------
+
+## Records that the in-memory graph diverged from disk: shows the banner, and if
+## auto-save is on, writes immediately (silently) so the banner clears right back.
+func _mark_dirty() -> void:
+	_is_dirty = true
+	_update_unsaved_banner()
+	if _auto_save_check.button_pressed:
+		_save_if_possible(true)
+
+
+func _mark_clean() -> void:
+	_is_dirty = false
+	_update_unsaved_banner()
+
+
+func _update_unsaved_banner() -> void:
+	_unsaved_banner.visible = _is_dirty
+
+
+## Turning auto-save on with edits already pending flushes them right away.
+func _on_auto_save_toggled(is_on: bool) -> void:
+	if is_on and _is_dirty:
+		_save_if_possible(true)
 
 
 ## Rebuilds a node and everything reachable from it. `column_next_y` tracks the
