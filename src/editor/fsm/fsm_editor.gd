@@ -1,0 +1,388 @@
+@tool
+extends Control
+## PROTOTYPE — finite-state-machine authoring view.
+##
+## Opens a FiniteStateMachineResource (.tres) and renders the graph reachable
+## from its `entry_state`: data exports become inline fields, FiniteState-typed
+## exports become labeled output pins. Clicking a pin's "+" instantiates a
+## picked state script and wires it in; dragging between existing pins lets
+## branches converge on one node (a diamond) or loop back (a cycle).
+##
+## Nodes are de-duplicated by instance identity, so diamonds and cycles draw a
+## single node with multiple inbound edges rather than recursing forever.
+##
+## The runtime never sees this view — it only runs the saved FSM: a runner takes
+## `entry_state` and follows each state's `state_change_requested` signal.
+
+const IN_COLOR := Color(0.45, 0.78, 1.0)
+const OUT_COLOR := Color(0.55, 1.0, 0.6)
+const NODE_SPACING := Vector2(340.0, 70.0)
+const ABSTRACT_BASES: PackedStringArray = ["FiniteStateResource", "Action"]
+
+@export_file("*.tres") var fsm_path: String = "res://resources/fsm/prototype_fsm.tres"
+
+@onready var _graph: GraphEdit = %GraphEdit
+@onready var _status_label: Label = %StatusLabel
+@onready var _add_root_button: Button = %AddRootButton
+@onready var _print_button: Button = %PrintButton
+@onready var _save_button: Button = %SaveButton
+@onready var _load_button: Button = %LoadButton
+
+var _fsm: FiniteStateMachineResource
+var _node_by_state: Dictionary = {}        # FiniteStateResource -> GraphNode
+var _state_by_node_name: Dictionary = {}   # StringName -> FiniteStateResource
+
+# A "+" on a successor pin opens an async script picker; these remember the
+# picker's current choices and the callback waiting on a pick.
+var _picker: PopupMenu
+var _picker_choices: Array = []
+var _picker_callback: Callable
+
+
+func _ready() -> void:
+	_graph.connection_request.connect(_on_connection_request)
+	_graph.disconnection_request.connect(_on_disconnection_request)
+	_add_root_button.pressed.connect(_on_add_root_pressed)
+	_print_button.pressed.connect(_on_print_pressed)
+	_save_button.pressed.connect(_on_save_pressed)
+	_load_button.pressed.connect(_on_load_pressed)
+	_refresh_status()
+
+
+# --- Node creation -----------------------------------------------------------
+
+func _on_add_root_pressed() -> void:
+	_open_state_picker(func(script_path: String) -> void:
+		if _fsm == null:
+			_fsm = FiniteStateMachineResource.new()
+		var state: FiniteStateResource = load(script_path).new()
+		_fsm.entry_state = state
+		_build_node_for(state, Vector2(40.0, 40.0))
+		_refresh_status()
+	)
+
+
+func _on_add_successor_pressed(source_state: FiniteStateResource, property_name: StringName) -> void:
+	_open_state_picker(func(script_path: String) -> void:
+		var new_state: FiniteStateResource = load(script_path).new()
+		source_state.set(property_name, new_state)
+		var source_node: GraphNode = _node_by_state[source_state]
+		_build_node_for(new_state, source_node.position_offset + NODE_SPACING)
+		_draw_edge(source_state, property_name, new_state)
+		_refresh_status()
+	)
+
+
+func _build_node_for(state: FiniteStateResource, at_position: Vector2) -> GraphNode:
+	if _node_by_state.has(state):
+		return _node_by_state[state]
+
+	# Build the node fully — title, rows, slots, position — BEFORE adding it to
+	# the GraphEdit. Setting position_offset on a node already in the tree fires
+	# GraphEdit._graph_element_moved before the element is registered, which
+	# errors ("connections_layer is missing") and corrupts positioning/scroll.
+	var node := GraphNode.new()
+	node.name = "state_%d" % _node_by_state.size()
+	node.title = _node_title(state)
+	node.position_offset = at_position
+
+	# Row 0: the single flow-in pin (any number of edges may land here).
+	var in_label := Label.new()
+	in_label.text = "● in"
+	node.add_child(in_label)
+
+	# Data exports become inline editable fields (no pins).
+	for property in state.get_data_properties():
+		node.add_child(_build_data_row(state, property))
+
+	# Successor exports become one labeled output pin each.
+	var successor_properties := state.get_successor_properties()
+	var first_successor_row := node.get_child_count()
+	var ordered_pin_names := PackedStringArray()
+	for property in successor_properties:
+		node.add_child(_build_successor_row(state, property))
+		ordered_pin_names.append(property["name"])
+	node.set_meta("pin_names", ordered_pin_names)
+
+	# Slots: input on row 0; output on each successor row.
+	node.set_slot(0, true, 0, IN_COLOR, false, 0, OUT_COLOR)
+	for i in successor_properties.size():
+		node.set_slot(first_successor_row + i, false, 0, IN_COLOR, true, 0, OUT_COLOR)
+
+	_graph.add_child(node)
+	_node_by_state[state] = node
+	_state_by_node_name[node.name] = state
+
+	return node
+
+
+func _build_data_row(state: FiniteStateResource, property: Dictionary) -> Control:
+	var row := HBoxContainer.new()
+	var name_label := Label.new()
+	name_label.text = property["name"]
+	name_label.custom_minimum_size.x = 110.0
+	row.add_child(name_label)
+	row.add_child(_build_value_editor(state, property))
+	return row
+
+
+func _build_value_editor(state: FiniteStateResource, property: Dictionary) -> Control:
+	var property_name: StringName = property["name"]
+	match int(property["type"]):
+		TYPE_BOOL:
+			var check := CheckBox.new()
+			check.button_pressed = state.get(property_name)
+			check.toggled.connect(func(value: bool) -> void: state.set(property_name, value))
+			return check
+		TYPE_INT:
+			var int_spin := SpinBox.new()
+			int_spin.rounded = true
+			int_spin.step = 1
+			int_spin.min_value = -99999
+			int_spin.max_value = 99999
+			int_spin.value = state.get(property_name)
+			int_spin.value_changed.connect(func(value: float) -> void: state.set(property_name, int(value)))
+			return int_spin
+		TYPE_FLOAT:
+			var float_spin := SpinBox.new()
+			float_spin.step = 0.1
+			float_spin.min_value = -99999
+			float_spin.max_value = 99999
+			float_spin.value = state.get(property_name)
+			float_spin.value_changed.connect(func(value: float) -> void: state.set(property_name, value))
+			return float_spin
+		TYPE_STRING, TYPE_STRING_NAME:
+			var line := LineEdit.new()
+			line.custom_minimum_size.x = 140.0
+			line.text = str(state.get(property_name))
+			line.text_changed.connect(func(value: String) -> void: state.set(property_name, value))
+			return line
+		_:
+			var unsupported := Label.new()
+			unsupported.text = "(unsupported)"
+			return unsupported
+
+
+func _build_successor_row(state: FiniteStateResource, property: Dictionary) -> Control:
+	var row := HBoxContainer.new()
+
+	var add_button := Button.new()
+	add_button.text = "+"
+	add_button.tooltip_text = "Create and connect a state on '%s'" % property["name"]
+	add_button.pressed.connect(_on_add_successor_pressed.bind(state, property["name"]))
+	row.add_child(add_button)
+
+	var spacer := Control.new()
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(spacer)
+
+	var name_label := Label.new()
+	name_label.text = "%s ●" % property["name"]
+	row.add_child(name_label)
+
+	return row
+
+
+# --- Edges -------------------------------------------------------------------
+
+func _draw_edge(source_state: FiniteStateResource, property_name: StringName, target_state: FiniteStateResource) -> void:
+	var source_node: GraphNode = _node_by_state[source_state]
+	var target_node: GraphNode = _node_by_state[target_state]
+	var port := _output_port_for(source_node, property_name)
+	if port < 0:
+		return
+	_graph.connect_node(source_node.name, port, target_node.name, 0)
+
+
+func _output_port_for(node: GraphNode, property_name: StringName) -> int:
+	var pin_names: PackedStringArray = node.get_meta("pin_names")
+	return pin_names.find(property_name)
+
+
+func _on_connection_request(from_node: StringName, from_port: int, to_node: StringName, to_port: int) -> void:
+	var source_state: FiniteStateResource = _state_by_node_name[from_node]
+	var target_state: FiniteStateResource = _state_by_node_name[to_node]
+	var pin_names: PackedStringArray = _node_by_state[source_state].get_meta("pin_names")
+	if from_port < 0 or from_port >= pin_names.size():
+		return
+	var property_name := pin_names[from_port]
+
+	# A pin holds exactly one successor: drop any previous edge on it first.
+	for connection in _graph.get_connection_list():
+		if connection["from_node"] == from_node and connection["from_port"] == from_port:
+			_graph.disconnect_node(from_node, from_port, connection["to_node"], connection["to_port"])
+
+	source_state.set(property_name, target_state)
+	_graph.connect_node(from_node, from_port, to_node, to_port)
+	_refresh_status()
+
+
+func _on_disconnection_request(from_node: StringName, from_port: int, to_node: StringName, to_port: int) -> void:
+	var source_state: FiniteStateResource = _state_by_node_name[from_node]
+	var pin_names: PackedStringArray = _node_by_state[source_state].get_meta("pin_names")
+	if from_port >= 0 and from_port < pin_names.size():
+		source_state.set(pin_names[from_port], null)
+	_graph.disconnect_node(from_node, from_port, to_node, to_port)
+	_refresh_status()
+
+
+# --- Save / load -------------------------------------------------------------
+
+func _on_save_pressed() -> void:
+	if _fsm == null or _fsm.entry_state == null:
+		print("[FSM] nothing to save (no entry state)")
+		return
+	DirAccess.make_dir_recursive_absolute(fsm_path.get_base_dir())
+	var error := ResourceSaver.save(_fsm, fsm_path)
+	if error == OK:
+		print("[FSM] saved FSM to %s" % fsm_path)
+	else:
+		push_error("[FSM] save failed (%d) for %s" % [error, fsm_path])
+
+
+func _on_load_pressed() -> void:
+	if not ResourceLoader.exists(fsm_path):
+		print("[FSM] no FSM file at %s" % fsm_path)
+		return
+	var resource := load(fsm_path)
+	var fsm := resource as FiniteStateMachineResource
+	if fsm == null:
+		push_error("[FSM] %s is not a FiniteStateMachineResource" % fsm_path)
+		return
+	_clear_graph()
+	_fsm = fsm
+	if _fsm.entry_state != null:
+		_rebuild_node(_fsm.entry_state, 0, {})
+	_refresh_status()
+
+
+## Rebuilds a node and everything reachable from it. `column_next_y` tracks the
+## next free Y per depth so the layout stays tidy. De-dup by instance identity
+## (in `_build_node_for`) makes this safe for diamonds and cycles.
+func _rebuild_node(state: FiniteStateResource, depth: int, column_next_y: Dictionary) -> void:
+	if _node_by_state.has(state):
+		return
+	var x := 40.0 + depth * NODE_SPACING.x
+	var y: float = column_next_y.get(depth, 40.0)
+	column_next_y[depth] = y + NODE_SPACING.y
+	_build_node_for(state, Vector2(x, y))
+
+	for property in state.get_successor_properties():
+		var next_state: FiniteStateResource = state.get(property["name"])
+		if next_state == null:
+			continue
+		_rebuild_node(next_state, depth + 1, column_next_y)
+		_draw_edge(state, property["name"], next_state)
+
+
+func _clear_graph() -> void:
+	# Remove only the GraphNodes we created. A blanket sweep of get_children()
+	# risks freeing GraphEdit's own internal layers (connection layer, minimap).
+	_graph.clear_connections()
+	for state in _node_by_state.keys():
+		var node: GraphNode = _node_by_state[state]
+		_graph.remove_child(node)
+		node.queue_free()
+	_node_by_state.clear()
+	_state_by_node_name.clear()
+
+
+# --- State script picker -----------------------------------------------------
+
+func _open_state_picker(on_pick: Callable) -> void:
+	if _picker == null:
+		_picker = PopupMenu.new()
+		add_child(_picker)
+		_picker.id_pressed.connect(_on_picker_id_pressed)
+
+	_picker_callback = on_pick
+	_picker_choices = _pickable_state_scripts()
+	_picker.clear()
+	for i in _picker_choices.size():
+		_picker.add_item(_picker_choices[i]["name"], i)
+
+	_picker.position = DisplayServer.mouse_get_position()
+	_picker.reset_size()
+	_picker.popup()
+
+
+func _on_picker_id_pressed(id: int) -> void:
+	if id < 0 or id >= _picker_choices.size():
+		return
+	if _picker_callback.is_valid():
+		_picker_callback.call(_picker_choices[id]["path"])
+
+
+## Every concrete global class that derives from FiniteStateResource, excluding
+## the abstract bases you'd never instantiate directly.
+func _pickable_state_scripts() -> Array:
+	var choices: Array = []
+	var base_by_class: Dictionary = {}
+	for entry in ProjectSettings.get_global_class_list():
+		base_by_class[entry["class"]] = entry["base"]
+
+	for entry in ProjectSettings.get_global_class_list():
+		var class_str: String = entry["class"]
+		if ABSTRACT_BASES.has(class_str):
+			continue
+		if _derives_from_state(class_str, base_by_class):
+			choices.append({ "name": class_str, "path": entry["path"] })
+
+	choices.sort_custom(func(a, b): return a["name"] < b["name"])
+	return choices
+
+
+func _derives_from_state(class_str: String, base_by_class: Dictionary) -> bool:
+	var current := class_str
+	while base_by_class.has(current):
+		current = base_by_class[current]
+		if current == FiniteStateResource.STATE_BASE_CLASS:
+			return true
+	return false
+
+
+# --- Inspection / status -----------------------------------------------------
+
+func _on_print_pressed() -> void:
+	if _fsm == null or _fsm.entry_state == null:
+		print("[FSM] (empty — add a starting state)")
+		return
+	print("[FSM] graph from entry state:")
+	_print_state(_fsm.entry_state, {}, 1)
+
+
+func _print_state(state: FiniteStateResource, visited: Dictionary, depth: int) -> void:
+	var indent := "  ".repeat(depth)
+	if visited.has(state):
+		print("%s↺ %s (already shown)" % [indent, _display_name(state)])
+		return
+	visited[state] = true
+	print("%s%s" % [indent, _display_name(state)])
+	for property in state.get_successor_properties():
+		var next_state: FiniteStateResource = state.get(property["name"])
+		if next_state == null:
+			print("%s  %s → (unconnected)" % [indent, property["name"]])
+		else:
+			print("%s  %s →" % [indent, property["name"]])
+			_print_state(next_state, visited, depth + 2)
+
+
+func _refresh_status() -> void:
+	if _fsm == null or _fsm.entry_state == null:
+		_status_label.text = "No starting state"
+		return
+	_status_label.text = "%d state(s)" % _node_by_state.size()
+
+
+func _node_title(state: FiniteStateResource) -> String:
+	var name := _display_name(state)
+	if _fsm != null and state == _fsm.entry_state:
+		return "★ %s" % name
+	return name
+
+
+func _display_name(state: FiniteStateResource) -> String:
+	var script := state.get_script() as Script
+	if script != null and not script.resource_path.is_empty():
+		return script.resource_path.get_file().get_basename()
+	return "state"

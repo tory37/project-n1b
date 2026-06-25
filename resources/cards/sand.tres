@@ -1,6 +1,6 @@
 [gd_resource type="Resource" script_class="CardData" format=3 uid="uid://dx6qwox0buhoo"]
 
-[ext_resource type="Script" uid="uid://dfa1jvau8tpai" path="res://src/actions/action.gd" id="1_5wc56"]
+[ext_resource type="Resource" uid="uid://cp8ft8fjq07ek" path="res://resources/fsm/prototype_fsm.tres" id="1_5wc56"]
 [ext_resource type="Script" uid="uid://bschx8np3tdoh" path="res://src/card/card_data.gd" id="1_srsry"]
 
 [resource]
@@ -9,4 +9,5 @@ unique_id = "sand"
 title = "Sand"
 ap_cost = 2
 card_type = 0
+fsm = ExtResource("1_5wc56")
 metadata/_custom_type_script = "uid://bschx8np3tdoh"

@@ -1,0 +1,56 @@
+[gd_scene format=3 uid="uid://c318unhkxnw6t"]
+
+[ext_resource type="Script" uid="uid://rok6n6ugvmk1" path="res://src/editor/fsm/fsm_editor.gd" id="1_fsmeditor"]
+
+[node name="FSMEditor" type="Control" unique_id=2114470634]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_fsmeditor")
+
+[node name="Root" type="VBoxContainer" parent="." unique_id=820957428]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Toolbar" type="HBoxContainer" parent="Root" unique_id=405364504]
+layout_mode = 2
+
+[node name="AddRootButton" type="Button" parent="Root/Toolbar" unique_id=1449488026]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Add Starting State"
+
+[node name="PrintButton" type="Button" parent="Root/Toolbar" unique_id=339485329]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Print Graph"
+
+[node name="SaveButton" type="Button" parent="Root/Toolbar" unique_id=842567310]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Save FSM"
+
+[node name="LoadButton" type="Button" parent="Root/Toolbar" unique_id=381780270]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Load FSM"
+
+[node name="StatusLabel" type="Label" parent="Root/Toolbar" unique_id=1154471768]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "No starting state"
+horizontal_alignment = 2
+
+[node name="GraphEdit" type="GraphEdit" parent="Root" unique_id=1630431158]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+right_disconnects = true

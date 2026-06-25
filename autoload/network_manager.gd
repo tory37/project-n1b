@@ -9,8 +9,17 @@ const DEFAULT_PORT: int  = 7777
 const MAX_PLAYERS: int = 3
 
 var peer: ENetMultiplayerPeer = null
-var is_server: bool = false
 var connected_players: Dictionary = {} # peer_id: PlayerInfo
+
+## True when this instance holds server authority over game state. Local-only
+## (no multiplayer peer) counts as server, matching Godot's own is_server() and
+## how every component gates its state writes.
+var is_server: bool:
+	get:
+		var tree := Engine.get_main_loop() as SceneTree
+		if tree == null:
+			return true
+		return not tree.multiplayer.has_multiplayer_peer() or tree.multiplayer.is_server()
 
 func _ready() -> void:
 	multiplayer.peer_connected.connect(_on_peer_connected)
@@ -29,7 +38,6 @@ func host_game(port: int = DEFAULT_PORT) -> Error:
 		return error
 
 	multiplayer.multiplayer_peer = peer
-	is_server = true
 
 	# Server is also peer ID 1
 	connected_players[1] = PlayerInfo.new(1, "Host")
@@ -46,7 +54,6 @@ func join_game(address: String, port: int = DEFAULT_PORT) -> Error:
 		return error
 
 	multiplayer.multiplayer_peer = peer
-	is_server = false
 	print("Connecting to %s:%d" % [address, port])
 
 	return OK
@@ -58,7 +65,6 @@ func disconnect_game() -> void:
 		peer = null
 
 	multiplayer.multiplayer_peer = null
-	is_server = false
 	connected_players.clear()
 	print("Disconnected from game")
 

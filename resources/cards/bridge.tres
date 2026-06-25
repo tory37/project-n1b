@@ -1,6 +1,6 @@
 [gd_resource type="Resource" script_class="CardData" format=3 uid="uid://dqmrfabku004"]
 
-[ext_resource type="Script" uid="uid://dfa1jvau8tpai" path="res://src/actions/action.gd" id="1_04hcy"]
+[ext_resource type="Resource" uid="uid://cp8ft8fjq07ek" path="res://resources/fsm/prototype_fsm.tres" id="1_04hcy"]
 [ext_resource type="Script" uid="uid://bschx8np3tdoh" path="res://src/card/card_data.gd" id="1_4ujvm"]
 
 [resource]
@@ -9,4 +9,5 @@ unique_id = "bridge"
 title = "Bridge"
 ap_cost = 3
 card_type = 3
+fsm = ExtResource("1_04hcy")
 metadata/_custom_type_script = "uid://bschx8np3tdoh"
