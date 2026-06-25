@@ -4,7 +4,7 @@ extends GamePhase
 @export var on_complete_phase: GamePhase
 
 var _card: CardData = null
-var _fsm: FiniteStateMachineResource = null
+var _fsm: FiniteStateMachine = null
 
 
 func enter(card_to_resolve: Variant) -> void:
@@ -18,10 +18,16 @@ func enter(card_to_resolve: Variant) -> void:
 		return
 
 	_fsm = _card.fsm.instantiate()
+	_fsm.exited.connect(_on_card_effects_done)
 	_fsm.start()
 
 func _on_card_effects_done() -> void:
 	Loggit.p("All effects for card %s have been executed." % _card.title, "DrawDebug")
+	if _fsm and _fsm.exited.is_connected(_on_card_effects_done):
+		_fsm.exited.disconnect(_on_card_effects_done)
+	_fsm = null
+	_card = null
+
 	# SignalBus.card_finished_resolving.emit(_card)
 	
 

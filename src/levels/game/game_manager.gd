@@ -16,6 +16,8 @@ extends Node
 
 ## ---- Exports -------------------------------------------------------
 
+@export var fsm: FiniteStateMachine
+
 @export var entry_phase: GamePhase
 
 # TODO: Make these a resource
@@ -28,7 +30,6 @@ extends Node
 
 ## ---- Public Variables ----------------------------------------------
 var ready_peers: Array[int] = []
-
 
 ## ---- Private Variables ---------------------------------------------
 

@@ -1,10 +1,11 @@
+@tool
 class_name NotifyWithDelayAction
-extends FiniteStateResource
+extends FiniteState
 
 @export var delay_seconds: float = 1.0
 @export var message: String = "Action executed after delay"
 @export var payload_key: String = "Key"
-@export var on_complete_state: FiniteStateResource
+@export var on_complete_state: FiniteState
 
 func enter(payload: Variant) -> void:
 	var current_payload: Dictionary = {}

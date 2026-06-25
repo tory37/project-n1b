@@ -2,7 +2,7 @@
 extends Control
 ## PROTOTYPE — finite-state-machine authoring view.
 ##
-## Opens a FiniteStateMachineResource (.tres) and renders the graph reachable
+## Opens a FiniteStateMachine (.tres) and renders the graph reachable
 ## from its `entry_state`: data exports become inline fields, FiniteState-typed
 ## exports become labeled output pins. Clicking a pin's "+" instantiates a
 ## picked state script and wires it in; dragging between existing pins lets
@@ -13,24 +13,30 @@ extends Control
 ##
 ## The runtime never sees this view — it only runs the saved FSM: a runner takes
 ## `entry_state` and follows each state's `state_change_requested` signal.
+##
+## The view is bound to a machine via `open_fsm(fsm, host)` (called by the editor
+## plugin when "Edit Graph" is clicked) — never to a hardcoded path. `host` is the
+## resource whose save persists the graph: the owning resource (e.g. a CardData)
+## when the FSM is an embedded export, or the machine itself when inspected alone.
 
 const IN_COLOR := Color(0.45, 0.78, 1.0)
 const OUT_COLOR := Color(0.55, 1.0, 0.6)
 const NODE_SPACING := Vector2(340.0, 70.0)
-const ABSTRACT_BASES: PackedStringArray = ["FiniteStateResource", "Action"]
-
-@export_file("*.tres") var fsm_path: String = "res://resources/fsm/prototype_fsm.tres"
+const ABSTRACT_BASES: PackedStringArray = ["FiniteState", "Action"]
 
 @onready var _graph: GraphEdit = %GraphEdit
 @onready var _status_label: Label = %StatusLabel
+@onready var _host_label: Label = %HostLabel
 @onready var _add_root_button: Button = %AddRootButton
 @onready var _print_button: Button = %PrintButton
 @onready var _save_button: Button = %SaveButton
 @onready var _load_button: Button = %LoadButton
+@onready var _delete_button: Button = %DeleteButton
 
-var _fsm: FiniteStateMachineResource
-var _node_by_state: Dictionary = {}        # FiniteStateResource -> GraphNode
-var _state_by_node_name: Dictionary = {}   # StringName -> FiniteStateResource
+var _fsm: FiniteStateMachine
+var _host_object: Object                  # the object that owns _fsm (Resource or Node)
+var _node_by_state: Dictionary = {}        # FiniteState -> GraphNode
+var _state_by_node_name: Dictionary = {}   # StringName -> FiniteState
 
 # A "+" on a successor pin opens an async script picker; these remember the
 # picker's current choices and the callback waiting on a pick.
@@ -42,11 +48,45 @@ var _picker_callback: Callable
 func _ready() -> void:
 	_graph.connection_request.connect(_on_connection_request)
 	_graph.disconnection_request.connect(_on_disconnection_request)
+	_graph.delete_nodes_request.connect(_on_delete_nodes_request)
 	_add_root_button.pressed.connect(_on_add_root_pressed)
 	_print_button.pressed.connect(_on_print_pressed)
 	_save_button.pressed.connect(_on_save_pressed)
-	_load_button.pressed.connect(_on_load_pressed)
+	_delete_button.pressed.connect(_on_delete_selected_pressed)
+	# Loading is now driven by the inspector ("Edit Graph"), not a file path.
+	_load_button.visible = false
 	_refresh_status()
+
+
+# --- Binding -----------------------------------------------------------------
+
+## Bind the view to an FSM and the resource that owns it, then draw its graph.
+## Called by the editor plugin when the user clicks "Edit Graph" in the inspector.
+func open_fsm(fsm: FiniteStateMachine, host: Object = null) -> void:
+	_clear_graph()
+	_fsm = fsm
+	_host_object = host
+	_host_label.text = _host_display_name()
+	if _fsm != null and _fsm.entry_state != null:
+		_rebuild_node(_fsm.entry_state, 0, {})
+	_refresh_status()
+
+
+## Who owns the FSM currently open, for the toolbar — a CardData shows its file
+## (e.g. "bridge.tres"), a scene node shows its node name (e.g. "Game"), and a
+## machine inspected on its own shows its own file. Keeps it clear which graph
+## you're editing when the view is otherwise empty.
+func _host_display_name() -> String:
+	if _host_object is Node:
+		return String((_host_object as Node).name)
+	if _host_object is Resource:
+		var resource := _host_object as Resource
+		if not resource.resource_path.is_empty():
+			return resource.resource_path.get_file()
+		if not resource.resource_name.is_empty():
+			return resource.resource_name
+		return "(unsaved FSM)"
+	return "No FSM open"
 
 
 # --- Node creation -----------------------------------------------------------
@@ -54,17 +94,17 @@ func _ready() -> void:
 func _on_add_root_pressed() -> void:
 	_open_state_picker(func(script_path: String) -> void:
 		if _fsm == null:
-			_fsm = FiniteStateMachineResource.new()
-		var state: FiniteStateResource = load(script_path).new()
+			_fsm = FiniteStateMachine.new()
+		var state: FiniteState = load(script_path).new()
 		_fsm.entry_state = state
 		_build_node_for(state, Vector2(40.0, 40.0))
 		_refresh_status()
 	)
 
 
-func _on_add_successor_pressed(source_state: FiniteStateResource, property_name: StringName) -> void:
+func _on_add_successor_pressed(source_state: FiniteState, property_name: StringName) -> void:
 	_open_state_picker(func(script_path: String) -> void:
-		var new_state: FiniteStateResource = load(script_path).new()
+		var new_state: FiniteState = load(script_path).new()
 		source_state.set(property_name, new_state)
 		var source_node: GraphNode = _node_by_state[source_state]
 		_build_node_for(new_state, source_node.position_offset + NODE_SPACING)
@@ -73,7 +113,7 @@ func _on_add_successor_pressed(source_state: FiniteStateResource, property_name:
 	)
 
 
-func _build_node_for(state: FiniteStateResource, at_position: Vector2) -> GraphNode:
+func _build_node_for(state: FiniteState, at_position: Vector2) -> GraphNode:
 	if _node_by_state.has(state):
 		return _node_by_state[state]
 
@@ -116,7 +156,7 @@ func _build_node_for(state: FiniteStateResource, at_position: Vector2) -> GraphN
 	return node
 
 
-func _build_data_row(state: FiniteStateResource, property: Dictionary) -> Control:
+func _build_data_row(state: FiniteState, property: Dictionary) -> Control:
 	var row := HBoxContainer.new()
 	var name_label := Label.new()
 	name_label.text = property["name"]
@@ -126,7 +166,7 @@ func _build_data_row(state: FiniteStateResource, property: Dictionary) -> Contro
 	return row
 
 
-func _build_value_editor(state: FiniteStateResource, property: Dictionary) -> Control:
+func _build_value_editor(state: FiniteState, property: Dictionary) -> Control:
 	var property_name: StringName = property["name"]
 	match int(property["type"]):
 		TYPE_BOOL:
@@ -163,7 +203,7 @@ func _build_value_editor(state: FiniteStateResource, property: Dictionary) -> Co
 			return unsupported
 
 
-func _build_successor_row(state: FiniteStateResource, property: Dictionary) -> Control:
+func _build_successor_row(state: FiniteState, property: Dictionary) -> Control:
 	var row := HBoxContainer.new()
 
 	var add_button := Button.new()
@@ -185,7 +225,7 @@ func _build_successor_row(state: FiniteStateResource, property: Dictionary) -> C
 
 # --- Edges -------------------------------------------------------------------
 
-func _draw_edge(source_state: FiniteStateResource, property_name: StringName, target_state: FiniteStateResource) -> void:
+func _draw_edge(source_state: FiniteState, property_name: StringName, target_state: FiniteState) -> void:
 	var source_node: GraphNode = _node_by_state[source_state]
 	var target_node: GraphNode = _node_by_state[target_state]
 	var port := _output_port_for(source_node, property_name)
@@ -200,8 +240,8 @@ func _output_port_for(node: GraphNode, property_name: StringName) -> int:
 
 
 func _on_connection_request(from_node: StringName, from_port: int, to_node: StringName, to_port: int) -> void:
-	var source_state: FiniteStateResource = _state_by_node_name[from_node]
-	var target_state: FiniteStateResource = _state_by_node_name[to_node]
+	var source_state: FiniteState = _state_by_node_name[from_node]
+	var target_state: FiniteState = _state_by_node_name[to_node]
 	var pin_names: PackedStringArray = _node_by_state[source_state].get_meta("pin_names")
 	if from_port < 0 or from_port >= pin_names.size():
 		return
@@ -218,7 +258,7 @@ func _on_connection_request(from_node: StringName, from_port: int, to_node: Stri
 
 
 func _on_disconnection_request(from_node: StringName, from_port: int, to_node: StringName, to_port: int) -> void:
-	var source_state: FiniteStateResource = _state_by_node_name[from_node]
+	var source_state: FiniteState = _state_by_node_name[from_node]
 	var pin_names: PackedStringArray = _node_by_state[source_state].get_meta("pin_names")
 	if from_port >= 0 and from_port < pin_names.size():
 		source_state.set(pin_names[from_port], null)
@@ -226,40 +266,100 @@ func _on_disconnection_request(from_node: StringName, from_port: int, to_node: S
 	_refresh_status()
 
 
+# --- Deletion ----------------------------------------------------------------
+
+## GraphEdit asks us to delete the selected nodes (Delete key); it doesn't remove
+## anything itself, so we own the removal.
+func _on_delete_nodes_request(node_names: Array) -> void:
+	for node_name in node_names:
+		_delete_state_node(node_name)
+	_refresh_status()
+
+
+## Toolbar "Delete Selected": same removal as the Delete key, for discoverability.
+## Gathers the currently selected GraphNodes and deletes them.
+func _on_delete_selected_pressed() -> void:
+	var selected_node_names: Array[StringName] = []
+	for state in _node_by_state.keys():
+		var node: GraphNode = _node_by_state[state]
+		if node.selected:
+			selected_node_names.append(node.name)
+	if selected_node_names.is_empty():
+		print("[FSM] no node selected — click a node, then Delete Selected")
+		return
+	_on_delete_nodes_request(selected_node_names)
+
+
+## Removes one node from both the graph and the data model: drops every edge
+## touching it, clears any successor on OTHER states that pointed at it (so the
+## saved graph keeps no dangling pointer), and clears entry_state if it was the
+## start. Orphaned children stay as nodes for the user to rewire or delete.
+func _delete_state_node(node_name: StringName) -> void:
+	if not _state_by_node_name.has(node_name):
+		return
+	var state: FiniteState = _state_by_node_name[node_name]
+
+	for connection in _graph.get_connection_list():
+		if connection["from_node"] == node_name or connection["to_node"] == node_name:
+			_graph.disconnect_node(connection["from_node"], connection["from_port"], connection["to_node"], connection["to_port"])
+
+	for other_state in _node_by_state.keys():
+		if other_state == state:
+			continue
+		for property in other_state.get_successor_properties():
+			if other_state.get(property["name"]) == state:
+				other_state.set(property["name"], null)
+
+	if _fsm != null and _fsm.entry_state == state:
+		_fsm.entry_state = null
+
+	var node: GraphNode = _node_by_state[state]
+	_graph.remove_child(node)
+	node.queue_free()
+	_node_by_state.erase(state)
+	_state_by_node_name.erase(node_name)
+
+
 # --- Save / load -------------------------------------------------------------
 
+## Persists the graph by saving the host resource. When the FSM is an embedded
+## export (host is e.g. a CardData), saving the host writes the sub-resource
+## inline; when the machine is inspected on its own, host IS the machine.
 func _on_save_pressed() -> void:
 	if _fsm == null or _fsm.entry_state == null:
 		print("[FSM] nothing to save (no entry state)")
 		return
-	DirAccess.make_dir_recursive_absolute(fsm_path.get_base_dir())
-	var error := ResourceSaver.save(_fsm, fsm_path)
+	var target := _save_target()
+	if target == null:
+		push_warning("[FSM] graph is embedded in a scene — save the scene (Ctrl+S) to persist it.")
+		return
+	var error := ResourceSaver.save(target, target.resource_path)
 	if error == OK:
-		print("[FSM] saved FSM to %s" % fsm_path)
+		print("[FSM] saved %s" % target.resource_path)
 	else:
-		push_error("[FSM] save failed (%d) for %s" % [error, fsm_path])
+		push_error("[FSM] save failed (%d) for %s" % [error, target.resource_path])
 
 
-func _on_load_pressed() -> void:
-	if not ResourceLoader.exists(fsm_path):
-		print("[FSM] no FSM file at %s" % fsm_path)
-		return
-	var resource := load(fsm_path)
-	var fsm := resource as FiniteStateMachineResource
-	if fsm == null:
-		push_error("[FSM] %s is not a FiniteStateMachineResource" % fsm_path)
-		return
-	_clear_graph()
-	_fsm = fsm
-	if _fsm.entry_state != null:
-		_rebuild_node(_fsm.entry_state, 0, {})
-	_refresh_status()
+## What to write to disk: the FSM's own file if it lives standalone; otherwise the
+## owning resource (which embeds the FSM inline). A scene/node-embedded FSM has no
+## saveable resource here — the user saves the owning scene instead.
+func _save_target() -> Resource:
+	if _fsm != null and _is_disk_path(_fsm.resource_path):
+		return _fsm
+	if _host_object is Resource and _is_disk_path((_host_object as Resource).resource_path):
+		return _host_object
+	return null
+
+
+func _is_disk_path(path: String) -> bool:
+	# Embedded sub-resources carry a "owner.tscn::Type_xxxx" path — not a real file.
+	return not path.is_empty() and not path.contains("::")
 
 
 ## Rebuilds a node and everything reachable from it. `column_next_y` tracks the
 ## next free Y per depth so the layout stays tidy. De-dup by instance identity
 ## (in `_build_node_for`) makes this safe for diamonds and cycles.
-func _rebuild_node(state: FiniteStateResource, depth: int, column_next_y: Dictionary) -> void:
+func _rebuild_node(state: FiniteState, depth: int, column_next_y: Dictionary) -> void:
 	if _node_by_state.has(state):
 		return
 	var x := 40.0 + depth * NODE_SPACING.x
@@ -268,7 +368,7 @@ func _rebuild_node(state: FiniteStateResource, depth: int, column_next_y: Dictio
 	_build_node_for(state, Vector2(x, y))
 
 	for property in state.get_successor_properties():
-		var next_state: FiniteStateResource = state.get(property["name"])
+		var next_state: FiniteState = state.get(property["name"])
 		if next_state == null:
 			continue
 		_rebuild_node(next_state, depth + 1, column_next_y)
@@ -313,7 +413,7 @@ func _on_picker_id_pressed(id: int) -> void:
 		_picker_callback.call(_picker_choices[id]["path"])
 
 
-## Every concrete global class that derives from FiniteStateResource, excluding
+## Every concrete global class that derives from FiniteState, excluding
 ## the abstract bases you'd never instantiate directly.
 func _pickable_state_scripts() -> Array:
 	var choices: Array = []
@@ -336,7 +436,7 @@ func _derives_from_state(class_str: String, base_by_class: Dictionary) -> bool:
 	var current := class_str
 	while base_by_class.has(current):
 		current = base_by_class[current]
-		if current == FiniteStateResource.STATE_BASE_CLASS:
+		if current == FiniteState.STATE_BASE_CLASS:
 			return true
 	return false
 
@@ -351,7 +451,7 @@ func _on_print_pressed() -> void:
 	_print_state(_fsm.entry_state, {}, 1)
 
 
-func _print_state(state: FiniteStateResource, visited: Dictionary, depth: int) -> void:
+func _print_state(state: FiniteState, visited: Dictionary, depth: int) -> void:
 	var indent := "  ".repeat(depth)
 	if visited.has(state):
 		print("%s↺ %s (already shown)" % [indent, _display_name(state)])
@@ -359,7 +459,7 @@ func _print_state(state: FiniteStateResource, visited: Dictionary, depth: int) -
 	visited[state] = true
 	print("%s%s" % [indent, _display_name(state)])
 	for property in state.get_successor_properties():
-		var next_state: FiniteStateResource = state.get(property["name"])
+		var next_state: FiniteState = state.get(property["name"])
 		if next_state == null:
 			print("%s  %s → (unconnected)" % [indent, property["name"]])
 		else:
@@ -374,14 +474,14 @@ func _refresh_status() -> void:
 	_status_label.text = "%d state(s)" % _node_by_state.size()
 
 
-func _node_title(state: FiniteStateResource) -> String:
+func _node_title(state: FiniteState) -> String:
 	var name := _display_name(state)
 	if _fsm != null and state == _fsm.entry_state:
 		return "★ %s" % name
 	return name
 
 
-func _display_name(state: FiniteStateResource) -> String:
+func _display_name(state: FiniteState) -> String:
 	var script := state.get_script() as Script
 	if script != null and not script.resource_path.is_empty():
 		return script.resource_path.get_file().get_basename()

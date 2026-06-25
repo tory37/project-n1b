@@ -1,12 +1,16 @@
-class_name FiniteStateResource
+@tool
+class_name FiniteState
 extends Resource
+## @tool so the graph editor can call the introspection methods below on concrete
+## state instances in-editor; without it they load as placeholders and any method
+## call fails ("Attempt to call a method on a placeholder instance").
 
-signal state_change_requested(next: FiniteStateResource, payload: Variant)
+signal state_change_requested(next: FiniteState, payload: Variant)
 
 ## Base class every state in a card graph descends from. An exported property
 ## typed to this (or a subclass) is treated as a graph EDGE (a successor pin);
 ## any other exported property is treated as inline DATA on the node.
-const STATE_BASE_CLASS := "FiniteStateResource"
+const STATE_BASE_CLASS := "FiniteState"
 
 
 func enter(_payload: Variant) -> void:
@@ -94,17 +98,17 @@ static func _build_base_lookup() -> Dictionary:
 ##
 ## Use this, NOT duplicate(true): duplicate(true) copies a shared/looping
 ## successor multiple times and can recurse forever on a cycle.
-func clone_graph(clones: Dictionary = {}) -> FiniteStateResource:
+func clone_graph(clones: Dictionary = {}) -> FiniteState:
 	if clones.has(self):
 		return clones[self]
 
 	# duplicate(false) copies data exports but leaves successor exports pointing
 	# at the ORIGINAL next states; we overwrite each with its clone below.
-	var copy: FiniteStateResource = duplicate(false)
+	var copy: FiniteState = duplicate(false)
 	clones[self] = copy
 
 	for property in get_successor_properties():
-		var next_state: FiniteStateResource = get(property["name"])
+		var next_state: FiniteState = get(property["name"])
 		if next_state != null:
 			copy.set(property["name"], next_state.clone_graph(clones))
 

@@ -1,7 +1,23 @@
 [gd_resource type="Resource" script_class="CardData" format=3 uid="uid://dqmrfabku004"]
 
-[ext_resource type="Resource" uid="uid://cp8ft8fjq07ek" path="res://resources/fsm/prototype_fsm.tres" id="1_04hcy"]
 [ext_resource type="Script" uid="uid://bschx8np3tdoh" path="res://src/card/card_data.gd" id="1_4ujvm"]
+[ext_resource type="Script" uid="uid://dq7wfojkdwrf2" path="res://src/actions/notify_with_delay.gd" id="1_5cy1l"]
+[ext_resource type="Script" uid="uid://c7q6c0fd8tn5m" path="res://src/common/finite_state_machine/finite_state_machine.gd" id="2_orqrt"]
+
+[sub_resource type="Resource" id="Resource_5cy1l"]
+script = ExtResource("1_5cy1l")
+message = "Congrats!"
+
+[sub_resource type="Resource" id="Resource_7qtyp"]
+script = ExtResource("1_5cy1l")
+delay_seconds = 3.0
+message = "You played the Bridge card!"
+on_complete_state = SubResource("Resource_5cy1l")
+
+[sub_resource type="Resource" id="Resource_xlgle"]
+script = ExtResource("2_orqrt")
+entry_state = SubResource("Resource_7qtyp")
+metadata/_custom_type_script = "uid://c7q6c0fd8tn5m"
 
 [resource]
 script = ExtResource("1_4ujvm")
@@ -9,5 +25,5 @@ unique_id = "bridge"
 title = "Bridge"
 ap_cost = 3
 card_type = 3
-fsm = ExtResource("1_04hcy")
+fsm = SubResource("Resource_xlgle")
 metadata/_custom_type_script = "uid://bschx8np3tdoh"
