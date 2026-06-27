@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Where We Left Off — feature</title>
+  <link rel="stylesheet" href="../assets/style.css">
+</head>
+<body data-type="feature">
+  <div class="container">
+    <header class="doc-header">
+      <div class="doc-meta">
+        <span class="badge badge-feature">FEATURE</span>
+        <span class="doc-date">2026-06-26</span>
+      </div>
+      <h1>Where We Left Off — FSM Turn Flow</h1>
+    </header>
+    <main>
+
+      <section class="section accent">
+        <h2>TL;DR</h2>
+        <p>The game <strong>runs clean — nothing errors</strong>. Phases load, clients connect,
+        the FSM advances. Two things to pick up next time:</p>
+        <ul class="checklist">
+          <li><strong>UI bug:</strong> can't play a second card. First card plays, then the UI
+          won't let another go through. No console error — it's a UI/state issue, not a crash.</li>
+          <li><strong>Action points not consumed:</strong> playing a card doesn't yet spend its AP.
+          We need this working to actually drive (and test) the turn-switch logic.</li>
+        </ul>
+      </section>
+
+      <section class="section success">
+        <h2>Current State — Good</h2>
+        <ul class="checklist">
+          <li>Scene loads (the old <code>entry_phase</code> <code>Object(Node, …)</code> blob is gone).</li>
+          <li><code>GamePhase</code> getter fix is in — no null-deref on enter.</li>
+          <li>Ready-check handshake works: already-connected lobby peers get
+          <code>request_ready_check</code> on phase enter, so the FSM leaves
+          <code>AwaitingPlayersPhase</code>.</li>
+          <li><code>switch_turn.gd</code> stray-paren syntax error is resolved; phases add to the
+          graph editor without the <em>"type 'Node' to variable of type finite_state.gd"</em> error.</li>
+          <li><strong>No errors at runtime.</strong></li>
+        </ul>
+      </section>
+
+      <section class="section warning">
+        <h2>Pick Up Here #1 — UI: can't play a second card</h2>
+        <p><strong>Symptom:</strong> First card plays fine. After that, the UI won't let another card
+        be played. No error in the console — so this is a UI / interaction-state problem, not a
+        script crash.</p>
+        <p><strong>Likely suspects to investigate (unconfirmed — start here):</strong></p>
+        <ul class="checklist">
+          <li>A "card play enabled/disabled" flag (the <code>player_card_play_enabled</code> /
+          <code>listen_for_card_play_enabled/disabled</code> RPC path on <code>GameManager</code>)
+          that gets turned <em>off</em> on first play and never turned back <em>on</em>.</li>
+          <li>Input/selection state on the played card's UI node not being reset or re-armed after
+          a successful play.</li>
+          <li>The phase that should re-enable play (e.g. back to <code>MainPhase</code>) not being
+          re-entered, so the enable signal never re-fires.</li>
+        </ul>
+        <p><strong>To confirm:</strong> log the card-play-enabled flag on every flip and watch whether
+        it ever returns to <code>true</code> after the first card resolves.</p>
+      </section>
+
+      <section class="section warning">
+        <h2>Pick Up Here #2 — Consume AP on card play</h2>
+        <p><strong>Goal:</strong> when a card is played, actually deduct its AP cost from the active
+        player's action points. This is the input the turn-switch logic needs.</p>
+        <p><strong>Why it matters:</strong> <code>CheckTurnSwitchPhase</code> decides to switch turns
+        based on <code>action_points.value &lt; 0</code> (and <code>SwitchTurnPhase</code> advances
+        <code>active_player</code>). Until AP is actually spent on play, that branch can never trip,
+        so the turn never switches and we can't test the new <code>check_turn_switch</code> /
+        <code>switch_turn</code> phases end to end.</p>
+        <p><strong>Where to wire it:</strong> the successful-play path in
+        <code>game_manager.gd</code> (around <code>validate_card_play</code> /
+        <code>card_played_succeeded</code>) — subtract <code>card.ap_cost</code> from
+        <code>action_points</code> when a play is validated.</p>
+        <p><strong>Heads-up / cleanup nearby:</strong> <code>validate_card_play</code> still has the
+        <code>action_points.value + 10 &gt;= card.ap_cost</code> fudge — that <code>+10</code> will
+        mask real AP exhaustion and should come out once real consumption lands, or the switch
+        threshold won't behave.</p>
+      </section>
+
+      <section class="section">
+        <h2>Test Path Once Both Are Done</h2>
+        <ol>
+          <li>Play cards until AP goes negative.</li>
+          <li><code>CheckTurnSwitchPhase</code> should route to <code>SwitchTurnPhase</code>.</li>
+          <li><code>SwitchTurnPhase</code> rotates <code>active_player</code> via <code>turn_order</code>
+          and hands off to <code>on_complete_phase</code>.</li>
+          <li>Confirm the next player can now play, and the prior player can't.</li>
+        </ol>
+      </section>
+
+      <section class="section">
+        <h2>Lower-Priority Backlog (flagged, not blocking)</h2>
+        <ul class="checklist">
+          <li><code>NetworkManager.ready_peers</code> is never reset — fine on first run, will bite on
+          a second game/rematch.</li>
+          <li><code>ResolvingCardPhase</code> sets an inner FSM <code>card_context.agent = self</code>
+          — should be <code>_context.agent</code>.</li>
+          <li>New phase scripts (<code>switch_turn.gd</code>, <code>check_turn_switch.gd</code>) are
+          space-indented while the rest of the FSM folder uses tabs — normalize to tabs.</li>
+          <li>StringName key consistency (<code>notify_with_delay</code>, <code>lava.tres</code>
+          <code>message_context_key = null</code>).</li>
+        </ul>
+      </section>
+
+    </main>
+  </div>
+</body>
+</html>
