@@ -6,6 +6,7 @@ signal exited()
 
 @export var entry_state: FiniteState
 
+var _context: StateContext = null
 var _current_state: FiniteState = null
 
 
@@ -22,25 +23,27 @@ func instantiate() -> FiniteStateMachine:
 	return copy
 
 
-func start(payload: Variant = null) -> void:
+func start(context: StateContext) -> void:
+	_context = context
 	if entry_state:
-		change_state(entry_state, payload)
+		change_state(entry_state)
 	else:
 		push_error("No entry state defined for FiniteStateMachine.")
 
 
-func change_state(next: FiniteState, payload: Variant = null) -> void:
+func change_state(next: FiniteState) -> void:
 	if _current_state:
 		_current_state.exit()
 		_current_state.state_change_requested.disconnect(change_state)
 
 	if not next:
+		_current_state = null
 		exited.emit()
 		return
 
 	_current_state = next
 	_current_state.state_change_requested.connect(change_state)
-	_current_state.enter(payload)
+	_current_state.enter(_context)
 
 
 func tick(delta: float) -> void:

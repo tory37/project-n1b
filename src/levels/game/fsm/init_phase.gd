@@ -1,32 +1,33 @@
+@tool
 class_name InitPhase
 extends GamePhase
 
-@export var on_complete_phase: GamePhase
+@export var on_complete_phase: FiniteState
 
 
-func enter(_payload: Variant) -> void:
-	if not multiplayer.is_server():
+func _on_enter() -> void:
+	if not _game_manager.multiplayer.is_server():
 		return
 
 	_initialize_game_state()
 	_initialize_players()
-	_game_manager.transition_to_phase.call_deferred(on_complete_phase)
+	state_change_requested.emit(on_complete_phase)
 
 
 func _initialize_game_state() -> void:
-	if not multiplayer.is_server():
+	if not _game_manager.multiplayer.is_server():
 		return
 
-	for peer_id: int in multiplayer.get_peers():
+	for peer_id: int in _game_manager.multiplayer.get_peers():
 		_game_manager.turn_order.push_value(peer_id)
 
 
 func _initialize_players() -> void:
-	if not multiplayer.is_server():
+	if not _game_manager.multiplayer.is_server():
 		return
 
 	var seat = 1
-	for peer_id: int in multiplayer.get_peers():
+	for peer_id: int in _game_manager.multiplayer.get_peers():
 		var player: NetworkedPlayer
 
 		if seat == 1:

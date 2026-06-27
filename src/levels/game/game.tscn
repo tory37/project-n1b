@@ -19,42 +19,39 @@
 [ext_resource type="Script" uid="uid://ctvhlrslvekht" path="res://src/levels/game/fsm/main_phase.gd" id="13_main"]
 [ext_resource type="Script" uid="uid://dsynl8p4u7uyv" path="res://src/levels/game/fsm/resolving_card_phase.gd" id="14_resolving"]
 
-[sub_resource type="Resource" id="Resource_qw3rh"]
-script = ExtResource("2_g37de")
-
-[node name="Game" type="Node3D" unique_id=494198879 node_paths=PackedStringArray("entry_phase")]
-script = ExtResource("1_b6y0w")
-fsm = SubResource("Resource_qw3rh")
-entry_phase = NodePath("Phases/AwaitingPlayers")
-test_deck = ExtResource("2_n5fbu")
-
-[node name="Phases" type="Node" parent="." unique_id=325646165]
-
-[node name="AwaitingPlayers" type="Node" parent="Phases" unique_id=1182396566 node_paths=PackedStringArray("on_all_players_ready_phase")]
-script = ExtResource("3_l56g8")
-on_all_players_ready_phase = NodePath("../InitPhase")
-metadata/_custom_type_script = "uid://chquart1fbywq"
-
-[node name="InitPhase" type="Node" parent="Phases" unique_id=687727926 node_paths=PackedStringArray("on_complete_phase")]
-script = ExtResource("4_g37de")
-on_complete_phase = NodePath("../Start")
-metadata/_custom_type_script = "uid://dfq2wpfyelhtu"
-
-[node name="Start" type="Node" parent="Phases" unique_id=740684457 node_paths=PackedStringArray("on_completion_phase")]
-script = ExtResource("11_start")
-on_completion_phase = NodePath("../Draw")
-
-[node name="Draw" type="Node" parent="Phases" unique_id=938414194 node_paths=PackedStringArray("on_completion_phase")]
-script = ExtResource("12_draw")
-on_completion_phase = NodePath("../Main")
-
-[node name="Main" type="Node" parent="Phases" unique_id=1437838053 node_paths=PackedStringArray("on_card_played_phase")]
-script = ExtResource("13_main")
-on_card_played_phase = NodePath("../ResolvingCard")
-
-[node name="ResolvingCard" type="Node" parent="Phases" unique_id=1662585583 node_paths=PackedStringArray("on_complete_phase")]
+[sub_resource type="Resource" id="Resource_g37de"]
 script = ExtResource("14_resolving")
-on_complete_phase = NodePath("../Main")
+
+[sub_resource type="Resource" id="Resource_qw3rh"]
+script = ExtResource("13_main")
+on_card_played_phase = SubResource("Resource_g37de")
+
+[sub_resource type="Resource" id="Resource_bg3e8"]
+script = ExtResource("12_draw")
+on_completion_phase = SubResource("Resource_qw3rh")
+
+[sub_resource type="Resource" id="Resource_r85y6"]
+script = ExtResource("11_start")
+on_completion_phase = SubResource("Resource_bg3e8")
+
+[sub_resource type="Resource" id="Resource_rqot7"]
+script = ExtResource("4_g37de")
+on_complete_phase = SubResource("Resource_r85y6")
+
+[sub_resource type="Resource" id="Resource_n0fvd"]
+script = ExtResource("3_l56g8")
+on_all_players_ready_phase = SubResource("Resource_rqot7")
+
+[sub_resource type="Resource" id="Resource_m16fi"]
+script = ExtResource("2_g37de")
+entry_state = SubResource("Resource_n0fvd")
+metadata/_custom_type_script = "uid://c7q6c0fd8tn5m"
+
+[node name="Game" type="Node3D" unique_id=494198879]
+script = ExtResource("1_b6y0w")
+fsm = SubResource("Resource_m16fi")
+
+test_deck = ExtResource("2_n5fbu")
 
 [node name="MessageManager" type="Node" parent="." unique_id=943498981]
 script = ExtResource("3_vddbj")

@@ -1,28 +1,51 @@
 @tool
 class_name FiniteState
 extends Resource
-## @tool so the graph editor can call the introspection methods below on concrete
-## state instances in-editor; without it they load as placeholders and any method
-## call fails ("Attempt to call a method on a placeholder instance").
 
-signal state_change_requested(next: FiniteState, payload: Variant)
+signal state_change_requested(next: FiniteState)
 
 ## Base class every state in a card graph descends from. An exported property
 ## typed to this (or a subclass) is treated as a graph EDGE (a successor pin);
 ## any other exported property is treated as inline DATA on the node.
 const STATE_BASE_CLASS := "FiniteState"
 
+var _context: StateContext = null
 
-func enter(_payload: Variant) -> void:
+
+func change_state(next: FiniteState) -> void:
+	state_change_requested.emit(next)
+
+
+## Called by the machine when this state becomes active. Wires up the run
+## _context, then invokes the subclass hook. SEALED — subclasses override
+## _on_enter(), never this, so there is no super.enter() to forget.
+func enter(run_context: StateContext) -> void:
+	_context = run_context
+	_on_enter()
+
+
+## Override to run logic when the state begins. `_context` is already populated;
+## read the agent and blackboard off it. Takes no args — nothing to forward.
+func _on_enter() -> void:
 	pass
 
 
-func tick(_delta: float) -> void:
+func tick(delta: float) -> void:
+	_on_tick(delta)
+
+
+func _on_tick(_delta: float) -> void:
 	pass
 
 
 func exit() -> void:
+	_on_exit()
+
+
+func _on_exit() -> void:
 	pass
+
+## ----------- Editor ---------------
 
 
 ## Property descriptors for every exported successor (an edge in the card graph).
@@ -86,7 +109,7 @@ static func _class_derives_from_state(class_to_check: String) -> bool:
 
 
 static func _build_base_lookup() -> Dictionary:
-	var base_by_class: Dictionary = {}
+	var base_by_class: Dictionary = { }
 	for entry in ProjectSettings.get_global_class_list():
 		base_by_class[entry["class"]] = entry["base"]
 	return base_by_class
@@ -98,7 +121,7 @@ static func _build_base_lookup() -> Dictionary:
 ##
 ## Use this, NOT duplicate(true): duplicate(true) copies a shared/looping
 ## successor multiple times and can recurse forever on a cycle.
-func clone_graph(clones: Dictionary = {}) -> FiniteState:
+func clone_graph(clones: Dictionary = { }) -> FiniteState:
 	if clones.has(self):
 		return clones[self]
 

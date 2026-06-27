@@ -1,11 +1,7 @@
+@tool
 class_name GamePhase
-extends FiniteStateNode
+extends FiniteState
 
-var _game_manager: GameManager = null
-
-func _ready() -> void:
-	_game_manager = get_parent().get_parent() as GameManager
-
-	if not _game_manager:
-		push_error("GamePhase must be a child of GameManager")
-		return
+var _game_manager: GameManager:
+	get:
+		return _context.agent as GameManager

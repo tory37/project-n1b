@@ -7,6 +7,7 @@ extends Node
 ## Locally, request_* calls _apply_* directly — zero behavior change, zero networking needed now.
 
 ## ---- Signals -------------------------------------------------------
+signal card_play_validated(card: GameCard)
 
 ## ---- Enums ---------------------------------------------------------
 
@@ -18,8 +19,6 @@ extends Node
 
 @export var fsm: FiniteStateMachine
 
-@export var entry_phase: GamePhase
-
 # TODO: Make these a resource
 @export var starting_action_points: int = 0
 @export var starting_spirit_points: int = 0
@@ -29,11 +28,9 @@ extends Node
 @export var test_deck: DeckData
 
 ## ---- Public Variables ----------------------------------------------
-var ready_peers: Array[int] = []
+var _run_fsm: FiniteStateMachine = null
 
 ## ---- Private Variables ---------------------------------------------
-
-var _game_fsm: FiniteStateMachineNode = null
 
 ## ---- @onready Variables --------------------------------------------
 
@@ -55,26 +52,22 @@ var _game_fsm: FiniteStateMachineNode = null
 
 
 func _ready() -> void:
-	if multiplayer.is_server():
-		_game_fsm = FiniteStateMachineNode.new()
+	if not multiplayer.is_server():
+		return
 
-		SignalBus.notification_fired.connect(_on_notification_fired)
+	SignalBus.notification_fired.connect(_on_notification_fired)
 
-		transition_to_phase(entry_phase)
+	# transition_to_phase(entry_phase)
+	_run_fsm = fsm.instantiate()
+	var context := StateContext.new()
+	context.agent = self
+	_run_fsm.start(context)
 
 ## ---- Public Methods ------------------------------------------------
 
 
 func get_player(peer_id: int) -> NetworkedPlayer:
 	return player_registry.get_player(peer_id)
-
-
-func transition_to_phase(phase: GamePhase, payload: Variant = { }) -> void:
-	if not multiplayer.is_server():
-		push_error("Only the server can transition phases")
-		return
-
-	_game_fsm.change_state(phase, payload)
 
 
 func draw_cards(player_id: int, count: int) -> void:
@@ -117,12 +110,85 @@ func validate_card_play(card: CardData) -> bool:
 
 
 func _on_notification_fired(message: String) -> void:
-	_emit_game_notification.rpc(message)
+	emit_game_notification.rpc(message)
 
 
 @rpc("any_peer", "call_remote", "reliable")
-func _emit_game_notification(message: String) -> void:
+func emit_game_notification(message: String) -> void:
 	if multiplayer.is_server():
 		return
 
 	SignalBus.notification_fired.emit(message)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func try_play_card(uuid: String) -> void:
+	Loggit.p("Trying to play card with UUID before check: %s" % uuid, "PlayDebug")
+
+	if not multiplayer.is_server():
+		return
+
+	var caller_id: int = multiplayer.get_remote_sender_id()
+	var game_card = get_player(caller_id).hand.get_card_by_uuid(uuid)
+
+	if not game_card:
+		push_error("Card with UUID %s not found in player's hand" % uuid)
+		return
+
+	var card_data: CardData = CardRegistry.get_card(game_card.data.unique_id)
+
+	if not card_data:
+		push_error("Card data not found for id: " + game_card.unique_id)
+		return
+
+	if validate_card_play(card_data):
+		# card_played_succeeded.rpc(multiplayer.get_remote_sender_id(), card_uuid)
+		card_play_validated.emit(game_card)
+	else:
+		card_play_failed.rpc_id(
+			multiplayer.get_remote_sender_id(),
+			game_card.uuid,
+			"Not enough action points",
+		)
+
+	# If we reach here, the card play is valid. Proceed with applying the card's effects.
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func listen_for_card_play_enabled() -> void:
+	Loggit.p("Entered MainPhase", "DrawDebug")
+	if multiplayer.is_server():
+		return
+
+	SignalBus.play_card_requested.connect(_on_play_card_requested)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func listen_for_card_play_disabled() -> void:
+	if multiplayer.is_server():
+		return
+
+	SignalBus.play_card_requested.disconnect(_on_play_card_requested)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func card_played_succeeded(peer_id: int, card_uuid: String) -> void:
+	SignalBus.card_played.emit(peer_id, card_uuid)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func card_play_failed(card_uuid: String, reason: String) -> void:
+	SignalBus.card_play_failed.emit(card_uuid, reason)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func player_card_play_enabled(enabled: bool) -> void:
+	if enabled:
+		SignalBus.play_card_enabled.emit()
+	else:
+		SignalBus.play_card_disabled.emit()
+
+
+func _on_play_card_requested(uuid: String) -> void:
+	Loggit.p("Play card requested for card UUID: %s" % uuid, "PlayDebug")
+	try_play_card.rpc_id(1, uuid)

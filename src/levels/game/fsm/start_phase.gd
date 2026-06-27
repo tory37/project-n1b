@@ -1,18 +1,20 @@
+@tool
 class_name StartPhase
 extends GamePhase
 
-@export var on_completion_phase: GamePhase
+@export var on_completion_phase: FiniteState
 
-func enter(_payload: Variant) -> void:
+func _on_enter() -> void:
 	Loggit.p("In StartPhase._on_server_enter", "DrawDebug")
-	if not multiplayer.is_server():
+	if not _game_manager.multiplayer.is_server():
 		return
 
 	_increment_round_number()
 	_reset_action_points()
 	_setup_players()
 	_set_first_player_as_active()
-	_transition_to_next_phase()
+	
+	state_change_requested.emit(on_completion_phase)
 
 
 func _increment_round_number() -> void:
@@ -40,7 +42,3 @@ func _setup_players() -> void:
 
 func _set_first_player_as_active() -> void:
 	_game_manager.active_player.set_value(_game_manager.turn_order.get_player_at_number(1))
-
-
-func _transition_to_next_phase() -> void:
-	_game_manager.transition_to_phase(on_completion_phase)

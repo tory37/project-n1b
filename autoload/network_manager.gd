@@ -4,12 +4,14 @@ signal player_connected(peer_id: int)
 signal player_disconnected(peer_id: int)
 signal connection_established
 signal connection_failed
+signal all_peers_readied
 
 const DEFAULT_PORT: int  = 7777
 const MAX_PLAYERS: int = 3
 
 var peer: ENetMultiplayerPeer = null
 var connected_players: Dictionary = {} # peer_id: PlayerInfo
+var ready_peers: Array[int] = []
 
 ## True when this instance holds server authority over game state. Local-only
 ## (no multiplayer peer) counts as server, matching Godot's own is_server() and
@@ -68,6 +70,22 @@ func disconnect_game() -> void:
 	connected_players.clear()
 	print("Disconnected from game")
 
+
+@rpc("authority", "call_remote", "reliable")
+func request_ready_check() -> void:
+	notify_ready.rpc_id(1)
+
+@rpc("any_peer", "call_remote", "reliable")
+func notify_ready() -> void:
+	if not multiplayer.is_server():
+		return
+
+	var sender_id = multiplayer.get_remote_sender_id()
+	if not ready_peers.has(sender_id):
+		ready_peers.append(sender_id)
+		
+	if ready_peers.size() == multiplayer.get_peers().size():
+		all_peers_readied.emit()
 
 func _on_peer_connected(id: int) -> void:
 	print("Peer connected: %d" % id)
