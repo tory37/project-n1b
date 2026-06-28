@@ -52,6 +52,7 @@ func _ready() -> void:
 	_graph.connection_request.connect(_on_connection_request)
 	_graph.disconnection_request.connect(_on_disconnection_request)
 	_graph.delete_nodes_request.connect(_on_delete_nodes_request)
+	_graph.connection_lines_curvature = 0
 	_add_root_button.pressed.connect(_on_add_root_pressed)
 	_print_button.pressed.connect(_on_print_pressed)
 	_save_button.pressed.connect(_on_save_pressed)
@@ -359,10 +360,15 @@ func _save_if_possible(silent: bool) -> bool:
 			print("[FSM] nothing to save (no entry state)")
 		return false
 	var target := _save_target()
+	for state: FiniteState in _node_by_state:
+		var pos: Vector2 = _node_by_state[state].position_offset
+		print("[FSM-DEBUG] set_meta graph_position=%s on %s" % [pos, state])
+		state.set_meta("graph_position", pos)
 	if target == null:
 		if not silent:
 			push_warning("[FSM] graph is embedded in a scene — save the scene (Ctrl+S) to persist it.")
 		return false
+	print("[FSM-DEBUG] saving %d node(s)" % _node_by_state.size())
 	var error := ResourceSaver.save(target, target.resource_path)
 	if error != OK:
 		if not silent:
@@ -422,10 +428,14 @@ func _on_auto_save_toggled(is_on: bool) -> void:
 func _rebuild_node(state: FiniteState, depth: int, column_next_y: Dictionary) -> void:
 	if _node_by_state.has(state):
 		return
+	
 	var x := 40.0 + depth * NODE_SPACING.x
 	var y: float = column_next_y.get(depth, 40.0)
 	column_next_y[depth] = y + NODE_SPACING.y
-	_build_node_for(state, Vector2(x, y))
+	var fallback = Vector2(x, y)
+	var stored_pos: Vector2 = state.get_meta("graph_position", fallback)
+	print("[FSM-DEBUG] load pos for %s: stored=%s fallback=%s" % [state, stored_pos, fallback])
+	_build_node_for(state, stored_pos)
 
 	for property in state.get_successor_properties():
 		var next_state: FiniteState = state.get(property["name"])
