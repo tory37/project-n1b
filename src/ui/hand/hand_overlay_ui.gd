@@ -16,8 +16,8 @@ func _ready() -> void:
 	if multiplayer.is_server():
 		return
 
-	SignalBus.play_card_enabled.connect(_on_play_card_enabled)
-	SignalBus.play_card_disabled.connect(_on_play_card_disabled)
+	ClientSignalBus.card_play_enabled.connect(_on_play_card_enabled)
+	ClientSignalBus.card_play_disabled.connect(_on_play_card_disabled)
 
 	_play_card_button.pressed.connect(_on_play_card_button_pressed)
 	_play_card_button.hide()
@@ -35,8 +35,10 @@ func _exit_tree() -> void:
 	if multiplayer.is_server():
 		return
 
-	SignalBus.play_card_enabled.disconnect(_on_play_card_enabled)
-	SignalBus.play_card_disabled.disconnect(_on_play_card_disabled)
+	if ClientSignalBus.card_play_enabled.is_connected(_on_play_card_enabled):
+		ClientSignalBus.card_play_enabled.disconnect(_on_play_card_enabled)
+	if ClientSignalBus.card_play_disabled.is_connected(_on_play_card_disabled):
+		ClientSignalBus.card_play_disabled.disconnect(_on_play_card_disabled)
 
 	if _player_registry:
 		_player_registry.player_added.disconnect(_on_player_added)
@@ -107,7 +109,7 @@ func _on_card_ui_clicked(card_ui: GameCardUI) -> void:
 func _on_play_card_button_pressed() -> void:
 	Loggit.p("Play card button pressed for card: " + _selected_card.card.data.title, "PlayDebug")
 	if _selected_card and _selected_card.card:
-		SignalBus.play_card_requested.emit(_selected_card.card.uuid)
+		ClientSignalBus.card_play_requested.emit(_selected_card.card.uuid)
 
 
 func _on_play_card_enabled() -> void:

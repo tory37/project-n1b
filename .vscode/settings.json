@@ -1,4 +1,12 @@
 {
+    "editor.insertSpaces": false,
+    "editor.detectIndentation": false,
+    "editor.tabSize": 4,
+    "[gdscript]": {
+        "editor.insertSpaces": false,
+        "editor.detectIndentation": false,
+        "editor.tabSize": 4
+    },
     "terminal.integrated.defaultProfile.linux": "zsh",
     "workbench.colorCustomizations": {
         "activityBar.activeBackground": "#52307c",

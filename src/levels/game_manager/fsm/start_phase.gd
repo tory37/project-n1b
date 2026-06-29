@@ -37,7 +37,7 @@ func _setup_players() -> void:
 		# TODO: Get from a config
 		var starting_hand_size: int = 5
 		Loggit.p("Dealing starting hand of %d cards to player %d" % [starting_hand_size, player_id], "DrawDebug")
-		_game_manager.draw_cards(player_id, starting_hand_size)
+		ServerSignalBus.card_draw_requested.emit(player_id, starting_hand_size)
 
 
 func _set_first_player_as_active() -> void:

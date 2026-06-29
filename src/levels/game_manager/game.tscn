@@ -14,6 +14,8 @@
 [ext_resource type="PackedScene" uid="uid://dudx5da1opo8o" path="res://src/deck/deck_view.tscn" id="5_76xvg"]
 [ext_resource type="PackedScene" uid="uid://chmm0j1cbcqa2" path="res://src/ui/game_overlay/game_overlay_ui.tscn" id="8_85bdw"]
 [ext_resource type="PackedScene" uid="uid://5e82kas2q54g" path="res://src/ui/hand/hand_overlay_ui.tscn" id="10_nvxtd"]
+[ext_resource type="Script" uid="uid://rqyer2ca8hsx" path="res://src/levels/game_manager/sub_managers/card_manager.gd" id="10_uprge"]
+[ext_resource type="Script" uid="uid://cfds7e2xueaos" path="res://src/levels/game_manager/sub_managers/notification_manager.gd" id="11_1noy2"]
 [ext_resource type="Script" uid="uid://csttcn8h0vbpt" path="res://src/levels/game_manager/fsm/start_phase.gd" id="11_start"]
 [ext_resource type="Script" uid="uid://s4krx3wohlge" path="res://src/levels/game_manager/fsm/draw_phase.gd" id="12_draw"]
 [ext_resource type="Script" uid="uid://ctvhlrslvekht" path="res://src/levels/game_manager/fsm/main_phase.gd" id="13_main"]
@@ -57,6 +59,16 @@ metadata/_custom_type_script = "uid://c7q6c0fd8tn5m"
 script = ExtResource("1_b6y0w")
 fsm = SubResource("Resource_m16fi")
 test_deck = ExtResource("2_n5fbu")
+
+[node name="SubManagers" type="Node" parent="." unique_id=493265908]
+
+[node name="CardManager" type="Node" parent="SubManagers" unique_id=946921314]
+script = ExtResource("10_uprge")
+metadata/_custom_type_script = "uid://rqyer2ca8hsx"
+
+[node name="NotificationManager" type="Node" parent="SubManagers" unique_id=1852070460]
+script = ExtResource("11_1noy2")
+metadata/_custom_type_script = "uid://cfds7e2xueaos"
 
 [node name="MessageManager" type="Node" parent="." unique_id=943498981]
 script = ExtResource("3_vddbj")

@@ -15,7 +15,7 @@ func _on_enter() -> void:
 	var deck: GameCardCollectionComponent = player.deck
 
 	if (deck.value.size() > 0):
-		_game_manager.draw_cards(active_player_id, 1)
+		ServerSignalBus.card_draw_requested.emit(active_player_id, 1)
 	else:
 		# TODO: Send the game over signal / active player lost
 		push_error("Player %d cannot draw a card. Skipping draw phase." % active_player_id)

@@ -19,6 +19,8 @@ config/icon="res://icon.svg"
 
 Loggit="*uid://c5gwi1urox4s1"
 SignalBus="*res://autoload/signal_bus.gd"
+ServerSignalBus="*uid://cyaoyac6ut3sq"
+ClientSignalBus="*uid://djid2sumoyrsb"
 LocalSession="*uid://dfsu0gf33r722"
 NetworkManager="*uid://d1cag63fe204w"
 CardRegistry="*uid://bfforxw60l5tl"

@@ -39,8 +39,8 @@ func _ready() -> void:
 	SignalBus.turn_order_synced.connect(_on_turn_order_synced)
 	SignalBus.active_player_synced.connect(_on_active_player_synced)
 	SignalBus.action_points_synced.connect(_on_action_points_synced)
-	SignalBus.card_started_resolving.connect(_on_card_started_resolving)
-	SignalBus.card_finished_resolving.connect(_on_card_finished_resolving)
+	ClientSignalBus.card_resolution_started.connect(_on_card_resolution_started)
+	ClientSignalBus.card_resolution_completed.connect(_on_card_resolution_completed)
 
 
 func _exit_tree() -> void:
@@ -205,12 +205,12 @@ func _on_action_points_synced(ap: int) -> void:
 
 # Card Resolution
 
-func _on_card_started_resolving(card_data: CardData) -> void:
+func _on_card_resolution_started(card_data: CardData) -> void:
 	var card_ui_instance = card_ui_scene.instantiate() as GameCardUI
 	_resolving_card_container.add_child(card_ui_instance)
 	card_ui_instance.card = card_data
 	card_ui_instance.setup()
 	card_ui_instance.hide_selected()
 
-func _on_card_finished_resolving() -> void:
+func _on_card_resolution_completed() -> void:
 	_resolving_card_container.clear()	

@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SignalBus Separation &amp; NotificationManager — review</title>
+  <link rel="stylesheet" href="../assets/style.css">
+</head>
+<body data-type="review">
+  <div class="container">
+    <header class="doc-header">
+      <div class="doc-meta">
+        <span class="badge badge-review">REVIEW</span>
+        <span class="doc-date">2026-06-29</span>
+      </div>
+      <h1>SignalBus Separation &amp; NotificationManager Echo Loop</h1>
+    </header>
+    <main>
+
+      <h2>Summary</h2>
+      <p>
+        This change splits the monolithic <code>SignalBus</code> into client- and server-scoped buses
+        (<code>ClientSignalBus</code>, <code>ServerSignalBus</code>) and pulls game-manager responsibilities
+        out into <code>SubGameManager</code> subclasses (<code>CardManager</code>, <code>NotificationManager</code>).
+        The FSM phases and UI now talk to the correctly-scoped bus instead of going through fat methods on
+        <code>GameManager</code>. The direction is solid: intent is clearer, the server/client boundary is
+        explicit, and <code>game_manager.gd</code> shrank from a god object to a thin coordinator.
+      </p>
+      <p>
+        There is <strong>one confirmed bug</strong> and it is exactly the symptom you described: the
+        <code>NotificationManager</code> creates a self-perpetuating RPC echo loop because its signal handler is
+        connected on <em>every</em> peer, not just the server.
+      </p>
+      <div class="meta-block">
+        <div class="meta-item"><strong>Files changed</strong><span>11</span></div>
+        <div class="meta-item"><strong>Verdict</strong><span class="badge badge-critical">1 critical bug</span></div>
+        <div class="meta-item"><strong>Direction</strong><span class="badge badge-suggestion">Approved</span></div>
+      </div>
+
+      <h2>Critical Findings</h2>
+
+      <div class="finding-card critical">
+        <div class="finding-header">
+          <span class="badge badge-critical">CRITICAL</span>
+          <span class="finding-title">NotificationManager re-broadcasts its own RPC → infinite echo loop</span>
+        </div>
+        <div class="finding-body">
+          <p><strong>Root cause — confirmed by code inspection with a complete causal chain.</strong></p>
+          <p>
+            Unlike <code>CardManager</code> (which guards <code>_ready</code>/<code>_exit_tree</code> with
+            <code>if not multiplayer.is_server(): return</code>), <code>NotificationManager._ready()</code> connects
+            <code>_on_notification_fired</code> <em>unconditionally</em> — so the handler is live on the server
+            <strong>and on every client</strong>. The handler's only job is to re-broadcast via
+            <code>emit_game_notification.rpc(message)</code>, and the RPC body emits the very same
+            <code>SignalBus.notification_fired</code> signal that the handler listens to. That closes a loop:
+          </p>
+          <ol>
+            <li>Something emits <code>notification_fired("X")</code> (e.g. a server FSM action, or
+                <code>message_manager</code> on a client).</li>
+            <li>The local <code>NotificationManager._on_notification_fired</code> fires → <code>emit_game_notification.rpc("X")</code> broadcasts to all other peers.</li>
+            <li>On a receiving <strong>client</strong>, <code>emit_game_notification</code> sees <code>is_server() == false</code> and calls <code>SignalBus.notification_fired.emit("X")</code>.</li>
+            <li>That local emit re-triggers <em>that client's own</em> <code>NotificationManager._on_notification_fired</code> → it RPCs again → other clients emit again → … <strong>ping-pong forever</strong> with 2+ clients.</li>
+          </ol>
+          <p>
+            Each re-emit also re-fires <code>notification_ui._on_notification_fired</code>, which calls
+            <code>show()</code> + restarts the 3s <code>Timer</code> on every bounce. Rapid restarts of the
+            show/fade is precisely the "blurs as if multiple notifications are fighting" symptom — the panel is
+            being re-shown dozens of times per frame. (The server peer breaks its own leg of the loop via the
+            <code>is_server() → return</code> guard, but client→client legs have no such guard, so the loop never
+            terminates.)
+          </p>
+          <p>
+            <strong>Secondary issue on the same handler:</strong> <code>message_manager.gd</code> emits
+            <code>notification_fired("Your Turn." / "Opponent's Turn.")</code> <em>locally on each client</em>
+            (it keys off <code>multiplayer.get_unique_id()</code>). Because the client's NotificationManager is
+            connected, that purely-local message also gets RPC-broadcast to everyone — redundant, since every
+            client already computes its own turn message independently.
+          </p>
+          <p>
+            <strong>Fix (mirror the CardManager pattern — make NotificationManager a server-only broadcaster):</strong>
+          </p>
+          <pre><code>func _ready() -> void:
+	if not multiplayer.is_server():
+		return
+	SignalBus.notification_fired.connect(_on_notification_fired)
+
+func _exit_tree() -> void:
+	if not multiplayer.is_server():
+		return
+	SignalBus.notification_fired.disconnect(_on_notification_fired)</code></pre>
+          <p>
+            After this: server-originated notifications broadcast once → each client's
+            <code>emit_game_notification</code> emits locally → only <code>notification_ui</code> is listening on the
+            client → shown once, no re-broadcast, no loop. Client-local messages (<code>message_manager</code>)
+            stay local and stop double-broadcasting. The <code>_exit_tree</code> guard is required too — without it,
+            clients would call <code>disconnect</code> on a signal they never connected, which errors in Godot.
+          </p>
+          <p>
+            <strong>What would disprove this:</strong> if <code>NotificationManager._ready()</code> were actually
+            only ever instantiated on the server, the loop couldn't form — but the node lives under
+            <code>$SubManagers</code> in <code>game.tscn</code>, which is part of the scene on every peer, and only
+            <code>setup()</code> (not <code>_ready</code>'s connect) is gated to the server in
+            <code>game_manager.gd</code>. So the connect runs everywhere. To fully confirm at runtime: log peer id
+            inside <code>_on_notification_fired</code> and play a card with 2 clients — you'll see the same message
+            bounce between client ids.
+          </p>
+        </div>
+        <div class="finding-file">src/levels/game_manager/sub_managers/notification_manager.gd</div>
+        <div class="finding-file">src/ui/notification/notification_ui.gd</div>
+        <div class="finding-file">src/levels/game_manager/messages/message_manager.gd</div>
+      </div>
+
+      <h2>Suggested Improvements</h2>
+
+      <div class="finding-card warning">
+        <div class="finding-header">
+          <span class="badge badge-warning">SUGGESTION</span>
+          <span class="finding-title">Dead signals + missing trailing newline in signal_bus.gd</span>
+        </div>
+        <div class="finding-body">
+          <p>
+            The old card signals (<code>play_card_enabled</code>, <code>card_started_resolving</code>,
+            <code>play_card_requested</code>, <code>card_played</code>, etc.) were correctly removed from
+            <code>SignalBus</code> — good, their replacements now live on the scoped buses. Two nits: the file no
+            longer ends with a trailing newline (<code>\ No newline at end of file</code>), and your
+            <code>.editorconfig</code> was just added — worth confirming it enforces <code>insert_final_newline</code>
+            so this doesn't recur across the GDScript files.
+          </p>
+        </div>
+        <div class="finding-file">autoload/signal_bus.gd</div>
+      </div>
+
+      <div class="finding-card warning">
+        <div class="finding-header">
+          <span class="badge badge-warning">SUGGESTION</span>
+          <span class="finding-title">CardManager._exit_tree disconnects a signal it may never have connected</span>
+        </div>
+        <div class="finding-body">
+          <p>
+            <code>_on_card_play_disabled</code> is connected lazily inside <code>_on_card_play_enabled</code>
+            (line 27) and disconnected inside the handler (line 32). But <code>_exit_tree</code> (line 18)
+            unconditionally disconnects <code>card_play_disabled</code> too. If a player never had card-play enabled
+            this round (or it already fired and self-disconnected), the <code>_exit_tree</code> disconnect targets a
+            connection that isn't there → Godot error on teardown. Consider <code>is_connected()</code> guards, or
+            only disconnect what <code>_ready</code> connected. Same hazard class as the NotificationManager fix.
+          </p>
+        </div>
+        <div class="finding-file">src/levels/game_manager/sub_managers/card_manager.gd</div>
+      </div>
+
+      <div class="finding-card warning">
+        <div class="finding-header">
+          <span class="badge badge-warning">SUGGESTION</span>
+          <span class="finding-title">Validate-card-play AP check looks off</span>
+        </div>
+        <div class="finding-body">
+          <p>
+            <code>validate_card_play</code> returns true when
+            <code>action_points.value + 10 &gt;= card.ap_cost</code> (line 109). The <code>+ 10</code> grants a free
+            10-AP cushion on every play, so a card always validates unless it costs more than current AP + 10. If
+            that's placeholder/test slack, fine — but it'll let players play cards they can't afford. Flagging in
+            case it's a leftover. (Pre-existing in this diff's region, not introduced by the refactor.)
+          </p>
+        </div>
+        <div class="finding-file">src/levels/game_manager/sub_managers/card_manager.gd</div>
+      </div>
+
+      <h2>Positive Notes</h2>
+
+      <div class="finding-card positive">
+        <div class="finding-header">
+          <span class="badge badge-suggestion">GOOD</span>
+          <span class="finding-title">The bus separation is the right call and consistently applied</span>
+        </div>
+        <div class="finding-body">
+          <p>
+            <code>ServerSignalBus</code> carries peer-targeted authority signals (<code>card_play_enabled(peer_id)</code>,
+            <code>card_draw_requested(player_id, count)</code>, <code>card_play_validated(card)</code>);
+            <code>ClientSignalBus</code> carries presentation/request signals. The FSM phases now
+            <em>emit intent</em> (<code>ServerSignalBus.card_draw_requested.emit(...)</code>) instead of reaching
+            into <code>GameManager.draw_cards()</code> — that decouples the state machine from the manager's
+            implementation and is exactly the separation you're going for. UI files consistently moved to
+            <code>ClientSignalBus</code>. Clean, legible diff.
+          </p>
+        </div>
+        <div class="finding-file">src/levels/game_manager/fsm/main_phase.gd</div>
+        <div class="finding-file">src/levels/game_manager/fsm/draw_phase.gd</div>
+      </div>
+
+      <div class="finding-card positive">
+        <div class="finding-header">
+          <span class="badge badge-suggestion">GOOD</span>
+          <span class="finding-title">SubGameManager base + server-guarded lifecycle is a clean pattern</span>
+        </div>
+        <div class="finding-body">
+          <p>
+            <code>SubGameManager.setup()</code> with the null-check, and <code>CardManager</code> gating all server
+            wiring behind <code>is_server()</code>, gives a tidy template for future managers. The
+            NotificationManager bug is simply that it didn't follow this template — once it does, the family is
+            consistent.
+          </p>
+        </div>
+        <div class="finding-file">src/levels/game_manager/sub_managers/sub_game_manager.gd</div>
+      </div>
+
+      <h2>Test Coverage</h2>
+      <p>
+        No automated tests accompany the change (consistent with the project's current setup). The echo loop is the
+        kind of defect a 2-client integration smoke test would catch immediately. At minimum, manually verify with
+        <strong>two connected clients</strong> after the fix.
+      </p>
+      <div class="checklist">
+        <ul>
+          <li>Play a card with 2 clients → notification appears <strong>once</strong> per client, no flicker/blur.</li>
+          <li>Turn change → "Your Turn." / "Opponent's Turn." shows once on the correct client, not broadcast.</li>
+          <li>Leave/teardown a game mid-round → no Godot disconnect errors in the console (covers the CardManager <code>_exit_tree</code> note).</li>
+          <li><em>Missing:</em> any automated regression guard for signal-loop / RPC-echo behavior.</li>
+        </ul>
+      </div>
+
+      <h2>Files Reviewed</h2>
+      <div class="files-list">
+        <span class="file-chip">notification_manager.gd</span>
+        <span class="file-chip">sub_game_manager.gd</span>
+        <span class="file-chip">card_manager.gd</span>
+        <span class="file-chip">game_manager.gd</span>
+        <span class="file-chip">notification_ui.gd</span>
+        <span class="file-chip">message_manager.gd</span>
+        <span class="file-chip">notify_with_delay.gd</span>
+        <span class="file-chip">client_signal_bus.gd</span>
+        <span class="file-chip">server_signal_bus.gd</span>
+        <span class="file-chip">signal_bus.gd</span>
+        <span class="file-chip">main_phase.gd</span>
+        <span class="file-chip">draw_phase.gd</span>
+        <span class="file-chip">start_phase.gd</span>
+        <span class="file-chip">game_overlay_ui.gd</span>
+        <span class="file-chip">hand_overlay_ui.gd</span>
+      </div>
+
+    </main>
+  </div>
+</body>
+</html>
