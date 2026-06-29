@@ -1,11 +1,11 @@
 [gd_resource type="Resource" script_class="FiniteStateMachine" format=3 uid="uid://m7va5br3rjx3"]
 
-[ext_resource type="Script" uid="uid://dsynl8p4u7uyv" path="res://src/levels/game/fsm/resolving_card_phase.gd" id="1_43bb4"]
-[ext_resource type="Script" uid="uid://ctvhlrslvekht" path="res://src/levels/game/fsm/main_phase.gd" id="2_ri71g"]
-[ext_resource type="Script" uid="uid://s4krx3wohlge" path="res://src/levels/game/fsm/draw_phase.gd" id="3_wohjy"]
-[ext_resource type="Script" uid="uid://csttcn8h0vbpt" path="res://src/levels/game/fsm/start_phase.gd" id="4_q7fqg"]
-[ext_resource type="Script" uid="uid://dfq2wpfyelhtu" path="res://src/levels/game/fsm/init_phase.gd" id="5_85jxv"]
-[ext_resource type="Script" uid="uid://chquart1fbywq" path="res://src/levels/game/fsm/awaiting_players_phase.gd" id="6_w5oje"]
+[ext_resource type="Script" uid="uid://dsynl8p4u7uyv" path="res://src/levels/game_manager/fsm/resolving_card_phase.gd" id="1_43bb4"]
+[ext_resource type="Script" uid="uid://ctvhlrslvekht" path="res://src/levels/game_manager/fsm/main_phase.gd" id="2_ri71g"]
+[ext_resource type="Script" uid="uid://s4krx3wohlge" path="res://src/levels/game_manager/fsm/draw_phase.gd" id="3_wohjy"]
+[ext_resource type="Script" uid="uid://csttcn8h0vbpt" path="res://src/levels/game_manager/fsm/start_phase.gd" id="4_q7fqg"]
+[ext_resource type="Script" uid="uid://dfq2wpfyelhtu" path="res://src/levels/game_manager/fsm/init_phase.gd" id="5_85jxv"]
+[ext_resource type="Script" uid="uid://chquart1fbywq" path="res://src/levels/game_manager/fsm/awaiting_players_phase.gd" id="6_w5oje"]
 [ext_resource type="Script" uid="uid://c7q6c0fd8tn5m" path="res://src/common/finite_state_machine/finite_state_machine.gd" id="7_2n7vk"]
 
 [sub_resource type="Resource" id="Resource_g37de"]

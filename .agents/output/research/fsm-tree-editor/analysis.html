@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FSM Tree Editor — research</title>
+  <link rel="stylesheet" href="../../assets/style.css">
+</head>
+<body data-type="research">
+  <div class="container">
+    <header class="doc-header">
+      <div class="doc-meta">
+        <span class="badge badge-research">RESEARCH</span>
+        <span class="doc-date">2026-06-29</span>
+      </div>
+      <h1>Replacing the GraphEdit FSM editor with a tree visualization</h1>
+    </header>
+    <main>
+
+      <section class="section accent">
+        <h2>The question</h2>
+        <p>The current FSM authoring view (<span class="file-chip">src/editor/fsm/fsm_editor.gd</span>)
+        is built on Godot's <code>GraphEdit</code> / <code>GraphNode</code>. Because GraphEdit is a
+        free-floating node canvas, it can't lay the machine out as a tree — even though, in practice,
+        these machines <strong>will be trees that occasionally loop back on themselves</strong>.
+        The ask: what would it take to build a custom editor that visualizes the FSM structure as a tree?</p>
+      </section>
+
+      <section class="section success">
+        <h2>The good news: the data model is already editor-agnostic</h2>
+        <p>Nothing about the FSM is tied to GraphEdit. The renderer is fully decoupled from the model,
+        so a tree view is a <strong>parallel renderer</strong>, not a rewrite.</p>
+        <ul class="checklist">
+          <li><strong>Runtime</strong> (<span class="file-chip">finite_state_machine.gd</span>) only reads
+          <code>entry_state</code> and follows each state's <code>state_change_requested</code> signal. It never
+          sees the editor.</li>
+          <li><strong>The graph shape comes entirely from introspection.</strong> <code>FiniteState</code> exposes
+          <code>get_successor_properties()</code> (typed <code>FiniteState</code> exports = edges) and
+          <code>get_data_properties()</code> (everything else = inline fields). Any view can walk that.</li>
+          <li><strong>The plugin shell is reusable as-is.</strong> The inspector button
+          (<span class="file-chip">fsm_inspector_plugin.gd</span>) emits <code>edit_graph_requested(fsm, host)</code>;
+          the plugin (<span class="file-chip">fsm_editor_plugin.gd</span>) calls <code>open_fsm(fsm, host)</code> on
+          whatever Control it hosts. Swap the Control, keep the wiring.</li>
+          <li><strong>The only model touchpoint to drop:</strong> the graph view writes a <code>graph_position</code>
+          meta onto each state for free-canvas layout. A tree view auto-lays-out, so it just ignores (or stops
+          writing) that meta.</li>
+        </ul>
+        <p>So roughly <strong>everything except the rendering/interaction layer is salvageable</strong>: host
+        resolution, save / dirty / auto-save, the state-script picker, deletion semantics, the inspector entry point.</p>
+      </section>
+
+      <section class="section danger">
+        <h2>The one real tension: it's a graph, not a tree</h2>
+        <p>The existing code goes out of its way to handle two things that a literal tree <em>cannot</em> represent natively:</p>
+        <ul class="checklist">
+          <li><strong>Diamonds</strong> — two branches converge on the same state. The graph view de-dups by instance
+          identity (<code>_node_by_state</code>) so one node draws with multiple inbound edges.</li>
+          <li><strong>Cycles</strong> — a successor points back "up" the graph (the loop-back you described).
+          <code>clone_graph()</code> and <code>_print_state()</code> both guard against recursing forever.</li>
+        </ul>
+        <p>A tree shows each node <em>once per parent path</em>. So a shared or looping target has only two honest
+        renderings, and <strong>which one you pick drives the entire effort estimate</strong>:</p>
+        <table>
+          <thead><tr><th>Rendering</th><th>What the user sees</th><th>Cost</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Reference marker</strong></td>
+              <td>Canonical node shown once (at its shallowest occurrence). Every other inbound edge becomes a
+              clickable leaf: <code>↺ → Combat</code>. Click to jump to the real node.</td>
+              <td>Cheap, robust, scales to deep graphs, collapsible.</td>
+            </tr>
+            <tr>
+              <td><strong>Drawn back-edge</strong></td>
+              <td>Node laid out top-down by depth; forward edges form the tree skeleton; loop/cross edges drawn as
+              curved arrows looping back. You literally see where it loops.</td>
+              <td>Expensive — you own layout, edge routing, hit-testing.</td>
+            </tr>
+          </tbody>
+        </table>
+        <p><strong>This is the pivotal decision.</strong> "Show me a clean collapsible hierarchy" and "show me the loop
+        physically curving back" are two different products with a roughly 5× effort gap.</p>
+      </section>
+
+      <section class="section">
+        <h2>Three approaches</h2>
+
+        <div class="phase-card">
+          <div class="phase-header">
+            <span class="phase-number">A</span>
+            <span class="phase-title">Godot <code>Tree</code> control (collapsible reference tree)</span>
+          </div>
+          <p>Render into a built-in <code>Tree</code>. Each state is a <code>TreeItem</code>; each successor export is a
+          child item labeled by its branch name (<code>on_empty →</code>); revisited/looping targets become reference
+          leaves. The <code>Tree</code> gives you collapsing, scrolling, and auto-layout for free.</p>
+          <ul class="phase-steps">
+            <li>Walk <code>entry_state</code> → successors exactly like <code>_rebuild_node</code> does today, emitting
+            <code>TreeItem</code>s instead of <code>GraphNode</code>s; keep a <code>TreeItem ↔ state</code> map.</li>
+            <li>Inline data: either Tree cell editors (check / range / text modes) or — cleaner — a <strong>detail panel
+            beside the tree</strong> showing the selected state's data exports as real Controls (reuse
+            <code>_build_value_editor</code> almost verbatim).</li>
+            <li>Per-item buttons via <code>TreeItem.add_button</code>: "+ add successor", "delete".</li>
+            <li>Rewire to an existing state: a picker listing existing states (replaces GraphEdit's drag-to-connect).</li>
+          </ul>
+          <div class="test-criteria">
+            <strong>Effort: low–moderate.</strong> A few hundred lines, mostly mechanical. Loops/diamonds shown as
+            reference leaves. The biggest judgment call is "Tree cell editors vs. side detail panel" (detail panel is
+            nicer). <strong>Best effort-to-value if reference markers are acceptable.</strong>
+          </div>
+        </div>
+
+        <div class="phase-card">
+          <div class="phase-header">
+            <span class="phase-number">B</span>
+            <span class="phase-title">Custom-drawn tree (<code>Control._draw</code>) with auto-layout + back-edges</span>
+          </div>
+          <p>A bespoke canvas: run a layered tree-layout pass (assign depth, pack siblings — Reingold–Tilford /
+          Sugiyama style), then draw node boxes, forward edges as the skeleton, and loop/cross edges as curved arrows.
+          Add pan / zoom / hit-testing / selection popups.</p>
+          <ul class="phase-steps">
+            <li>Layout engine: depth assignment + sibling packing + back-edge detection (entry-rooted DFS).</li>
+            <li>Render pass: boxes, labels, forward + back edge routing, arrowheads.</li>
+            <li>Interaction: pick/select via hit-testing, popups or a detail panel for editing, buttons for add/delete.</li>
+            <li>Reuse the same data walk, picker, save/dirty as A.</li>
+          </ul>
+          <div class="test-criteria">
+            <strong>Effort: high.</strong> This is building a mini graph-layout engine. <strong>The only approach that
+            delivers the "tree that visibly loops back" visualization</strong> in your description.
+          </div>
+        </div>
+
+        <div class="phase-card">
+          <div class="phase-header">
+            <span class="phase-number">C</span>
+            <span class="phase-title">Keep GraphEdit, add an auto tree-layout command</span>
+          </div>
+          <p>Leave GraphEdit; add a "Tidy / Auto-layout" button that runs a proper layered top-down layout and writes
+          <code>position_offset</code>, instead of today's naive per-depth column packing in <code>_rebuild_node</code>.</p>
+          <div class="test-criteria">
+            <strong>Effort: lowest.</strong> But it does <strong>not</strong> change the interaction model you're
+            unhappy with — it's still a free canvas you drag around; it just arranges itself tree-like on demand. Loops
+            still draw as GraphEdit's curved edges. Listed for completeness; probably not what you want.
+          </div>
+        </div>
+      </section>
+
+      <section class="section accent">
+        <h2>Where it opens ("some window")</h2>
+        <ul class="checklist">
+          <li><strong>Bottom panel</strong> (today) — zero change to the shell.</li>
+          <li><strong>Main-screen plugin</strong> — implement <code>_has_main_screen()</code>; it gets a top tab like
+          2D / 3D / Script. Most room, feels like a first-class editor.</li>
+          <li><strong>Floating <code>Window</code></strong> popped from the inspector button — closest to literally
+          "opens in a window." Easy: wrap the view Control in a <code>Window</code> and <code>popup()</code>.</li>
+        </ul>
+        <p>This is independent of A/B/C — any renderer drops into any of these shells.</p>
+      </section>
+
+      <section class="section success">
+        <h2>Recommendation</h2>
+        <p><strong>Approach A (Godot <code>Tree</code> control), in a floating Window or main-screen tab</strong> —
+        <em>if</em> showing loops/diamonds as clickable reference markers is acceptable. It reuses nearly all existing
+        logic, auto-lays-out, collapses deep branches, and is the natural fit for "these are trees." Reach for
+        <strong>Approach B</strong> only if the loop edges drawing back is the actual point of the visualization.</p>
+        <p><strong>The decision I need from you</strong> to size this concretely: when a branch loops back or two
+        branches converge, do you need to <em>see the edge drawn</em> (→ B), or is a clickable
+        <code>↺ → Combat</code> reference marker enough (→ A)?</p>
+      </section>
+
+      <section class="section">
+        <h2>Confidence</h2>
+        <p><strong>Confirmed</strong> (code inspection): the model/renderer decoupling, the diamond/cycle handling, and
+        the reusability of the plugin shell are all read directly from the source above. <strong>Effort tiers are
+        estimates</strong>, not measured — the A↔B gap hinges entirely on the reference-vs-drawn-edge decision, which
+        is yours to make.</p>
+      </section>
+
+    </main>
+  </div>
+</body>
+</html>

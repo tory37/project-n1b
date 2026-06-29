@@ -1,41 +1,47 @@
 [gd_scene format=3 uid="uid://cr15acwoax7lm"]
 
-[ext_resource type="Script" uid="uid://dlu6kkywvipxy" path="res://src/levels/game/game_manager.gd" id="1_b6y0w"]
+[ext_resource type="Script" uid="uid://dlu6kkywvipxy" path="res://src/levels/game_manager/game_manager.gd" id="1_b6y0w"]
 [ext_resource type="Script" uid="uid://c7q6c0fd8tn5m" path="res://src/common/finite_state_machine/finite_state_machine.gd" id="2_g37de"]
 [ext_resource type="Resource" uid="uid://0o8qgwtpnu2f" path="res://resources/decks/test_deck.tres" id="2_n5fbu"]
 [ext_resource type="PackedScene" uid="uid://ce4f3ejx5se4j" path="res://src/player/networked_player.tscn" id="2_nblc3"]
 [ext_resource type="PackedScene" uid="uid://b4ghprdba615b" path="res://src/player/player_registry.tscn" id="3_85bdw"]
 [ext_resource type="PackedScene" uid="uid://dnm1lkkfq5gx" path="res://src/world/hex_board/hex_board.tscn" id="3_ewew8"]
-[ext_resource type="Script" uid="uid://chquart1fbywq" path="res://src/levels/game/fsm/awaiting_players_phase.gd" id="3_l56g8"]
-[ext_resource type="PackedScene" uid="uid://cu83dpxikl80g" path="res://src/levels/game/game_state.tscn" id="3_nblc3"]
-[ext_resource type="Script" uid="uid://bntl18jwnihbp" path="res://src/levels/game/messages/message_manager.gd" id="3_vddbj"]
-[ext_resource type="Script" uid="uid://dfq2wpfyelhtu" path="res://src/levels/game/fsm/init_phase.gd" id="4_g37de"]
+[ext_resource type="Script" uid="uid://chquart1fbywq" path="res://src/levels/game_manager/fsm/awaiting_players_phase.gd" id="3_l56g8"]
+[ext_resource type="PackedScene" uid="uid://cu83dpxikl80g" path="res://src/levels/game_manager/game_state.tscn" id="3_nblc3"]
+[ext_resource type="Script" uid="uid://bntl18jwnihbp" path="res://src/levels/game_manager/messages/message_manager.gd" id="3_vddbj"]
+[ext_resource type="Script" uid="uid://dfq2wpfyelhtu" path="res://src/levels/game_manager/fsm/init_phase.gd" id="4_g37de"]
 [ext_resource type="PackedScene" uid="uid://b8xmcjwsj2" path="res://src/world/table/table.tscn" id="4_ghaey"]
 [ext_resource type="PackedScene" uid="uid://dudx5da1opo8o" path="res://src/deck/deck_view.tscn" id="5_76xvg"]
 [ext_resource type="PackedScene" uid="uid://chmm0j1cbcqa2" path="res://src/ui/game_overlay/game_overlay_ui.tscn" id="8_85bdw"]
 [ext_resource type="PackedScene" uid="uid://5e82kas2q54g" path="res://src/ui/hand/hand_overlay_ui.tscn" id="10_nvxtd"]
-[ext_resource type="Script" uid="uid://csttcn8h0vbpt" path="res://src/levels/game/fsm/start_phase.gd" id="11_start"]
-[ext_resource type="Script" uid="uid://s4krx3wohlge" path="res://src/levels/game/fsm/draw_phase.gd" id="12_draw"]
-[ext_resource type="Script" uid="uid://ctvhlrslvekht" path="res://src/levels/game/fsm/main_phase.gd" id="13_main"]
+[ext_resource type="Script" uid="uid://csttcn8h0vbpt" path="res://src/levels/game_manager/fsm/start_phase.gd" id="11_start"]
+[ext_resource type="Script" uid="uid://s4krx3wohlge" path="res://src/levels/game_manager/fsm/draw_phase.gd" id="12_draw"]
+[ext_resource type="Script" uid="uid://ctvhlrslvekht" path="res://src/levels/game_manager/fsm/main_phase.gd" id="13_main"]
+[ext_resource type="Script" uid="uid://dsynl8p4u7uyv" path="res://src/levels/game_manager/fsm/resolving_card_phase.gd" id="14_resolving"]
+
+[sub_resource type="Resource" id="Resource_g37de"]
+script = ExtResource("14_resolving")
+metadata/graph_position = Vector2(880, 380)
 
 [sub_resource type="Resource" id="Resource_qw3rh"]
 script = ExtResource("13_main")
-metadata/graph_position = Vector2(880, 60)
+on_card_played_phase = SubResource("Resource_g37de")
+metadata/graph_position = Vector2(660, 320)
 
 [sub_resource type="Resource" id="Resource_bg3e8"]
 script = ExtResource("12_draw")
 on_completion_phase = SubResource("Resource_qw3rh")
-metadata/graph_position = Vector2(620, 60)
+metadata/graph_position = Vector2(460, 280)
 
 [sub_resource type="Resource" id="Resource_r85y6"]
 script = ExtResource("11_start")
 on_completion_phase = SubResource("Resource_bg3e8")
-metadata/graph_position = Vector2(360, 40)
+metadata/graph_position = Vector2(260, 220)
 
 [sub_resource type="Resource" id="Resource_rqot7"]
 script = ExtResource("4_g37de")
 on_complete_phase = SubResource("Resource_r85y6")
-metadata/graph_position = Vector2(120, 60)
+metadata/graph_position = Vector2(60, 140)
 
 [sub_resource type="Resource" id="Resource_n0fvd"]
 script = ExtResource("3_l56g8")
