@@ -17,36 +17,30 @@
 [ext_resource type="Script" uid="uid://csttcn8h0vbpt" path="res://src/levels/game/fsm/start_phase.gd" id="11_start"]
 [ext_resource type="Script" uid="uid://s4krx3wohlge" path="res://src/levels/game/fsm/draw_phase.gd" id="12_draw"]
 [ext_resource type="Script" uid="uid://ctvhlrslvekht" path="res://src/levels/game/fsm/main_phase.gd" id="13_main"]
-[ext_resource type="Script" uid="uid://dsynl8p4u7uyv" path="res://src/levels/game/fsm/resolving_card_phase.gd" id="14_resolving"]
-
-[sub_resource type="Resource" id="Resource_g37de"]
-script = ExtResource("14_resolving")
-metadata/graph_position = Vector2(1740, 40)
 
 [sub_resource type="Resource" id="Resource_qw3rh"]
 script = ExtResource("13_main")
-on_card_played_phase = SubResource("Resource_g37de")
-metadata/graph_position = Vector2(1400, 40)
+metadata/graph_position = Vector2(780, 200)
 
 [sub_resource type="Resource" id="Resource_bg3e8"]
 script = ExtResource("12_draw")
 on_completion_phase = SubResource("Resource_qw3rh")
-metadata/graph_position = Vector2(1060, 40)
+metadata/graph_position = Vector2(740, 40)
 
 [sub_resource type="Resource" id="Resource_r85y6"]
 script = ExtResource("11_start")
 on_completion_phase = SubResource("Resource_bg3e8")
-metadata/graph_position = Vector2(720, 40)
+metadata/graph_position = Vector2(360, 40)
 
 [sub_resource type="Resource" id="Resource_rqot7"]
 script = ExtResource("4_g37de")
 on_complete_phase = SubResource("Resource_r85y6")
-metadata/graph_position = Vector2(280, 180)
+metadata/graph_position = Vector2(120, 60)
 
 [sub_resource type="Resource" id="Resource_n0fvd"]
 script = ExtResource("3_l56g8")
 on_all_players_ready_phase = SubResource("Resource_rqot7")
-metadata/graph_position = Vector2(40, 40)
+metadata/graph_position = Vector2(-180, 80)
 
 [sub_resource type="Resource" id="Resource_m16fi"]
 script = ExtResource("2_g37de")
